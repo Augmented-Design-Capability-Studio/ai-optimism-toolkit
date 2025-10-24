@@ -4,10 +4,10 @@ from typing import Optional, Tuple, Dict, Any, Set, Union, Callable
 
 from sortedcontainers import SortedDict, SortedKeyList
 
-from heuristics.Objective_Function import Objective_Function
-from heuristics.heuristic_functions import Modifier, Objective
-from optimizer.Design_Iteration import Design_Iteration, Iteration_Keys, Objective_Iteration_Keys
-from optimizer.population_history_graph import Modification_History
+from ..heuristics.Objective_Function import Objective_Function
+from ..heuristics.heuristic_functions import Modifier, Objective
+from .Design_Iteration import Design_Iteration, Iteration_Keys, Objective_Iteration_Keys
+from .population_history_graph import Modification_History
 
 
 class Design_Population:

@@ -4,8 +4,8 @@ from typing import Dict, Iterable, List, Tuple
 
 import networkx as nx
 
-from heuristics.heuristic_functions import Modifier, Objective
-from optimizer.Design_Iteration import Design_Iteration
+from ..heuristics.heuristic_functions import Modifier, Objective
+from .Design_Iteration import Design_Iteration
 
 
 class Design_Change:

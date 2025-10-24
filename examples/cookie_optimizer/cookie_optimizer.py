@@ -2,16 +2,20 @@
 from enum import Enum
 from typing import Dict, Union, Callable
 
-from heuristics.Heuristic_Map import Heuristic_Map
-from heuristics.Objective_Function import Objective_Function
-from heuristics.heuristic_functions import Heuristic_Type, Objective, Modifier
-from heuristics.heuristic_registration import make_heuristic_library
-from heuristics.objectives.objective_decorators import inverse_objective, target_value_objective
-from optimizer.Optimizer import Optimizer
-from selector_functions.design_selectors.design_selectors import Highest_Scoring_Design
-from selector_functions.modifier_selectors.modifier_sorting_functions import sorted_modifier_by_most_important_objective
-from selector_functions.selector_functions import Modifier_Selector
-from stopping_criteria.stopping_criteria import stop_if_any_criteria_met, stop_at_threshold_score, stop_at_N_iterations
+from optimism_toolkit.heuristics.Heuristic_Map import Heuristic_Map
+from optimism_toolkit.heuristics.Objective_Function import Objective_Function
+from optimism_toolkit.heuristics.heuristic_functions import Heuristic_Type, Objective, Modifier
+from optimism_toolkit.heuristics.heuristic_registration import make_heuristic_library
+from optimism_toolkit.heuristics.objectives.objective_decorators import inverse_objective, target_value_objective
+from optimism_toolkit.optimizer.Optimizer import Optimizer
+from optimism_toolkit.selector_functions.design_selectors.design_selectors import Highest_Scoring_Design
+from optimism_toolkit.selector_functions.modifier_selectors.modifier_sorting_functions import sorted_modifier_by_most_important_objective
+from optimism_toolkit.selector_functions.selector_functions import Modifier_Selector
+from optimism_toolkit.stopping_criteria.stopping_criteria import (
+    stop_if_any_criteria_met,
+    stop_at_threshold_score,
+    stop_at_N_iterations,
+)
 
 cookie_heuristic, cookie_heuristic_library = make_heuristic_library("Cookie Texture")
 

@@ -5,8 +5,8 @@ from typing import Any, Dict, List, Tuple
 
 from sortedcontainers import SortedKeyList
 
-from heuristics.Objective_Function import Objective_Function
-from heuristics.heuristic_functions import Objective
+from ..heuristics.Objective_Function import Objective_Function
+from ..heuristics.heuristic_functions import Objective
 
 
 class Design_Iteration:

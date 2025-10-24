@@ -1,9 +1,9 @@
 """Library of Design Sorting functions"""
 from typing import Iterable
 
-from heuristics.heuristic_functions import Objective
-from optimizer.Design_Iteration import Design_Iteration, Iteration_Keys, Objective_Iteration_Keys
-from optimizer.Design_Population import Design_Population
+from ...heuristics.heuristic_functions import Objective
+from ...optimizer.Design_Iteration import Design_Iteration, Iteration_Keys, Objective_Iteration_Keys
+from ...optimizer.Design_Population import Design_Population
 
 
 def sorted_by_score(design_population: Design_Population) -> Iterable[Design_Iteration]:

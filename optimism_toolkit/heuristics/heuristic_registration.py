@@ -2,8 +2,8 @@
 
 from typing import Callable, Optional, Tuple
 
-from heuristics.Heuristic_Library import Heuristic_Library
-from heuristics.heuristic_functions import Heuristic_Type
+from .Heuristic_Library import Heuristic_Library
+from .heuristic_functions import Heuristic_Type
 
 
 def make_heuristic_library(library_name: str) -> Tuple[Callable, Heuristic_Library]:

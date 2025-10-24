@@ -4,7 +4,7 @@ from typing import Dict, Iterable, Tuple, Optional, Callable, Union, Set
 
 from sortedcontainers import SortedKeyList
 
-from heuristics.heuristic_functions import Modifier, Objective
+from .heuristic_functions import Modifier, Objective
 
 
 class Modifier_Keys(Enum):

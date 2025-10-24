@@ -1,9 +1,9 @@
 """library of modifier sorting functions for modifier selection"""
 from typing import Iterable
 
-from heuristics.Heuristic_Map import Heuristic_Map, Modifier_Keys, Objective_Modifier_Keys
-from heuristics.heuristic_functions import Modifier, Objective
-from optimizer.Design_Iteration import Design_Iteration
+from ...heuristics.Heuristic_Map import Heuristic_Map, Modifier_Keys, Objective_Modifier_Keys
+from ...heuristics.heuristic_functions import Modifier, Objective
+from ...optimizer.Design_Iteration import Design_Iteration
 
 
 def sorted_by_modifier_applications(heuristic_map: Heuristic_Map, **_) -> Iterable[Modifier]:

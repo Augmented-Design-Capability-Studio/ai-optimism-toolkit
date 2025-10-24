@@ -1,8 +1,8 @@
 """Library of Design Selectors"""
 from typing import Callable
 
-from selector_functions.design_selectors.design_sorting_functions import sorted_by_score
-from selector_functions.selector_functions import Design_Selector
+from .design_sorting_functions import sorted_by_score
+from ..selector_functions import Design_Selector
 
 
 class Highest_Scoring_Design(Design_Selector):

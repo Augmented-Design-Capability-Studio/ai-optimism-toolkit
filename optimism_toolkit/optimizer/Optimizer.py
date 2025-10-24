@@ -1,12 +1,12 @@
 """The core optimization structure"""
 from typing import Callable, Iterable
 
-from heuristics.Heuristic_Map import Heuristic_Map
-from heuristics.Objective_Function import Objective_Function
-from heuristics.heuristic_functions import Modifier
-from optimizer.Design_Iteration import Design_Iteration
-from optimizer.Design_Population import Design_Population
-from selector_functions.selector_functions import Design_Selector, Modifier_Selector
+from ..heuristics.Heuristic_Map import Heuristic_Map
+from ..heuristics.Objective_Function import Objective_Function
+from ..heuristics.heuristic_functions import Modifier
+from .Design_Iteration import Design_Iteration
+from .Design_Population import Design_Population
+from ..selector_functions.selector_functions import Design_Selector, Modifier_Selector
 
 
 class Optimizer:

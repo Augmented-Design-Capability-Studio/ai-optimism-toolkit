@@ -4,9 +4,9 @@ import inspect
 from copy import deepcopy
 from typing import Dict, Callable, Optional, Union
 
-from heuristics.Heuristic_Map import Heuristic_Map
-from heuristics.Objective_Function import Objective_Function
-from heuristics.heuristic_functions import Objective, Modifier, Heuristic_Type
+from .Heuristic_Map import Heuristic_Map
+from .Objective_Function import Objective_Function
+from .heuristic_functions import Objective, Modifier, Heuristic_Type
 
 
 class Heuristic_Library:

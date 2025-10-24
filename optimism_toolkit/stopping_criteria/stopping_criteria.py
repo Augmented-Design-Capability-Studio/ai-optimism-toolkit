@@ -1,8 +1,8 @@
 """Library of Stopping Criteria for optimizer"""
 from typing import Callable, Iterable
 
-from optimizer.Design_Iteration import Design_Iteration
-from optimizer.Design_Population import Design_Population
+from ..optimizer.Design_Iteration import Design_Iteration
+from ..optimizer.Design_Population import Design_Population
 
 
 def stop_at_N_iterations(design_population: Design_Population, n=1000, **_) -> bool:

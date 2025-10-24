@@ -3,10 +3,10 @@ import random
 from enum import Enum
 from typing import Callable, Optional, Any, Reversible
 
-from heuristics.Heuristic_Map import Heuristic_Map
-from heuristics.heuristic_functions import Modifier
-from optimizer.Design_Iteration import Design_Iteration
-from optimizer.Design_Population import Design_Population
+from ..heuristics.Heuristic_Map import Heuristic_Map
+from ..heuristics.heuristic_functions import Modifier
+from ..optimizer.Design_Iteration import Design_Iteration
+from ..optimizer.Design_Population import Design_Population
 
 
 class Selector_Type(Enum):

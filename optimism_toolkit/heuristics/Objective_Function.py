@@ -2,7 +2,7 @@
 
 from typing import Any, Tuple, Dict, Optional
 
-from heuristics.heuristic_functions import Objective
+from .heuristic_functions import Objective
 
 
 # noinspection PyTypeChecker

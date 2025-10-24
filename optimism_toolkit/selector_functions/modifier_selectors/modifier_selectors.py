@@ -1,8 +1,11 @@
 from typing import Callable
 
-from selector_functions.modifier_selectors.modifier_sorting_functions import sorted_modifier_by_changes_on_lowest_scoring_objective, sorted_modifier_by_value_to_lowest_scoring_objective, \
-    sorted_modifier_by_changes_on_most_important_objective
-from selector_functions.selector_functions import Modifier_Selector
+from .modifier_sorting_functions import (
+    sorted_modifier_by_changes_on_lowest_scoring_objective,
+    sorted_modifier_by_value_to_lowest_scoring_objective,
+    sorted_modifier_by_changes_on_most_important_objective,
+)
+from ..selector_functions import Modifier_Selector
 
 
 class Historically_Best_For_Lowest_Objective_Modifier(Modifier_Selector):
