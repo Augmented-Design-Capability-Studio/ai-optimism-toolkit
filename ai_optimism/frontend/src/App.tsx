@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProblemForm } from './components/ProblemForm';
 import { OptimizationForm } from './components/OptimizationForm';
 import { ResultsDisplay } from './components/ResultsDisplay';
+import { AIConnectionStatus } from './components/AIConnectionStatus';
+import { AIProviderProvider } from './contexts/AIProviderContext';
 import api from './services/api';
 import type { OptimizationProblem, OptimizationConfig, OptimizationResult } from './services/api';
 
@@ -34,15 +36,17 @@ function App() {
 
     return (
         <QueryClientProvider client={queryClient}>
-            <Box sx={{ height: '100vh' }}>
-                <AppBar position="fixed">
-                    <Toolbar>
-                        <Typography variant="h4" component="h1" sx={{ flexGrow: 1, textAlign: 'center', fontWeight: 'bold' }}>
-                            AI OPTIMISM TOOLKIT
-                        </Typography>
-                    </Toolbar>
-                </AppBar>
-                <Toolbar /> {/* This toolbar is a spacer */}
+            <AIProviderProvider>
+                <Box sx={{ height: '100vh' }}>
+                    <AppBar position="fixed">
+                        <Toolbar>
+                            <Typography variant="h4" component="h1" sx={{ flexGrow: 1, textAlign: 'center', fontWeight: 'bold' }}>
+                                AI OPTIMISM TOOLKIT
+                            </Typography>
+                            <AIConnectionStatus />
+                        </Toolbar>
+                    </AppBar>
+                    <Toolbar /> {/* This toolbar is a spacer */}
                 <Box className="app-content">
                     <Container maxWidth={false} sx={{ maxWidth: '1800px', height: '100%', p: 0 }}>
                         <Box className="workflow-container">
@@ -92,6 +96,7 @@ function App() {
                     </Snackbar>
                 </Box>
             </Box>
+            </AIProviderProvider>
         </QueryClientProvider>
     );
 }

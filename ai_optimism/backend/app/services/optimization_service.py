@@ -35,3 +35,10 @@ class OptimizationService:
                 "constraints": problem.constraints
             }
         }
+
+    def clear_problems(self) -> Dict:
+        self.problems.clear()
+        return {
+            "status": "success", 
+            "message": "All problems cleared"
+        }

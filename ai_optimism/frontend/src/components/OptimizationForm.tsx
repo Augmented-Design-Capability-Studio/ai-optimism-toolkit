@@ -33,7 +33,7 @@ export const OptimizationForm: React.FC<OptimizationFormProps> = ({ problemId, o
             <CardContent className="form-content">
                 <Box component="form" onSubmit={handleSubmit} className="form-field">
                     <Typography variant="h5" align="center" gutterBottom>
-                        Optimization Configuration
+                        Configure Stopping Criteria
                     </Typography>
 
                     <Box className="form-field">

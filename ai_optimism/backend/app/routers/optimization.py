@@ -23,3 +23,7 @@ async def execute_optimization(config: OptimizationConfig):
         return optimization_service.run_optimization(config)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+@router.delete("/problems/clear/")
+async def clear_optimization_problems():
+    return optimization_service.clear_problems()
