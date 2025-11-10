@@ -11,6 +11,7 @@ export interface Variable {
   unit?: string;
   // Categorical properties
   categories?: string[];
+  modifier_strategy?: 'cycle' | 'random';  // Only for categorical variables
 }
 
 export interface OptimizationProblem {
@@ -19,7 +20,6 @@ export interface OptimizationProblem {
   variables: Variable[];
   objective_function: string;
   constraints?: string[];
-  categorical_modifier_strategy?: 'cycle' | 'random';
 }export interface OptimizationConfig {
     problem_id: string;
     population_size: number;

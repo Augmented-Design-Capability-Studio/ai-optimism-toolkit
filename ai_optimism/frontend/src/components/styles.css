@@ -20,15 +20,21 @@
     opacity: 0.3;
     transform: scale(0.95);
     transition: all 0.4s ease-out;
+    pointer-events: none;
+    user-select: none;
 }
 
 .workflow-step.active {
     opacity: 1;
     transform: scale(1);
+    pointer-events: auto;
+    user-select: auto;
 }
 
 .workflow-step.completed {
     opacity: 0.7;
+    pointer-events: auto;
+    user-select: auto;
 }
 
 .form-container {

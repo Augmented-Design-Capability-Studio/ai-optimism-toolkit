@@ -10,6 +10,7 @@ class Variable(BaseModel):
     unit: Optional[str] = None
     # Categorical properties
     categories: Optional[List[str]] = None
+    modifier_strategy: Optional[Literal["cycle", "random"]] = "cycle"  # Only for categorical variables
     
     @validator('categories')
     def validate_categories(cls, v, values):
@@ -30,7 +31,6 @@ class OptimizationProblem(BaseModel):
     variables: List[Variable]  # List of Variable objects with type support
     objective_function: str  # Description or code for the objective function
     constraints: Optional[List[str]] = None  # Optional list of constraint descriptions
-    categorical_modifier_strategy: Optional[Literal["cycle", "random"]] = "random"  # How to modify categorical variables
 
 class OptimizationConfig(BaseModel):
     problem_id: str

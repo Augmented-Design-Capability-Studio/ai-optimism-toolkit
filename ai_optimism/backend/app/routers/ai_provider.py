@@ -1,5 +1,16 @@
 from fastapi import APIRouter, HTTPException
-from ..models.ai_provider import AIValidationRequest, AIValidationResponse
+from ..models.ai_provider import (
+    AIValidationRequest, 
+    AIValidationResponse,
+    GenerateVariablesRequest,
+    GenerateVariablesResponse,
+    GeneratePropertiesRequest,
+    GeneratePropertiesResponse,
+    GenerateObjectiveRequest,
+    GenerateObjectiveResponse,
+    GenerateConstraintsRequest,
+    GenerateConstraintsResponse
+)
 from ..services.ai_provider_service import AIProviderService
 
 router = APIRouter(prefix="/ai", tags=["ai-provider"])
@@ -62,3 +73,91 @@ async def list_providers():
             }
         }
     }
+
+@router.post("/generate-variables/", response_model=GenerateVariablesResponse)
+async def generate_variables(request: GenerateVariablesRequest):
+    """
+    Generate variable suggestions using AI based on problem name and description.
+    
+    The AI analyzes the problem and suggests appropriate variables (numerical or categorical)
+    with reasonable defaults for min/max, units, or category options.
+    """
+    try:
+        result = ai_service.generate_variables(
+            problem_name=request.problem_name,
+            description=request.description,
+            provider=request.provider,
+            api_key=request.api_key,
+            model=request.model,
+            endpoint=request.endpoint
+        )
+        
+        return GenerateVariablesResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/generate-properties/", response_model=GeneratePropertiesResponse)
+async def generate_properties(request: GeneratePropertiesRequest):
+    """
+    Generate computed properties based on variables.
+    
+    Properties are derived attributes calculated from variables.
+    """
+    try:
+        result = ai_service.generate_properties(
+            problem_name=request.problem_name,
+            description=request.description,
+            variables=[v.dict() for v in request.variables],
+            provider=request.provider,
+            api_key=request.api_key,
+            model=request.model,
+            endpoint=request.endpoint
+        )
+        return GeneratePropertiesResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/generate-objective/", response_model=GenerateObjectiveResponse)
+async def generate_objective(request: GenerateObjectiveRequest):
+    """
+    Generate objective function code from natural language description.
+    
+    The AI converts the objective description into Python code.
+    """
+    try:
+        result = ai_service.generate_objective(
+            problem_name=request.problem_name,
+            description=request.description,
+            objective_description=request.objective_description,
+            variables=[v.dict() for v in request.variables],
+            properties=[p.dict() for p in request.properties] if request.properties else [],
+            provider=request.provider,
+            api_key=request.api_key,
+            model=request.model,
+            endpoint=request.endpoint
+        )
+        return GenerateObjectiveResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/generate-constraints/", response_model=GenerateConstraintsResponse)
+async def generate_constraints(request: GenerateConstraintsRequest):
+    """
+    Generate constraint expressions based on variables and properties.
+    
+    The AI suggests reasonable constraint rules for the optimization problem.
+    """
+    try:
+        result = ai_service.generate_constraints(
+            problem_name=request.problem_name,
+            description=request.description,
+            variables=[v.dict() for v in request.variables],
+            properties=[p.dict() for p in request.properties] if request.properties else [],
+            provider=request.provider,
+            api_key=request.api_key,
+            model=request.model,
+            endpoint=request.endpoint
+        )
+        return GenerateConstraintsResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

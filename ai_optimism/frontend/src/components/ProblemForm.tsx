@@ -1,31 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Button,
     Card,
     CardContent,
-    IconButton,
     TextField,
     Typography,
-    List,
-    ListItem,
-    Select,
-    MenuItem,
-    FormControl,
-    InputLabel,
-    Chip,
-    FormHelperText,
-    RadioGroup,
-    FormControlLabel,
-    Radio,
-    FormLabel,
+    Alert,
 } from '@mui/material';
 import './styles.css';
-import { Add as AddIcon, Remove as RemoveIcon } from '@mui/icons-material';
+import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
+import { useAIProvider } from '../contexts/AIProviderContext';
 import type { OptimizationProblem, Variable } from '../services/api';
+import aiApi from '../services/ai';
+import { VariablesSection } from './forms/VariablesSection';
+import { PropertiesSection } from './forms/PropertiesSection';
+import { ObjectiveSection } from './forms/ObjectiveSection';
+import { ConstraintsSection } from './forms/ConstraintsSection';
 
 interface ProblemFormProps {
     onSubmit: (problem: OptimizationProblem) => void;
+    currentStep?: number;
+    onNext?: (data: any) => void;
+    onBack?: (() => void) | null;
+    initialData?: any;
 }
 
 const defaultNumericalVariable: Variable = {
@@ -40,17 +38,74 @@ const defaultCategoricalVariable: Variable = {
     name: '',
     type: 'categorical',
     categories: [],
+    modifier_strategy: 'cycle',
 };
 
-export const ProblemForm: React.FC<ProblemFormProps> = ({ onSubmit }) => {
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [variables, setVariables] = useState<Variable[]>([{ ...defaultNumericalVariable }]);
-    const [objectiveFunction, setObjectiveFunction] = useState('');
-    const [constraints, setConstraints] = useState<string[]>(['']);
-    const [categoricalModifierStrategy, setCategoricalModifierStrategy] = useState<'cycle' | 'random'>('random');
+export const ProblemForm: React.FC<ProblemFormProps> = ({ 
+    onSubmit, 
+    currentStep = 1,
+    onNext,
+    onBack,
+    initialData = {}
+}) => {
+    const { state: aiState, isConnected } = useAIProvider();
+    const [name, setName] = useState(initialData.name || '');
+    const [description, setDescription] = useState(initialData.description || '');
+    const [variables, setVariables] = useState<Variable[]>(initialData.variables || [{ ...defaultNumericalVariable }]);
+    const [properties, setProperties] = useState<Array<{name: string, expression: string, description: string}>>(initialData.properties || []);
+    const [objectiveDescription, setObjectiveDescription] = useState(initialData.objectiveDescription || '');
+    const [objectiveCode, setObjectiveCode] = useState(initialData.objectiveCode || '');
+    const [objectiveExplanation, setObjectiveExplanation] = useState(initialData.objectiveExplanation || '');
+    const [showObjectiveCode, setShowObjectiveCode] = useState(false);
+    const [objectiveFunction] = useState('');
+    const [constraints, setConstraints] = useState<string[]>(initialData.constraints || ['']);
     // Track raw category input strings for each variable
     const [categoryInputs, setCategoryInputs] = useState<{ [index: number]: string }>({});
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [generationError, setGenerationError] = useState<string | null>(null);
+    const [isGeneratingProperties, setIsGeneratingProperties] = useState(false);
+    const [propertiesError, setPropertiesError] = useState<string | null>(null);
+    const [isGeneratingObjective, setIsGeneratingObjective] = useState(false);
+    const [objectiveError, setObjectiveError] = useState<string | null>(null);
+    const [isGeneratingConstraints, setIsGeneratingConstraints] = useState(false);
+    const [constraintsError, setConstraintsError] = useState<string | null>(null);
+
+    // Sync state with initialData when it changes (for wizard step navigation)
+    useEffect(() => {
+        if (initialData.variables) {
+            setVariables(initialData.variables);
+        }
+    }, [initialData.variables]);
+
+    useEffect(() => {
+        if (initialData.properties !== undefined) {
+            setProperties(initialData.properties);
+        }
+    }, [initialData.properties]);
+
+    useEffect(() => {
+        if (initialData.objectiveDescription !== undefined) {
+            setObjectiveDescription(initialData.objectiveDescription);
+        }
+    }, [initialData.objectiveDescription]);
+
+    useEffect(() => {
+        if (initialData.objectiveCode !== undefined) {
+            setObjectiveCode(initialData.objectiveCode);
+        }
+    }, [initialData.objectiveCode]);
+
+    useEffect(() => {
+        if (initialData.objectiveExplanation !== undefined) {
+            setObjectiveExplanation(initialData.objectiveExplanation);
+        }
+    }, [initialData.objectiveExplanation]);
+
+    useEffect(() => {
+        if (initialData.constraints) {
+            setConstraints(initialData.constraints);
+        }
+    }, [initialData.constraints]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -60,12 +115,28 @@ export const ProblemForm: React.FC<ProblemFormProps> = ({ onSubmit }) => {
             variables,
             objective_function: objectiveFunction,
             constraints: constraints.filter(c => c.trim() !== ''),
-            categorical_modifier_strategy: categoricalModifierStrategy,
         });
+    };
+
+    const handleNext = () => {
+        if (onNext) {
+            if (currentStep === 1) {
+                onNext({ name, description, variables });
+            } else if (currentStep === 2) {
+                onNext(properties);
+            } else if (currentStep === 3) {
+                onNext({ objectiveDescription, objectiveCode, objectiveExplanation, constraints });
+            }
+        }
     };
 
     const addVariable = () => {
         setVariables([...variables, { ...defaultNumericalVariable }]);
+    };
+
+    const clearAllVariables = () => {
+        setVariables([{ ...defaultNumericalVariable }]);
+        setCategoryInputs({});
     };
 
     const removeVariable = (index: number) => {
@@ -102,6 +173,23 @@ export const ProblemForm: React.FC<ProblemFormProps> = ({ onSubmit }) => {
         updateVariable(index, 'categories', categoriesArray);
     };
 
+    // Alias for use in VariablesSection component
+    const handleCategoryInputChange = updateCategoriesString;
+
+    const addProperty = () => {
+        setProperties([...properties, { name: '', expression: '', description: '' }]);
+    };
+
+    const removeProperty = (index: number) => {
+        setProperties(properties.filter((_, i) => i !== index));
+    };
+
+    const updateProperty = (index: number, field: 'name' | 'expression' | 'description', value: string) => {
+        const newProperties = [...properties];
+        newProperties[index] = { ...newProperties[index], [field]: value };
+        setProperties(newProperties);
+    };
+
     const addConstraint = () => {
         setConstraints([...constraints, '']);
     };
@@ -116,6 +204,211 @@ export const ProblemForm: React.FC<ProblemFormProps> = ({ onSubmit }) => {
         setConstraints(newConstraints);
     };
 
+    const handleGenerateVariables = async () => {
+        if (!isConnected) {
+            setGenerationError('Please connect to an AI provider first');
+            return;
+        }
+
+        if (!name.trim()) {
+            setGenerationError('Please enter a problem name first');
+            return;
+        }
+
+        setIsGenerating(true);
+        setGenerationError(null);
+
+        try {
+            if (!aiState.provider || !aiState.apiKey || !aiState.model) {
+                setGenerationError('AI configuration not found');
+                return;
+            }
+
+            const response = await aiApi.generateVariables({
+                problem_name: name,
+                description: description || undefined,
+                provider: aiState.provider,
+                api_key: aiState.apiKey,
+                model: aiState.model,
+                endpoint: aiState.endpoint || undefined
+            });
+
+            if (response.status === 'success' && response.variables) {
+                // Map the generated variables to our form state
+                const newVariables = response.variables.map(v => ({
+                    name: v.name,
+                    type: v.type,
+                    min: v.min ?? 0,
+                    max: v.max ?? 100,
+                    unit: v.unit ?? '',
+                    categories: v.categories ?? [],
+                    modifier_strategy: v.modifier_strategy ?? 'cycle'
+                }));
+
+                // Update variables
+                setVariables(newVariables);
+                
+                // Update category inputs for display
+                const newCategoryInputs: { [key: number]: string } = {};
+                newVariables.forEach((variable, index) => {
+                    if (variable.type === 'categorical' && variable.categories.length > 0) {
+                        newCategoryInputs[index] = variable.categories.join(', ');
+                    }
+                });
+                setCategoryInputs(newCategoryInputs);
+
+                // Clear any previous errors
+                setGenerationError(null);
+            } else {
+                setGenerationError(response.message || 'Failed to generate variables');
+            }
+        } catch (error: any) {
+            console.error('Error generating variables:', error);
+            setGenerationError(error.response?.data?.detail || error.message || 'Failed to generate variables');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleGenerateProperties = async () => {
+        if (!aiState.provider || !aiState.apiKey || !aiState.model) {
+            setPropertiesError('AI configuration not found');
+            return;
+        }
+
+        setIsGeneratingProperties(true);
+        setPropertiesError(null);
+
+        try {
+            const response = await aiApi.generateProperties({
+                problem_name: name,
+                description: description || undefined,
+                variables: variables.map(v => ({
+                    name: v.name,
+                    type: v.type,
+                    min: v.min,
+                    max: v.max,
+                    unit: v.unit,
+                    categories: v.categories,
+                    modifier_strategy: v.modifier_strategy
+                })),
+                provider: aiState.provider,
+                api_key: aiState.apiKey,
+                model: aiState.model,
+                endpoint: aiState.endpoint || undefined
+            });
+
+            if (response.status === 'success' && response.properties) {
+                setProperties(response.properties);
+                setPropertiesError(null);
+            } else {
+                setPropertiesError(response.message || 'Failed to generate properties');
+            }
+        } catch (error: any) {
+            console.error('Error generating properties:', error);
+            setPropertiesError(error.response?.data?.detail || error.message || 'Failed to generate properties');
+        } finally {
+            setIsGeneratingProperties(false);
+        }
+    };
+
+    const handleGenerateObjective = async () => {
+        if (!aiState.provider || !aiState.apiKey || !aiState.model) {
+            setObjectiveError('AI configuration not found');
+            return;
+        }
+
+        if (!objectiveDescription.trim()) {
+            setObjectiveError('Please enter an objective description first');
+            return;
+        }
+
+        setIsGeneratingObjective(true);
+        setObjectiveError(null);
+
+        try {
+            const response = await aiApi.generateObjective({
+                problem_name: name,
+                description: description,
+                objective_description: objectiveDescription,
+                variables: variables.map(v => ({
+                    name: v.name,
+                    type: v.type,
+                    min: v.min,
+                    max: v.max,
+                    unit: v.unit,
+                    categories: v.categories,
+                    modifier_strategy: v.modifier_strategy
+                })),
+                properties: properties.length > 0 ? properties : undefined,
+                provider: aiState.provider,
+                api_key: aiState.apiKey,
+                model: aiState.model,
+                endpoint: aiState.endpoint || undefined
+            });
+
+            if (response.status === 'success' && response.code) {
+                console.log('Objective generation response:', response);
+                console.log('Explanation received:', response.explanation);
+                setObjectiveCode(response.code);
+                setObjectiveExplanation(response.explanation || '');
+                setShowObjectiveCode(true); // Automatically expand to show generated code
+                setObjectiveError(null);
+            } else {
+                setObjectiveError(response.message || 'Failed to generate objective');
+            }
+        } catch (error: any) {
+            console.error('Error generating objective:', error);
+            setObjectiveError(error.response?.data?.detail || error.message || 'Failed to generate objective');
+        } finally {
+            setIsGeneratingObjective(false);
+        }
+    };
+
+    const handleGenerateConstraints = async () => {
+        if (!aiState.provider || !aiState.apiKey || !aiState.model) {
+            setConstraintsError('AI configuration not found');
+            return;
+        }
+
+        setIsGeneratingConstraints(true);
+        setConstraintsError(null);
+
+        try {
+            const response = await aiApi.generateConstraints({
+                problem_name: name,
+                description: description || undefined,
+                variables: variables.map(v => ({
+                    name: v.name,
+                    type: v.type,
+                    min: v.min,
+                    max: v.max,
+                    unit: v.unit,
+                    categories: v.categories,
+                    modifier_strategy: v.modifier_strategy
+                })),
+                properties: properties.length > 0 ? properties : undefined,
+                provider: aiState.provider,
+                api_key: aiState.apiKey,
+                model: aiState.model,
+                endpoint: aiState.endpoint || undefined
+            });
+
+            if (response.status === 'success' && response.constraints) {
+                // Replace existing constraints with generated ones
+                setConstraints(response.constraints.map(c => c.expression));
+                setConstraintsError(null);
+            } else {
+                setConstraintsError(response.message || 'Failed to generate constraints');
+            }
+        } catch (error: any) {
+            console.error('Error generating constraints:', error);
+            setConstraintsError(error.response?.data?.detail || error.message || 'Failed to generate constraints');
+        } finally {
+            setIsGeneratingConstraints(false);
+        }
+    };
+
     return (
         <Card className="form-container">
             <CardContent>
@@ -124,202 +417,151 @@ export const ProblemForm: React.FC<ProblemFormProps> = ({ onSubmit }) => {
                     onSubmit={handleSubmit}
                     className="form-content"
                 >
-                    <Typography variant="h5" align="center" gutterBottom>
-                        Create Optimization Problem
-                    </Typography>
+                    {/* Step 1: Problem Setup (Name, Description, Variables) */}
+                    {currentStep === 1 && (
+                        <>
+                            {/* Problem Info */}
+                            <Box sx={{ mb: 3 }}>
+                                <Typography variant="h6" gutterBottom>Problem Information</Typography>
+                                <TextField
+                                    fullWidth
+                                    label="Problem Name"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    required
+                                    sx={{ mb: 2 }}
+                                />
 
-                    <Box className="form-field">
-                        <TextField
-                            fullWidth
-                            label="Problem Name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            sx={{ mb: 2 }}
-                        />
+                                {generationError && (
+                                    <Alert severity={generationError.includes('coming soon') ? 'info' : 'error'} sx={{ mb: 2 }}>
+                                        {generationError}
+                                    </Alert>
+                                )}
 
-                        <TextField
-                            fullWidth
-                            label="Description"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            multiline
-                            rows={2}
-                            sx={{ mb: 3 }}
-                        />                    </Box>
-
-                    <Box className="form-field">
-                        <Typography variant="h6" align="center" sx={{ mb: 2 }}>Variables</Typography>
-                        <List disablePadding sx={{ width: '100%' }}>
-                            {variables.map((variable, index) => (
-                                <ListItem key={index} disablePadding sx={{ width: '100%', mb: 2 }}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 1, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                                    <Box className="variable-fields">
-                                        <TextField
-                                            className="variable-field"
-                                            label="Name"
-                                            value={variable.name}
-                                            onChange={(e) => updateVariable(index, 'name', e.target.value)}
-                                            required
-                                            size="small"
-                                        />
-                                        <FormControl className="variable-field" size="small" required>
-                                            <InputLabel>Type</InputLabel>
-                                            <Select
-                                                value={variable.type}
-                                                label="Type"
-                                                onChange={(e) => updateVariable(index, 'type', e.target.value)}
-                                            >
-                                                <MenuItem value="numerical">Numerical</MenuItem>
-                                                <MenuItem value="categorical">Categorical</MenuItem>
-                                            </Select>
-                                        </FormControl>
-                                        <IconButton 
-                                            onClick={() => removeVariable(index)} 
-                                            color="error"
-                                            size="small"
-                                            disabled={variables.length <= 1}
-                                            sx={{ ml: 'auto' }}
-                                        >
-                                            <RemoveIcon />
-                                        </IconButton>
-                                    </Box>
-                                    
-                                    {variable.type === 'numerical' ? (
-                                        <Box className="variable-fields">
-                                            <TextField
-                                                className="variable-field"
-                                                type="number"
-                                                label="Min"
-                                                value={variable.min ?? ''}
-                                                onChange={(e) => updateVariable(index, 'min', e.target.value)}
-                                                required
-                                                size="small"
-                                            />
-                                            <TextField
-                                                className="variable-field"
-                                                type="number"
-                                                label="Max"
-                                                value={variable.max ?? ''}
-                                                onChange={(e) => updateVariable(index, 'max', e.target.value)}
-                                                required
-                                                size="small"
-                                            />
-                                            <TextField
-                                                className="variable-field unit"
-                                                label="Unit"
-                                                value={variable.unit ?? ''}
-                                                onChange={(e) => updateVariable(index, 'unit', e.target.value)}
-                                                size="small"
-                                            />
-                                        </Box>
-                                    ) : (
-                                        <Box>
-                                            <TextField
-                                                fullWidth
-                                                label="Categories"
-                                                value={categoryInputs[index] ?? variable.categories?.join(', ') ?? ''}
-                                                onChange={(e) => updateCategoriesString(index, e.target.value)}
-                                                placeholder="Enter categories separated by commas (e.g., red, blue, green)"
-                                                required
-                                                size="small"
-                                                helperText="Separate categories with commas. At least 2 required."
-                                                InputLabelProps={{
-                                                    shrink: true,
-                                                }}
-                                            />
-                                            {variable.categories && variable.categories.length > 0 && (
-                                                <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                                    {variable.categories.map((cat, catIndex) => (
-                                                        <Chip 
-                                                            key={catIndex} 
-                                                            label={`${catIndex}: ${cat}`}
-                                                            size="small"
-                                                            color="primary"
-                                                            variant="outlined"
-                                                        />
-                                                    ))}
-                                                </Box>
-                                            )}
-                                        </Box>
-                                    )}
-                                </Box>
-                                </ListItem>
-                            ))}
-                        </List>
-                        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-                            <Button startIcon={<AddIcon />} onClick={addVariable}>
-                                Add Variable
-                            </Button>
-                        </Box>
-
-                        <TextField
-                            fullWidth
-                            className="form-field"
-                            label="Objective Function"
-                            value={objectiveFunction}
-                            onChange={(e) => setObjectiveFunction(e.target.value)}
-                            multiline
-                            rows={2}
-                            required
-                            sx={{ mb: 3 }}
-                        />
-
-                        <Typography variant="h6" align="center" sx={{ mb: 2 }}>Constraints</Typography>
-                        <List disablePadding sx={{ width: '100%' }}>
-                            {constraints.map((constraint, index) => (
-                                <ListItem key={index} disablePadding sx={{ width: '100%', mb: 1 }}>
-                                    <TextField
-                                        fullWidth
-                                        className="constraint-field"
-                                        label={`Constraint ${index + 1}`}
-                                        value={constraint}
-                                        onChange={(e) => updateConstraint(index, e.target.value)}
-                                    />
-                                    <IconButton onClick={() => removeConstraint(index)} color="error">
-                                        <RemoveIcon />
-                                    </IconButton>
-                                </ListItem>
-                            ))}
-                        </List>
-                        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-                            <Button startIcon={<AddIcon />} onClick={addConstraint}>
-                                Add Constraint
-                            </Button>
-                        </Box>
-
-                        {/* Categorical Modifier Strategy */}
-                        {variables.some(v => v.type === 'categorical') && (
-                            <Box sx={{ mb: 3, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                                <FormLabel component="legend">Categorical Variable Modification Strategy</FormLabel>
-                                <RadioGroup
-                                    row
-                                    value={categoricalModifierStrategy}
-                                    onChange={(e) => setCategoricalModifierStrategy(e.target.value as 'cycle' | 'random')}
-                                >
-                                    <FormControlLabel 
-                                        value="cycle" 
-                                        control={<Radio />} 
-                                        label="Cycle through categories" 
-                                    />
-                                    <FormControlLabel 
-                                        value="random" 
-                                        control={<Radio />} 
-                                        label="Random selection" 
-                                    />
-                                </RadioGroup>
-                                <FormHelperText>
-                                    Choose how the optimizer should modify categorical variables during optimization
-                                </FormHelperText>
+                                <TextField
+                                    fullWidth
+                                    label="Description"
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    placeholder="e.g., Optimize cookie production to maximize profit while meeting customer demand"
+                                    multiline
+                                    rows={2}
+                                    helperText="Describe your optimization problem. Mention key variables you'll need (e.g., quantity, price, time) to help AI generate relevant suggestions."
+                                />
                             </Box>
-                        )}
 
-                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
-                            <Button type="submit" variant="contained" color="primary">
-                                Create Problem
-                            </Button>
-                        </Box>
-                    </Box>
+                            <VariablesSection
+                                variables={variables}
+                                categoryInputs={categoryInputs}
+                                isGenerating={isGenerating}
+                                isConnected={isConnected}
+                                problemName={name}
+                                onVariablesChange={setVariables}
+                                onCategoryInputChange={handleCategoryInputChange}
+                                onGenerateVariables={handleGenerateVariables}
+                                onAddVariable={addVariable}
+                                onRemoveVariable={removeVariable}
+                                onUpdateVariable={updateVariable}
+                                onClearAll={clearAllVariables}
+                            />
+
+                            {/* Step 1 Navigation */}
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+                                <Button 
+                                    variant="contained" 
+                                    onClick={handleNext}
+                                    disabled={!name.trim() || variables.length === 0}
+                                >
+                                    Next
+                                </Button>
+                            </Box>
+                        </>
+                    )}
+
+                    {/* Step 2: Properties */}
+                    {currentStep === 2 && (
+                        <>
+                            <PropertiesSection
+                                properties={properties}
+                                isGenerating={isGeneratingProperties}
+                                isConnected={isConnected}
+                                hasVariables={variables.some(v => v.name.trim().length > 0)}
+                                error={propertiesError}
+                                onGenerateProperties={handleGenerateProperties}
+                                onAddProperty={addProperty}
+                                onRemoveProperty={removeProperty}
+                                onUpdateProperty={updateProperty}
+                            />
+
+                            {/* Step 2 Navigation */}
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+                                <Button 
+                                    variant="outlined" 
+                                    onClick={onBack || undefined}
+                                    startIcon={<ArrowBackIcon />}
+                                    disabled={!onBack}
+                                >
+                                    Back
+                                </Button>
+                                <Button 
+                                    variant="contained" 
+                                    onClick={handleNext}
+                                >
+                                    Next
+                                </Button>
+                            </Box>
+                        </>
+                    )}
+
+                    {/* Step 3: Objective Function and Constraints */}
+                    {currentStep === 3 && (
+                        <>
+                            <ObjectiveSection
+                                objectiveDescription={objectiveDescription}
+                                objectiveCode={objectiveCode}
+                                objectiveExplanation={objectiveExplanation}
+                                showCode={showObjectiveCode}
+                                isGenerating={isGeneratingObjective}
+                                isConnected={isConnected}
+                                error={objectiveError}
+                                onDescriptionChange={setObjectiveDescription}
+                                onCodeChange={setObjectiveCode}
+                                onShowCodeChange={setShowObjectiveCode}
+                                onGenerate={handleGenerateObjective}
+                            />
+
+                            <ConstraintsSection
+                                constraints={constraints}
+                                isGenerating={isGeneratingConstraints}
+                                isConnected={isConnected}
+                                hasVariables={variables.some(v => v.name.trim().length > 0)}
+                                error={constraintsError}
+                                onConstraintsChange={setConstraints}
+                                onGenerate={handleGenerateConstraints}
+                                onAddConstraint={addConstraint}
+                                onRemoveConstraint={removeConstraint}
+                                onUpdateConstraint={updateConstraint}
+                            />
+
+                            {/* Step 3 Navigation */}
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
+                                <Button 
+                                    variant="outlined" 
+                                    onClick={onBack || undefined}
+                                    startIcon={<ArrowBackIcon />}
+                                    disabled={!onBack}
+                                >
+                                    Back
+                                </Button>
+                                <Button 
+                                    variant="contained" 
+                                    onClick={handleNext}
+                                >
+                                    Next
+                                </Button>
+                            </Box>
+                        </>
+                    )}
                 </Box>
             </CardContent>
         </Card>
