@@ -85,9 +85,11 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
 
         try {
             // Test the API key by making a simple request to the chat endpoint
+            console.log('[AIProvider] Testing API key...');
             const controller = new AbortController();
             const timeoutId = setTimeout(() => {
                 controller.abort();
+                console.log('[AIProvider] Validation timeout');
             }, 10000); // 10 second timeout
             
             const testResponse = await fetch('/api/chat', {
@@ -102,9 +104,12 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
                 signal: controller.signal,
             });
 
+            console.log('[AIProvider] Response status:', testResponse.status);
+
             if (!testResponse.ok) {
                 clearTimeout(timeoutId);
                 const errorData = await testResponse.json().catch(() => ({ error: 'Connection failed' }));
+                console.error('[AIProvider] Response not OK:', errorData);
                 setState(prev => ({
                     ...prev,
                     status: 'error',
@@ -113,11 +118,14 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
                 return false;
             }
 
-            // For streaming responses, we'll just check that we got a 200
+            // For streaming responses, we'll just check that we got a 200 and the response started
+            // Reading the full stream for validation is complex and unnecessary
             const contentType = testResponse.headers.get('content-type');
+            console.log('[AIProvider] Response content-type:', contentType);
             
             if (!contentType || !contentType.includes('text')) {
                 clearTimeout(timeoutId);
+                console.error('[AIProvider] Invalid content type:', contentType);
                 setState(prev => ({
                     ...prev,
                     status: 'error',
@@ -128,6 +136,7 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
 
             // Response looks good - connection is valid
             clearTimeout(timeoutId);
+            console.log('[AIProvider] Validation successful!');
             setState(prev => ({
                 ...prev,
                 provider,
