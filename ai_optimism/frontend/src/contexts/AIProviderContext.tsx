@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import aiApi from '../services/ai';
-import type { AIProvider, AIValidationResponse } from '../services/ai';
+import type { AIProvider } from '../services/ai';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -43,67 +42,110 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
         if (saved) {
             try {
                 const config = JSON.parse(saved);
+                // If we have a saved API key and provider, restore as connected
+                const hasValidConfig = config.apiKey && config.provider && config.model;
                 setState(prev => ({
                     ...prev,
                     provider: config.provider,
                     model: config.model,
                     apiKey: config.apiKey,
                     endpoint: config.endpoint,
-                    // Don't automatically set as connected - require revalidation
+                    status: hasValidConfig ? 'connected' : 'disconnected',
+                    lastValidated: hasValidConfig ? new Date() : null,
                 }));
+                if (hasValidConfig) {
+                    console.log('[AIProvider] Restored connection from localStorage:', {
+                        provider: config.provider,
+                        model: config.model,
+                        hasApiKey: !!config.apiKey
+                    });
+                }
             } catch (e) {
                 console.error('Failed to load saved AI provider config:', e);
             }
         }
     }, []);
 
-    const connect = async (
-        provider: AIProvider,
-        apiKey: string,
-        model: string,
-        endpoint?: string
-    ): Promise<boolean> => {
-        setState(prev => ({ ...prev, status: 'connecting', errorMessage: null }));
+    const connect = async (provider: AIProvider, apiKey: string, model: string, endpoint?: string): Promise<boolean> => {
+        // Validate API key is not empty
+        if (!apiKey || apiKey.trim() === '') {
+            setState(prev => ({
+                ...prev,
+                status: 'error',
+                errorMessage: 'API key cannot be empty',
+            }));
+            return false;
+        }
+
+        setState(prev => ({
+            ...prev,
+            status: 'connecting',
+            errorMessage: null,
+        }));
 
         try {
-            const response: AIValidationResponse = await aiApi.validateConnection({
-                provider,
-                api_key: apiKey,
-                model,
-                endpoint,
+            // Test the API key by making a simple request to the chat endpoint
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+            }, 10000); // 10 second timeout
+            
+            const testResponse = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    apiKey,
+                    provider,
+                    model,
+                    messages: [{ role: 'user', parts: [{ type: 'text', text: 'Hi' }] }],
+                }),
+                signal: controller.signal,
             });
 
-            if (response.status === 'success') {
-                const newState = {
-                    provider,
-                    model,
-                    apiKey,
-                    endpoint: endpoint || null,
-                    status: 'connected' as ConnectionStatus,
-                    lastValidated: new Date(),
-                    errorMessage: null,
-                };
-                setState(newState);
-
-                // Save to localStorage (WARNING: Stores API key locally)
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                    provider,
-                    model,
-                    apiKey,
-                    endpoint,
-                }));
-
-                return true;
-            } else {
+            if (!testResponse.ok) {
+                clearTimeout(timeoutId);
+                const errorData = await testResponse.json().catch(() => ({ error: 'Connection failed' }));
                 setState(prev => ({
                     ...prev,
                     status: 'error',
-                    errorMessage: response.message,
+                    errorMessage: errorData.error || `HTTP ${testResponse.status}`,
                 }));
                 return false;
             }
-        } catch (error: any) {
-            const errorMessage = error.response?.data?.detail || error.message || 'Connection failed';
+
+            // For streaming responses, we'll just check that we got a 200
+            const contentType = testResponse.headers.get('content-type');
+            
+            if (!contentType || !contentType.includes('text')) {
+                clearTimeout(timeoutId);
+                setState(prev => ({
+                    ...prev,
+                    status: 'error',
+                    errorMessage: 'Invalid response from server',
+                }));
+                return false;
+            }
+
+            // Response looks good - connection is valid
+            clearTimeout(timeoutId);
+            setState(prev => ({
+                ...prev,
+                provider,
+                apiKey,
+                model,
+                endpoint: endpoint || null,
+                status: 'connected',
+                lastValidated: new Date(),
+                errorMessage: null,
+            }));
+
+            // Save to localStorage for persistence (consider encrypting in production)
+            const config = { provider, apiKey, model, endpoint };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+            
+            return true;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Connection failed';
             setState(prev => ({
                 ...prev,
                 status: 'error',

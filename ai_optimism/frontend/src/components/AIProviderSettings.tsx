@@ -1,24 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
-    Box,
-    Button,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
+    Button,
     TextField,
     Select,
     MenuItem,
     FormControl,
     InputLabel,
+    IconButton,
+    InputAdornment,
     Alert,
     CircularProgress,
-    InputAdornment,
-    IconButton,
+    Box,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useAIProvider } from '../contexts/AIProviderContext';
-import aiApi from '../services/ai';
 import type { AIProvider, ProvidersResponse } from '../services/ai';
 
 interface AIProviderSettingsProps {
@@ -36,47 +35,71 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({ open, on
     const [isConnecting, setIsConnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
-    const [providers, setProviders] = useState<ProvidersResponse | null>(null);
-
-    // Load providers list on mount
-    useEffect(() => {
-        const loadProviders = async () => {
-            try {
-                const data = await aiApi.listProviders();
-                setProviders(data);
-                // Set default model for initial provider
-                if (data.providers[provider]?.models.length > 0) {
-                    setModel(data.providers[provider].models[0]);
-                }
-            } catch (e) {
-                console.error('Failed to load providers:', e);
-            }
-        };
-        loadProviders();
-    }, []);
+    
+    // Static provider configuration (no backend needed)
+    const staticProviders: ProvidersResponse = {
+        providers: {
+            google: {
+                name: 'Google (Gemini)',
+                models: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro'],
+                requires_api_key: true,
+                endpoint: null,
+            },
+            openai: {
+                name: 'OpenAI',
+                models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+                requires_api_key: true,
+                endpoint: null,
+            },
+            anthropic: {
+                name: 'Anthropic (Claude)',
+                models: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229'],
+                requires_api_key: true,
+                endpoint: null,
+            },
+            ollama: {
+                name: 'Ollama (Local)',
+                models: ['llama2', 'mistral', 'codellama', 'phi'],
+                requires_api_key: false,
+                endpoint: 'http://localhost:11434',
+            },
+            custom: {
+                name: 'Custom Endpoint',
+                models: ['custom-model'],
+                requires_api_key: true,
+                endpoint: null,
+            },
+        },
+    };
 
     // Load saved config when dialog opens
     useEffect(() => {
         if (open && state.provider) {
             setProvider(state.provider);
             setApiKey(state.apiKey || '');
-            setModel(state.model || '');
+            setModel(state.model || staticProviders.providers[state.provider]?.models[0] || '');
             setEndpoint(state.endpoint || '');
+        } else if (open) {
+            // Set default model for initial provider
+            const defaultModel = staticProviders.providers[provider]?.models[0];
+            if (defaultModel && !model) {
+                setModel(defaultModel);
+            }
         }
     }, [open, state]);
 
     // Update default model when provider changes
     useEffect(() => {
-        if (providers && providers.providers[provider]) {
-            const providerInfo = providers.providers[provider];
+        const providerInfo = staticProviders.providers[provider];
+        if (providerInfo) {
             if (providerInfo.models.length > 0 && !model) {
                 setModel(providerInfo.models[0]);
             }
-            if (providerInfo.endpoint) {
+            if (providerInfo.endpoint && !endpoint) {
                 setEndpoint(providerInfo.endpoint);
             }
         }
-    }, [provider, providers]);
+    }, [provider]);
 
     const handleConnect = async () => {
         setError(null);
@@ -98,7 +121,7 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({ open, on
         }
     };
 
-    const requiresApiKey = providers?.providers[provider]?.requires_api_key !== false;
+    const requiresApiKey = staticProviders.providers[provider]?.requires_api_key !== false;
     const requiresEndpoint = provider === 'ollama' || provider === 'custom';
 
     return (
@@ -143,17 +166,17 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({ open, on
                             label="Model"
                             onChange={(e) => setModel(e.target.value)}
                         >
-                            {providers?.providers[provider]?.models.map((m) => (
+                            {staticProviders.providers[provider]?.models.map((m: string) => (
                                 <MenuItem key={m} value={m}>{m}</MenuItem>
                             ))}
-                            {(!providers || providers.providers[provider]?.models.length === 0) && (
+                            {staticProviders.providers[provider]?.models.length === 0 && (
                                 <MenuItem value="">Enter custom model name below</MenuItem>
                             )}
                         </Select>
                     </FormControl>
 
                     {/* Custom model name if list is empty */}
-                    {(!providers || providers.providers[provider]?.models.length === 0) && (
+                    {staticProviders.providers[provider]?.models.length === 0 && (
                         <TextField
                             fullWidth
                             label="Model Name"
@@ -171,7 +194,7 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({ open, on
                             type={showApiKey ? 'text' : 'password'}
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
-                            placeholder={`Enter your ${providers?.providers[provider]?.name || 'API'} key`}
+                            placeholder={`Enter your ${staticProviders.providers[provider]?.name || 'API'} key`}
                             InputProps={{
                                 endAdornment: (
                                     <InputAdornment position="end">

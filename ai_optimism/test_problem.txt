@@ -1,4 +1,4 @@
 cookies:
-I'm optimizing a recipe for cookies in terms of baking temperature and flour type. Let's test with only these two variables for now.
+I'm optimizing a recipe for cookies in terms of the only two variables baking_temperature and flour_type. 
 
 I want to maximize the cakey-ness.
