@@ -76,6 +76,7 @@ export const PropertiesSection: React.FC<PropertiesSectionProps> = ({
                                         '& .MuiInputBase-input': {
                                             fontFamily: 'monospace',
                                             fontWeight: 600,
+                                            color: '#0066cc', // Blue for code
                                         }
                                     }}
                                 />
@@ -90,6 +91,7 @@ export const PropertiesSection: React.FC<PropertiesSectionProps> = ({
                                         '& .MuiInputBase-input': {
                                             fontFamily: 'monospace',
                                             fontWeight: 600,
+                                            color: '#0066cc', // Blue for code
                                         }
                                     }}
                                     placeholder="e.g., price * quantity"

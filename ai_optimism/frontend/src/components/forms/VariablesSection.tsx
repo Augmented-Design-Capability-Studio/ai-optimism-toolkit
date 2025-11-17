@@ -82,6 +82,7 @@ export const VariablesSection: React.FC<VariablesSectionProps> = ({
                                         '& .MuiInputBase-input': {
                                             fontFamily: 'monospace',
                                             fontWeight: 600,
+                                            color: '#0066cc', // Blue for code
                                         }
                                     }}
                                 />
@@ -148,6 +149,7 @@ export const VariablesSection: React.FC<VariablesSectionProps> = ({
                                             '& .MuiInputBase-input': {
                                                 fontFamily: 'monospace',
                                                 fontWeight: 600,
+                                                color: '#0066cc', // Blue for code
                                             }
                                         }}
                                         helperText="Enter categories separated by commas"
@@ -162,6 +164,8 @@ export const VariablesSection: React.FC<VariablesSectionProps> = ({
                                                     sx={{
                                                         fontFamily: 'monospace',
                                                         fontWeight: 600,
+                                                        color: '#0066cc',
+                                                        backgroundColor: '#e3f2fd',
                                                     }}
                                                 />
                                             ))}

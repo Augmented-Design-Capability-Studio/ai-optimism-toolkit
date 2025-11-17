@@ -72,6 +72,7 @@ export const ConstraintsSection: React.FC<ConstraintsSectionProps> = ({
                                 '& .MuiInputBase-input': {
                                     fontFamily: 'monospace',
                                     fontWeight: 600,
+                                    color: '#0066cc', // Blue for code
                                 }
                             }}
                         />

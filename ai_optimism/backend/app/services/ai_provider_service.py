@@ -286,7 +286,7 @@ For each variable:
 1. Determine if it should be NUMERICAL (continuous values with min/max) or CATEGORICAL (discrete choices)
 2. Provide a clear, descriptive name (lowercase_with_underscores)
 3. For numerical variables: suggest reasonable min/max bounds and a unit
-4. For categorical variables: suggest 2-5 meaningful categories
+4. For categorical variables: suggest 2-5 meaningful categories; the category names should be in snake_case format like the variable names
 5. Explain briefly why this variable is relevant
 
 Return your response as a valid JSON object with this exact structure:

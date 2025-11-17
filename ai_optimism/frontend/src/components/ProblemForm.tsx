@@ -445,7 +445,7 @@ export const ProblemForm: React.FC<ProblemFormProps> = ({
                                     onChange={(e) => setDescription(e.target.value)}
                                     placeholder="e.g., Optimize cookie production to maximize profit while meeting customer demand"
                                     multiline
-                                    rows={2}
+                                    rows={4}
                                     helperText="Describe your optimization problem. Mention key variables you'll need (e.g., quantity, price, time) to help AI generate relevant suggestions."
                                 />
                             </Box>
