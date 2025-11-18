@@ -56,19 +56,19 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
-// Validate ../../../app/api/ai/generate/route.ts
+// Validate ../../../app/api/chat/route.ts
 {
-  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ai/generate">> = Specific
-  const handler = {} as typeof import("../../../app/api/ai/generate/route.js")
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/chat">> = Specific
+  const handler = {} as typeof import("../../../app/api/chat/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
 }
 
-// Validate ../../../app/api/chat/route.ts
+// Validate ../../../app/api/generate/route.ts
 {
-  type __IsExpected<Specific extends RouteHandlerConfig<"/api/chat">> = Specific
-  const handler = {} as typeof import("../../../app/api/chat/route.js")
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/generate">> = Specific
+  const handler = {} as typeof import("../../../app/api/generate/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

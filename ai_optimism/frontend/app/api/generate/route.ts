@@ -15,6 +15,12 @@ const controlsSchema = z.object({
     unit: z.string().optional().describe('Unit of measurement (e.g., "°C", "rpm")'),
     description: z.string().describe('Brief description of what this variable represents'),
   })),
+  objectives: z.array(z.object({
+    name: z.string().describe('Objective name (e.g., "Minimize Cost", "Maximize Efficiency")'),
+    expression: z.string().describe('Python expression to calculate this objective'),
+    goal: z.enum(['minimize', 'maximize']).describe('Whether to minimize or maximize this objective'),
+    description: z.string().describe('What this objective represents'),
+  })).optional(),
   properties: z.array(z.object({
     name: z.string().describe('Property name'),
     expression: z.string().describe('Python expression to calculate this property'),
@@ -52,9 +58,10 @@ export async function POST(req: Request) {
 Description: ${description}
 
 Identify:
-1. Variables that can be changed/optimized (with reasonable min/max ranges)
-2. Properties that can be calculated from variables (with Python expressions)
-3. Constraints that must be satisfied (as Python expressions)
+1. Variables that can be changed/optimized (with reasonable min/max ranges and default values)
+2. Objectives to optimize for (what to minimize or maximize, with Python expressions)
+3. Properties that can be calculated from variables (with Python expressions)
+4. Constraints that must be satisfied (as Python expressions)
 
 Be specific and practical. Use clear variable names and valid Python expressions.`,
     });

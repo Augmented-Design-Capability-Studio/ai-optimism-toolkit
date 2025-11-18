@@ -1,4 +1,5 @@
 {
   "/api/chat/route": "app-edge-has-no-entrypoint",
+  "/api/generate/route": "app-edge-has-no-entrypoint",
   "/page": "app/page.js"
 }

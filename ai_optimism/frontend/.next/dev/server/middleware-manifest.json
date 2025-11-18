@@ -33,10 +33,46 @@
       "assets": [],
       "env": {
         "__NEXT_BUILD_ID": "development",
-        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "u1wgRcjRDtfM5u3YsGS3hbxtwGZ+qCPIh+MSryy/KVw=",
-        "__NEXT_PREVIEW_MODE_ID": "5ba7c7f2ef4c49e4fdb7c44505ee7478",
-        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "29990e59720a32d21cb28af121ad6ec50d5a2956b014778439e31e1f4998c839",
-        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "99875b99129b76790baf9af0845243333a68d6fd1c07754ec9052404206d00f7"
+        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "XqcjMubCQRWmXEIf05q1/qf3oA0BhzrIwn1WGejPWfI=",
+        "__NEXT_PREVIEW_MODE_ID": "2834c12cdec77b3162ac57b9c9361540",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "311c9e7999276aa598798bac9c02249bacb8429574cca8f80c20d0bc8ad2ee2f",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "c8069127925a76f9e29d85773881e41fec51d6cde538e685478a968fbb8548cf"
+      }
+    },
+    "/api/generate/route": {
+      "files": [
+        "server/middleware-build-manifest.js",
+        "server/interception-route-rewrite-manifest.js",
+        "server/server-reference-manifest.js",
+        "server/app/api/generate/route_client-reference-manifest.js",
+        "server/edge/chunks/_next-internal_server_app_api_generate_route_actions_0a0a7482.js",
+        "server/edge/chunks/node_modules_next_dist_esm_f15ed263._.js",
+        "server/edge/chunks/node_modules_next_dist_compiled_9d1d39d4._.js",
+        "server/edge/chunks/node_modules_next_dist_7bea040f._.js",
+        "server/edge/chunks/edge-wrapper_04e853a1.js",
+        "server/edge/chunks/node_modules_@opentelemetry_api_build_esm_5713bd62._.js",
+        "server/edge/chunks/node_modules_zod_470e7018._.js",
+        "server/edge/chunks/node_modules_ai_dist_index_mjs_910668be._.js",
+        "server/edge/chunks/node_modules_e5d76534._.js",
+        "server/edge/chunks/[root-of-the-server]__9eb0695d._.js",
+        "server/edge/chunks/turbopack-edge-wrapper_bdc98cc6.js"
+      ],
+      "name": "app/api/generate/route",
+      "page": "/api/generate/route",
+      "matchers": [
+        {
+          "regexp": "^/api/generate(?:/)?$",
+          "originalSource": "/api/generate"
+        }
+      ],
+      "wasm": [],
+      "assets": [],
+      "env": {
+        "__NEXT_BUILD_ID": "development",
+        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "XqcjMubCQRWmXEIf05q1/qf3oA0BhzrIwn1WGejPWfI=",
+        "__NEXT_PREVIEW_MODE_ID": "2834c12cdec77b3162ac57b9c9361540",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "311c9e7999276aa598798bac9c02249bacb8429574cca8f80c20d0bc8ad2ee2f",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "c8069127925a76f9e29d85773881e41fec51d6cde538e685478a968fbb8548cf"
       }
     }
   }

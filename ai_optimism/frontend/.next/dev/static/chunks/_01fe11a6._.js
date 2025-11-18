@@ -13,11 +13,16 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$mat
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$IconButton$2f$IconButton$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__IconButton$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/IconButton/IconButton.js [app-client] (ecmascript) <export default as IconButton>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Typography/Typography.js [app-client] (ecmascript) <export default as Typography>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Avatar$2f$Avatar$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Avatar$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Avatar/Avatar.js [app-client] (ecmascript) <export default as Avatar>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Button$2f$Button$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Button$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Button/Button.js [app-client] (ecmascript) <export default as Button>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$CircularProgress$2f$CircularProgress$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__CircularProgress$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/CircularProgress/CircularProgress.js [app-client] (ecmascript) <export default as CircularProgress>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Send$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/Send.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$AutoFixHigh$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/AutoFixHigh.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$ai$2d$sdk$2f$react$2f$dist$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@ai-sdk/react/dist/index.mjs [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$ai$2f$dist$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/ai/dist/index.mjs [app-client] (ecmascript) <locals>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$contexts$2f$AIProviderContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/contexts/AIProviderContext.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$markdown$2f$lib$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__Markdown__as__default$3e$__ = __turbopack_context__.i("[project]/node_modules/react-markdown/lib/index.js [app-client] (ecmascript) <export Markdown as default>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$remark$2d$gfm$2f$lib$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/remark-gfm/lib/index.js [app-client] (ecmascript)");
 ;
 var _s = __turbopack_context__.k.signature();
 'use client';
@@ -27,7 +32,10 @@ var _s = __turbopack_context__.k.signature();
 ;
 ;
 ;
-function ChatPanel(_props) {
+;
+;
+;
+function ChatPanel({ onControlsGenerated }) {
     _s();
     const { state } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$contexts$2f$AIProviderContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAIProvider"])();
     const { apiKey, provider, model } = state;
@@ -74,6 +82,49 @@ function ChatPanel(_props) {
         transport
     });
     const isLoading = status === 'streaming';
+    const [isGenerating, setIsGenerating] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false);
+    // Extract conversation text for generation
+    const getConversationText = ()=>{
+        return messages.map((m)=>{
+            const text = m.parts?.filter((p)=>p.type === 'text').map((p)=>p.text).join('') || '';
+            return `${m.role}: ${text}`;
+        }).join('\n');
+    };
+    // Generate controls from conversation
+    const handleGenerateControls = async ()=>{
+        if (!apiKey) {
+            alert('Please connect to an AI provider first');
+            return;
+        }
+        setIsGenerating(true);
+        try {
+            const conversationText = getConversationText();
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey
+                },
+                body: JSON.stringify({
+                    description: conversationText
+                })
+            });
+            if (!response.ok) {
+                throw new Error(`Generation failed: ${response.statusText}`);
+            }
+            const controls = await response.json();
+            console.log('[ChatPanel] Generated controls:', controls);
+            // Pass to parent component
+            if (onControlsGenerated) {
+                onControlsGenerated(controls);
+            }
+        } catch (error) {
+            console.error('[ChatPanel] Generation error:', error);
+            alert('Failed to generate controls. Please try again.');
+        } finally{
+            setIsGenerating(false);
+        }
+    };
     // Log errors (but suppress API key errors when not connected)
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "ChatPanel.useEffect": ()=>{
@@ -138,7 +189,7 @@ function ChatPanel(_props) {
                         children: "💬 Chat Assistant"
                     }, void 0, false, {
                         fileName: "[project]/src/components/ChatPanel.tsx",
-                        lineNumber: 103,
+                        lineNumber: 159,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -146,13 +197,13 @@ function ChatPanel(_props) {
                         children: "Describe your optimization problem"
                     }, void 0, false, {
                         fileName: "[project]/src/components/ChatPanel.tsx",
-                        lineNumber: 106,
+                        lineNumber: 162,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/ChatPanel.tsx",
-                lineNumber: 94,
+                lineNumber: 150,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -181,7 +232,7 @@ function ChatPanel(_props) {
                                 children: "⚠️"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/ChatPanel.tsx",
-                                lineNumber: 131,
+                                lineNumber: 187,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
@@ -202,18 +253,18 @@ function ChatPanel(_props) {
 Click the "AI Connection" button in the top-right corner to configure your API key.`
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/ChatPanel.tsx",
-                                    lineNumber: 148,
+                                    lineNumber: 204,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/ChatPanel.tsx",
-                                lineNumber: 140,
+                                lineNumber: 196,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/ChatPanel.tsx",
-                        lineNumber: 124,
+                        lineNumber: 180,
                         columnNumber: 11
                     }, this),
                     apiKey && messages.length === 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -232,7 +283,7 @@ Click the "AI Connection" button in the top-right corner to configure your API k
                                 children: "🤖"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/ChatPanel.tsx",
-                                lineNumber: 172,
+                                lineNumber: 228,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
@@ -261,18 +312,18 @@ What problem would you like to solve? For example:
 Describe your problem, and I'll help you define variables, constraints, and objectives.`
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/ChatPanel.tsx",
-                                    lineNumber: 189,
+                                    lineNumber: 245,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/ChatPanel.tsx",
-                                lineNumber: 181,
+                                lineNumber: 237,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/ChatPanel.tsx",
-                        lineNumber: 165,
+                        lineNumber: 221,
                         columnNumber: 11
                     }, this),
                     messages.map((message)=>{
@@ -306,7 +357,7 @@ Describe your problem, and I'll help you define variables, constraints, and obje
                                     children: message.role === 'user' ? '👤' : '🤖'
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/ChatPanel.tsx",
-                                    lineNumber: 248,
+                                    lineNumber: 304,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
@@ -317,7 +368,80 @@ Describe your problem, and I'll help you define variables, constraints, and obje
                                         bgcolor: message.role === 'user' ? 'primary.light' : 'grey.100',
                                         color: message.role === 'user' ? 'primary.contrastText' : 'text.primary'
                                     },
-                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                    children: message.role === 'assistant' ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                        sx: {
+                                            '& p': {
+                                                mb: 1
+                                            },
+                                            '& ul, & ol': {
+                                                pl: 2,
+                                                mb: 1
+                                            },
+                                            '& li': {
+                                                mb: 0.5
+                                            },
+                                            '& code': {
+                                                bgcolor: 'grey.200',
+                                                px: 0.5,
+                                                py: 0.25,
+                                                borderRadius: 0.5,
+                                                fontFamily: 'monospace',
+                                                fontSize: '0.875em'
+                                            },
+                                            '& pre': {
+                                                bgcolor: 'grey.200',
+                                                p: 1,
+                                                borderRadius: 1,
+                                                overflow: 'auto',
+                                                mb: 1
+                                            },
+                                            '& pre code': {
+                                                bgcolor: 'transparent',
+                                                p: 0
+                                            },
+                                            '& table': {
+                                                borderCollapse: 'collapse',
+                                                width: '100%',
+                                                mb: 1
+                                            },
+                                            '& th, & td': {
+                                                border: '1px solid',
+                                                borderColor: 'divider',
+                                                p: 1,
+                                                textAlign: 'left'
+                                            },
+                                            '& th': {
+                                                bgcolor: 'grey.200',
+                                                fontWeight: 'bold'
+                                            },
+                                            '& h1, & h2, & h3, & h4, & h5, & h6': {
+                                                mt: 2,
+                                                mb: 1,
+                                                fontWeight: 'bold'
+                                            },
+                                            '& blockquote': {
+                                                borderLeft: '4px solid',
+                                                borderColor: 'primary.main',
+                                                pl: 2,
+                                                my: 1,
+                                                color: 'text.secondary'
+                                            }
+                                        },
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$markdown$2f$lib$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__Markdown__as__default$3e$__["default"], {
+                                            remarkPlugins: [
+                                                __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$remark$2d$gfm$2f$lib$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"]
+                                            ],
+                                            children: textContent
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/ChatPanel.tsx",
+                                            lineNumber: 376,
+                                            columnNumber: 21
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ChatPanel.tsx",
+                                        lineNumber: 323,
+                                        columnNumber: 19
+                                    }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
                                         variant: "body2",
                                         sx: {
                                             whiteSpace: 'pre-wrap',
@@ -326,18 +450,18 @@ Describe your problem, and I'll help you define variables, constraints, and obje
                                         children: textContent
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/ChatPanel.tsx",
-                                        lineNumber: 266,
-                                        columnNumber: 17
+                                        lineNumber: 381,
+                                        columnNumber: 19
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/ChatPanel.tsx",
-                                    lineNumber: 257,
+                                    lineNumber: 313,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, message.id, true, {
                             fileName: "[project]/src/components/ChatPanel.tsx",
-                            lineNumber: 239,
+                            lineNumber: 295,
                             columnNumber: 13
                         }, this);
                     }),
@@ -357,47 +481,114 @@ Describe your problem, and I'll help you define variables, constraints, and obje
                                 children: "🤖"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/ChatPanel.tsx",
-                                lineNumber: 281,
+                                lineNumber: 397,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
                                 elevation: 1,
                                 sx: {
                                     p: 2,
-                                    bgcolor: 'grey.100'
+                                    bgcolor: 'grey.100',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1.5
                                 },
-                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
-                                    variant: "body2",
-                                    color: "text.secondary",
-                                    children: "Thinking..."
-                                }, void 0, false, {
-                                    fileName: "[project]/src/components/ChatPanel.tsx",
-                                    lineNumber: 285,
-                                    columnNumber: 15
-                                }, this)
-                            }, void 0, false, {
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$CircularProgress$2f$CircularProgress$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__CircularProgress$3e$__["CircularProgress"], {
+                                        size: 16,
+                                        thickness: 5
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ChatPanel.tsx",
+                                        lineNumber: 401,
+                                        columnNumber: 15
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                        variant: "body2",
+                                        color: "text.secondary",
+                                        children: "Thinking..."
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ChatPanel.tsx",
+                                        lineNumber: 402,
+                                        columnNumber: 15
+                                    }, this)
+                                ]
+                            }, void 0, true, {
                                 fileName: "[project]/src/components/ChatPanel.tsx",
-                                lineNumber: 284,
+                                lineNumber: 400,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/ChatPanel.tsx",
-                        lineNumber: 280,
+                        lineNumber: 396,
                         columnNumber: 11
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         ref: messagesEndRef
                     }, void 0, false, {
                         fileName: "[project]/src/components/ChatPanel.tsx",
-                        lineNumber: 291,
+                        lineNumber: 408,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/ChatPanel.tsx",
-                lineNumber: 112,
+                lineNumber: 168,
                 columnNumber: 7
+            }, this),
+            messages.length > 0 && apiKey && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                sx: {
+                    px: 2,
+                    pb: 1,
+                    borderTop: 1,
+                    borderColor: 'divider',
+                    bgcolor: 'grey.50'
+                },
+                children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Button$2f$Button$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Button$3e$__["Button"], {
+                        fullWidth: true,
+                        variant: "contained",
+                        color: "secondary",
+                        startIcon: isGenerating ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$CircularProgress$2f$CircularProgress$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__CircularProgress$3e$__["CircularProgress"], {
+                            size: 16
+                        }, void 0, false, {
+                            fileName: "[project]/src/components/ChatPanel.tsx",
+                            lineNumber: 426,
+                            columnNumber: 39
+                        }, void 0) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$AutoFixHigh$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
+                            fileName: "[project]/src/components/ChatPanel.tsx",
+                            lineNumber: 426,
+                            columnNumber: 72
+                        }, void 0),
+                        onClick: handleGenerateControls,
+                        disabled: isGenerating || isLoading,
+                        sx: {
+                            py: 1
+                        },
+                        children: isGenerating ? 'Generating Controls...' : '✨ Generate Controls Panel'
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/ChatPanel.tsx",
+                        lineNumber: 422,
+                        columnNumber: 11
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                        variant: "caption",
+                        color: "text.secondary",
+                        sx: {
+                            mt: 0.5,
+                            display: 'block'
+                        },
+                        children: "Extract variables, properties, and constraints from the conversation"
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/ChatPanel.tsx",
+                        lineNumber: 433,
+                        columnNumber: 11
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/src/components/ChatPanel.tsx",
+                lineNumber: 413,
+                columnNumber: 9
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
                 component: "form",
@@ -419,7 +610,7 @@ Describe your problem, and I'll help you define variables, constraints, and obje
                         disabled: isLoading || !apiKey
                     }, void 0, false, {
                         fileName: "[project]/src/components/ChatPanel.tsx",
-                        lineNumber: 306,
+                        lineNumber: 451,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$IconButton$2f$IconButton$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__IconButton$3e$__["IconButton"], {
@@ -428,18 +619,18 @@ Describe your problem, and I'll help you define variables, constraints, and obje
                         disabled: isLoading || !input.trim() || !apiKey,
                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Send$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                             fileName: "[project]/src/components/ChatPanel.tsx",
-                            lineNumber: 319,
+                            lineNumber: 464,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/src/components/ChatPanel.tsx",
-                        lineNumber: 314,
+                        lineNumber: 459,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/ChatPanel.tsx",
-                lineNumber: 295,
+                lineNumber: 440,
                 columnNumber: 7
             }, this),
             !apiKey && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -454,22 +645,22 @@ Describe your problem, and I'll help you define variables, constraints, and obje
                     children: "Please configure your AI API key in the top right corner"
                 }, void 0, false, {
                     fileName: "[project]/src/components/ChatPanel.tsx",
-                    lineNumber: 325,
+                    lineNumber: 470,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/ChatPanel.tsx",
-                lineNumber: 324,
+                lineNumber: 469,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/ChatPanel.tsx",
-        lineNumber: 84,
+        lineNumber: 140,
         columnNumber: 5
     }, this);
 }
-_s(ChatPanel, "5JzeP7aIunh0rphlMyYAEh2MZ3M=", false, function() {
+_s(ChatPanel, "ysljTaGH/X4f4mFk4+2ZORfoAv4=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$contexts$2f$AIProviderContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAIProvider"],
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$ai$2d$sdk$2f$react$2f$dist$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useChat"]
@@ -495,51 +686,231 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$mat
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Typography/Typography.js [app-client] (ecmascript) <export default as Typography>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Tabs$2f$Tabs$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Tabs$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Tabs/Tabs.js [app-client] (ecmascript) <export default as Tabs>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Tab$2f$Tab$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Tab$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Tab/Tab.js [app-client] (ecmascript) <export default as Tab>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Slider$2f$Slider$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Slider$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Slider/Slider.js [app-client] (ecmascript) <export default as Slider>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$TextField$2f$TextField$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__TextField$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/TextField/TextField.js [app-client] (ecmascript) <export default as TextField>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Button$2f$Button$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Button$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Button/Button.js [app-client] (ecmascript) <export default as Button>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Divider$2f$Divider$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Divider$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Divider/Divider.js [app-client] (ecmascript) <export default as Divider>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$simple$2d$code$2d$editor$2f$lib$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/react-simple-code-editor/lib/index.js [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$prismjs$2f$prism$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/prismjs/prism.js [app-client] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$prismjs$2f$components$2f$prism$2d$python$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/prismjs/components/prism-python.js [app-client] (ecmascript)");
 ;
 var _s = __turbopack_context__.k.signature();
 'use client';
 ;
 ;
-;
-;
-;
-;
-function ControlsPanel({ variables = [], onVariablesChange }) {
+function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }) {
     _s();
     const [tabValue, setTabValue] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(0);
-    const [values, setValues] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({
-        "ControlsPanel.useState": ()=>{
+    // Extract variables from generated controls
+    const generatedControls = controls;
+    const [variables, setVariables] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(generatedControls?.variables || []);
+    const [objectives, setObjectives] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(generatedControls?.objectives || []);
+    const [properties, setProperties] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(generatedControls?.properties || []);
+    const [constraints, setConstraints] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(generatedControls?.constraints || []);
+    // Update local state when controls prop changes
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "ControlsPanel.useEffect": ()=>{
+            setVariables(generatedControls?.variables || []);
+            setObjectives(generatedControls?.objectives || []);
+            setProperties(generatedControls?.properties || []);
+            setConstraints(generatedControls?.constraints || []);
+        }
+    }["ControlsPanel.useEffect"], [
+        controls
+    ]);
+    const [values, setValues] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])({});
+    const [isManualEdit, setIsManualEdit] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(false); // Track if user is manually editing
+    const parseTimeoutRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(null); // Store timeout reference
+    const shouldRegenerateRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRef"])(true); // Control whether to regenerate script
+    const [validationErrors, setValidationErrors] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])([]); // Validation errors
+    // Update values when controls change
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "ControlsPanel.useEffect": ()=>{
             const initial = {};
             variables.forEach({
-                "ControlsPanel.useState": (v)=>{
-                    initial[v.name] = v.default;
+                "ControlsPanel.useEffect": (v)=>{
+                    initial[v.name] = v.default ?? 0; // Use 0 as fallback if default is undefined
                 }
-            }["ControlsPanel.useState"]);
-            return initial;
+            }["ControlsPanel.useEffect"]);
+            setValues(initial);
         }
-    }["ControlsPanel.useState"]);
+    }["ControlsPanel.useEffect"], [
+        controls
+    ]); // Re-run when controls change
     // Generate Python script from variables
     const generateScript = ()=>{
-        const lines = [
-            '# Optimization Variables',
-            ''
-        ];
-        variables.forEach((v)=>{
-            lines.push(`${v.name} = ${values[v.name]}  # ${v.description}${v.unit ? ` (${v.unit})` : ''}`);
-            lines.push(`# Range: [${v.min}, ${v.max}]`);
+        const lines = [];
+        // Variables section
+        if (variables.length > 0) {
+            lines.push('# ========== VARIABLES ==========');
             lines.push('');
-        });
+            variables.forEach((v)=>{
+                lines.push(`${v.name} = ${values[v.name] ?? v.default ?? 0}  # ${v.description}${v.unit ? ` (${v.unit})` : ''}`);
+                lines.push(`# Range: [${v.min}, ${v.max}]`);
+                lines.push('');
+            });
+        }
+        // Objectives section
+        if (objectives.length > 0) {
+            lines.push('# ========== OBJECTIVES ==========');
+            lines.push('');
+            objectives.forEach((o)=>{
+                lines.push(`# ${o.name} (${o.goal})`);
+                lines.push(`# ${o.description}`);
+                lines.push(`objective_${o.name.toLowerCase().replace(/\s+/g, '_')} = ${o.expression}`);
+                lines.push('');
+            });
+        }
+        // Properties section
+        if (properties.length > 0) {
+            lines.push('# ========== PROPERTIES ==========');
+            lines.push('');
+            properties.forEach((p)=>{
+                lines.push(`# ${p.description}`);
+                lines.push(`${p.name} = ${p.expression}`);
+                lines.push('');
+            });
+        }
+        // Constraints section
+        if (constraints.length > 0) {
+            lines.push('# ========== CONSTRAINTS ==========');
+            lines.push('');
+            constraints.forEach((c, i)=>{
+                lines.push(`# Constraint ${i + 1}: ${c.description}`);
+                lines.push(`# Must satisfy: ${c.expression}`);
+                lines.push('');
+            });
+        }
         return lines.join('\n');
     };
     const [script, setScript] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(generateScript());
+    // Regenerate script when variables or values change (but not during manual edits)
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "ControlsPanel.useEffect": ()=>{
+            if (!isManualEdit && shouldRegenerateRef.current) {
+                setScript(generateScript());
+            }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }
+    }["ControlsPanel.useEffect"], [
+        values,
+        variables,
+        objectives,
+        properties,
+        constraints
+    ]); // Don't include isManualEdit in deps!
+    // Parse script changes back to values and ranges
+    const handleScriptChange = (newScript)=>{
+        setIsManualEdit(true); // Prevent auto-regeneration while editing
+        shouldRegenerateRef.current = false; // Disable regeneration completely during manual edit
+        setScript(newScript);
+        // Clear any existing timeout
+        if (parseTimeoutRef.current) {
+            clearTimeout(parseTimeoutRef.current);
+        }
+        // Debounce parsing to avoid performance issues and allow continuous typing
+        parseTimeoutRef.current = setTimeout(()=>{
+            parseScriptChanges(newScript);
+            setIsManualEdit(false); // Re-enable auto-regeneration
+            shouldRegenerateRef.current = true; // Re-enable regeneration after parsing
+            parseTimeoutRef.current = null;
+        }, 800);
+    };
+    const parseScriptChanges = (newScript)=>{
+        const lines = newScript.split('\n');
+        const updatedValues = {
+            ...values
+        };
+        const updatedObjectives = [
+            ...objectives
+        ];
+        const updatedProperties = [
+            ...properties
+        ];
+        const updatedConstraints = [
+            ...constraints
+        ];
+        let hasChanges = false;
+        lines.forEach((line, index)=>{
+            // Parse variable assignments
+            const assignMatch = line.match(/^(\w+)\s*=\s*([\d.-]+)/);
+            if (assignMatch) {
+                const [, varName, value] = assignMatch;
+                if (variables.some((v)=>v.name === varName)) {
+                    const newValue = parseFloat(value);
+                    if (updatedValues[varName] !== newValue) {
+                        updatedValues[varName] = newValue;
+                        hasChanges = true;
+                    }
+                }
+            }
+            // Parse range changes
+            const rangeMatch = line.match(/^#\s*Range:\s*\[\s*([\d.-]+)\s*,\s*([\d.-]+)\s*\]/);
+            if (rangeMatch) {
+                const prevVarMatch = lines[index - 1]?.match(/^(\w+)\s*=/);
+                if (prevVarMatch) {
+                    const varName = prevVarMatch[1];
+                    const variable = variables.find((v)=>v.name === varName);
+                    if (variable) {
+                        const newMin = parseFloat(rangeMatch[1]);
+                        const newMax = parseFloat(rangeMatch[2]);
+                        if (variable.min !== newMin || variable.max !== newMax) {
+                            variable.min = newMin;
+                            variable.max = newMax;
+                            hasChanges = true;
+                        }
+                    }
+                }
+            }
+            // Parse objective expressions: "objective_minimize_cost = expression"
+            const objectiveMatch = line.match(/^objective_(\w+)\s*=\s*(.+)$/);
+            if (objectiveMatch) {
+                const [, namePart, expression] = objectiveMatch;
+                const objective = updatedObjectives.find((o)=>o.name.toLowerCase().replace(/\s+/g, '_') === namePart);
+                if (objective && objective.expression !== expression.trim()) {
+                    objective.expression = expression.trim();
+                    hasChanges = true;
+                }
+            }
+            // Parse property expressions: "property_name = expression"
+            const propertyMatch = line.match(/^(\w+)\s*=\s*(.+)$/);
+            if (propertyMatch && !line.startsWith('objective_')) {
+                const [, propName, expression] = propertyMatch;
+                const property = updatedProperties.find((p)=>p.name === propName);
+                if (property && property.expression !== expression.trim()) {
+                    property.expression = expression.trim();
+                    hasChanges = true;
+                }
+            }
+            // Parse constraint expressions: "# Must satisfy: expression"
+            const constraintMatch = line.match(/^#\s*Must satisfy:\s*(.+)$/);
+            if (constraintMatch) {
+                const expression = constraintMatch[1].trim();
+                // Find constraint by looking at previous comment with "Constraint N"
+                const prevLine = lines[index - 1];
+                const constraintNumMatch = prevLine?.match(/^#\s*Constraint\s+(\d+)/);
+                if (constraintNumMatch) {
+                    const constraintIndex = parseInt(constraintNumMatch[1]) - 1;
+                    if (updatedConstraints[constraintIndex] && updatedConstraints[constraintIndex].expression !== expression) {
+                        updatedConstraints[constraintIndex].expression = expression;
+                        hasChanges = true;
+                    }
+                }
+            }
+        });
+        // Only update state if values actually changed
+        if (hasChanges) {
+            setValues(updatedValues);
+            onVariablesChange?.(updatedValues);
+            // Update the arrays
+            setObjectives(updatedObjectives);
+            setProperties(updatedProperties);
+            setConstraints(updatedConstraints);
+            // Notify parent of full control updates
+            if (onControlsUpdate) {
+                onControlsUpdate({
+                    variables,
+                    objectives: updatedObjectives,
+                    properties: updatedProperties,
+                    constraints: updatedConstraints
+                });
+            }
+        }
+    };
     const handleSliderChange = (name)=>(_event, newValue)=>{
             const value = Array.isArray(newValue) ? newValue[0] : newValue;
             const updated = {
@@ -547,7 +918,7 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                 [name]: value
             };
             setValues(updated);
-            setScript(generateScript());
+            // useEffect will regenerate script automatically
             onVariablesChange?.(updated);
         };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
@@ -574,7 +945,7 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                         children: "🎛️ Controls"
                     }, void 0, false, {
                         fileName: "[project]/src/components/ControlsPanel.tsx",
-                        lineNumber: 76,
+                        lineNumber: 278,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -582,13 +953,13 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                         children: "Adjust optimization parameters"
                     }, void 0, false, {
                         fileName: "[project]/src/components/ControlsPanel.tsx",
-                        lineNumber: 79,
+                        lineNumber: 281,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/ControlsPanel.tsx",
-                lineNumber: 67,
+                lineNumber: 269,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Tabs$2f$Tabs$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Tabs$3e$__["Tabs"], {
@@ -598,25 +969,48 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                     borderBottom: 1,
                     borderColor: 'divider'
                 },
+                variant: "scrollable",
+                scrollButtons: "auto",
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Tab$2f$Tab$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Tab$3e$__["Tab"], {
-                        label: "Interactive"
+                        label: "Variables"
                     }, void 0, false, {
                         fileName: "[project]/src/components/ControlsPanel.tsx",
-                        lineNumber: 86,
+                        lineNumber: 294,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Tab$2f$Tab$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Tab$3e$__["Tab"], {
-                        label: "Script"
+                        label: "Objectives"
                     }, void 0, false, {
                         fileName: "[project]/src/components/ControlsPanel.tsx",
-                        lineNumber: 87,
+                        lineNumber: 295,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Tab$2f$Tab$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Tab$3e$__["Tab"], {
+                        label: "Properties"
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                        lineNumber: 296,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Tab$2f$Tab$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Tab$3e$__["Tab"], {
+                        label: "Constraints"
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                        lineNumber: 297,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Tab$2f$Tab$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Tab$3e$__["Tab"], {
+                        label: "Python Definition"
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                        lineNumber: 298,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/ControlsPanel.tsx",
-                lineNumber: 85,
+                lineNumber: 287,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -642,7 +1036,7 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                             children: "No variables defined yet. Use the chat to describe your optimization problem."
                         }, void 0, false, {
                             fileName: "[project]/src/components/ControlsPanel.tsx",
-                            lineNumber: 95,
+                            lineNumber: 307,
                             columnNumber: 15
                         }, this) : variables.map((variable)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
                                 children: [
@@ -663,13 +1057,13 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/components/ControlsPanel.tsx",
-                                                lineNumber: 104,
+                                                lineNumber: 316,
                                                 columnNumber: 23
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/ControlsPanel.tsx",
-                                        lineNumber: 101,
+                                        lineNumber: 313,
                                         columnNumber: 19
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -682,7 +1076,7 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                                         children: variable.description
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/ControlsPanel.tsx",
-                                        lineNumber: 110,
+                                        lineNumber: 322,
                                         columnNumber: 19
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -692,8 +1086,8 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                                             alignItems: 'center'
                                         },
                                         children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Slider$2f$Slider$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Slider$3e$__["Slider"], {
-                                                value: values[variable.name],
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(Slider, {
+                                                value: values[variable.name] ?? variable.default ?? variable.min,
                                                 onChange: handleSliderChange(variable.name),
                                                 min: variable.min,
                                                 max: variable.max,
@@ -714,12 +1108,12 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                                                 }
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/ControlsPanel.tsx",
-                                                lineNumber: 114,
+                                                lineNumber: 326,
                                                 columnNumber: 21
                                             }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$TextField$2f$TextField$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__TextField$3e$__["TextField"], {
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(TextField, {
                                                 type: "number",
-                                                value: values[variable.name],
+                                                value: values[variable.name] ?? variable.default ?? 0,
                                                 onChange: (e)=>handleSliderChange(variable.name)(e, parseFloat(e.target.value)),
                                                 size: "small",
                                                 sx: {
@@ -732,36 +1126,310 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                                                 }
                                             }, void 0, false, {
                                                 fileName: "[project]/src/components/ControlsPanel.tsx",
-                                                lineNumber: 127,
+                                                lineNumber: 339,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/components/ControlsPanel.tsx",
-                                        lineNumber: 113,
+                                        lineNumber: 325,
                                         columnNumber: 19
                                     }, this),
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Divider$2f$Divider$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Divider$3e$__["Divider"], {
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(Divider, {
                                         sx: {
                                             mt: 2
                                         }
                                     }, void 0, false, {
                                         fileName: "[project]/src/components/ControlsPanel.tsx",
-                                        lineNumber: 140,
+                                        lineNumber: 352,
                                         columnNumber: 19
                                     }, this)
                                 ]
                             }, variable.name, true, {
                                 fileName: "[project]/src/components/ControlsPanel.tsx",
-                                lineNumber: 100,
+                                lineNumber: 312,
                                 columnNumber: 17
                             }, this))
                     }, void 0, false, {
                         fileName: "[project]/src/components/ControlsPanel.tsx",
-                        lineNumber: 93,
+                        lineNumber: 305,
                         columnNumber: 11
                     }, this),
                     tabValue === 1 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                        sx: {
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 2
+                        },
+                        children: objectives.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                            variant: "body2",
+                            color: "text.secondary",
+                            textAlign: "center",
+                            sx: {
+                                py: 4
+                            },
+                            children: "No objectives defined yet. Objectives define what to optimize for."
+                        }, void 0, false, {
+                            fileName: "[project]/src/components/ControlsPanel.tsx",
+                            lineNumber: 363,
+                            columnNumber: 15
+                        }, this) : objectives.map((objective, idx)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
+                                variant: "outlined",
+                                sx: {
+                                    p: 2,
+                                    borderLeft: 4,
+                                    borderLeftColor: objective.goal === 'maximize' ? 'success.main' : 'primary.main'
+                                },
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                        sx: {
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 1,
+                                            mb: 1
+                                        },
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                            variant: "overline",
+                                            sx: {
+                                                fontWeight: 'bold',
+                                                color: objective.goal === 'maximize' ? 'success.main' : 'primary.main'
+                                            },
+                                            children: objective.goal === 'maximize' ? '📈 Maximize' : '📉 Minimize'
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/components/ControlsPanel.tsx",
+                                            lineNumber: 378,
+                                            columnNumber: 21
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                                        lineNumber: 377,
+                                        columnNumber: 19
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                        variant: "h6",
+                                        fontWeight: "bold",
+                                        gutterBottom: true,
+                                        children: objective.name
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                                        lineNumber: 388,
+                                        columnNumber: 19
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                        variant: "caption",
+                                        color: "text.secondary",
+                                        display: "block",
+                                        sx: {
+                                            mb: 1
+                                        },
+                                        children: objective.description
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                                        lineNumber: 391,
+                                        columnNumber: 19
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                        sx: {
+                                            bgcolor: objective.goal === 'maximize' ? 'success.50' : 'primary.50',
+                                            p: 1.5,
+                                            borderRadius: 1,
+                                            fontFamily: 'monospace',
+                                            fontSize: '0.875rem',
+                                            border: 1,
+                                            borderColor: objective.goal === 'maximize' ? 'success.light' : 'primary.light'
+                                        },
+                                        children: objective.expression
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                                        lineNumber: 394,
+                                        columnNumber: 19
+                                    }, this)
+                                ]
+                            }, idx, true, {
+                                fileName: "[project]/src/components/ControlsPanel.tsx",
+                                lineNumber: 368,
+                                columnNumber: 17
+                            }, this))
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                        lineNumber: 361,
+                        columnNumber: 11
+                    }, this),
+                    tabValue === 2 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                        sx: {
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 2
+                        },
+                        children: properties.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                            variant: "body2",
+                            color: "text.secondary",
+                            textAlign: "center",
+                            sx: {
+                                py: 4
+                            },
+                            children: "No properties defined yet. Properties are calculated values based on variables."
+                        }, void 0, false, {
+                            fileName: "[project]/src/components/ControlsPanel.tsx",
+                            lineNumber: 417,
+                            columnNumber: 15
+                        }, this) : properties.map((property, idx)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
+                                variant: "outlined",
+                                sx: {
+                                    p: 2
+                                },
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                        variant: "subtitle2",
+                                        fontWeight: "bold",
+                                        gutterBottom: true,
+                                        children: property.name
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                                        lineNumber: 423,
+                                        columnNumber: 19
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                        variant: "caption",
+                                        color: "text.secondary",
+                                        display: "block",
+                                        sx: {
+                                            mb: 1
+                                        },
+                                        children: property.description
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                                        lineNumber: 426,
+                                        columnNumber: 19
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                        sx: {
+                                            bgcolor: 'grey.100',
+                                            p: 1.5,
+                                            borderRadius: 1,
+                                            fontFamily: 'monospace',
+                                            fontSize: '0.875rem'
+                                        },
+                                        children: property.expression
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                                        lineNumber: 429,
+                                        columnNumber: 19
+                                    }, this)
+                                ]
+                            }, idx, true, {
+                                fileName: "[project]/src/components/ControlsPanel.tsx",
+                                lineNumber: 422,
+                                columnNumber: 17
+                            }, this))
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                        lineNumber: 415,
+                        columnNumber: 11
+                    }, this),
+                    tabValue === 3 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                        sx: {
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 2
+                        },
+                        children: constraints.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                            variant: "body2",
+                            color: "text.secondary",
+                            textAlign: "center",
+                            sx: {
+                                py: 4
+                            },
+                            children: "No constraints defined yet. Constraints are rules that solutions must satisfy."
+                        }, void 0, false, {
+                            fileName: "[project]/src/components/ControlsPanel.tsx",
+                            lineNumber: 450,
+                            columnNumber: 15
+                        }, this) : constraints.map((constraint, idx)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
+                                variant: "outlined",
+                                sx: {
+                                    p: 2
+                                },
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                        sx: {
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 1,
+                                            mb: 1
+                                        },
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                                sx: {
+                                                    width: 8,
+                                                    height: 8,
+                                                    borderRadius: '50%',
+                                                    bgcolor: 'warning.main'
+                                                }
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/components/ControlsPanel.tsx",
+                                                lineNumber: 457,
+                                                columnNumber: 21
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                                variant: "subtitle2",
+                                                fontWeight: "bold",
+                                                children: [
+                                                    "Constraint ",
+                                                    idx + 1
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/src/components/ControlsPanel.tsx",
+                                                lineNumber: 465,
+                                                columnNumber: 21
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                                        lineNumber: 456,
+                                        columnNumber: 19
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                        variant: "caption",
+                                        color: "text.secondary",
+                                        display: "block",
+                                        sx: {
+                                            mb: 1
+                                        },
+                                        children: constraint.description
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                                        lineNumber: 469,
+                                        columnNumber: 19
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                        sx: {
+                                            bgcolor: 'grey.100',
+                                            p: 1.5,
+                                            borderRadius: 1,
+                                            fontFamily: 'monospace',
+                                            fontSize: '0.875rem',
+                                            border: 1,
+                                            borderColor: 'warning.light'
+                                        },
+                                        children: constraint.expression
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                                        lineNumber: 472,
+                                        columnNumber: 19
+                                    }, this)
+                                ]
+                            }, idx, true, {
+                                fileName: "[project]/src/components/ControlsPanel.tsx",
+                                lineNumber: 455,
+                                columnNumber: 17
+                            }, this))
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/ControlsPanel.tsx",
+                        lineNumber: 448,
+                        columnNumber: 11
+                    }, this),
+                    tabValue === 4 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
                         children: [
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
                                 sx: {
@@ -771,10 +1439,10 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                                     border: 1,
                                     borderColor: 'divider'
                                 },
-                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$react$2d$simple$2d$code$2d$editor$2f$lib$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"], {
+                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(Editor, {
                                     value: script,
-                                    onValueChange: setScript,
-                                    highlight: (code)=>__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$prismjs$2f$prism$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].highlight(code, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$prismjs$2f$prism$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].languages.python, 'python'),
+                                    onValueChange: handleScriptChange,
+                                    highlight: (code)=>Prism.highlight(code, Prism.languages.python, 'python'),
                                     padding: 16,
                                     style: {
                                         fontFamily: '"Fira code", "Fira Mono", monospace',
@@ -785,12 +1453,12 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                                     }
                                 }, void 0, false, {
                                     fileName: "[project]/src/components/ControlsPanel.tsx",
-                                    lineNumber: 158,
+                                    lineNumber: 503,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/components/ControlsPanel.tsx",
-                                lineNumber: 149,
+                                lineNumber: 494,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -800,22 +1468,22 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                                     mt: 1,
                                     display: 'block'
                                 },
-                                children: "Edit the script directly or use the interactive controls above"
+                                children: "Edit variable values and ranges. Changes apply after you stop typing (800ms delay)."
                             }, void 0, false, {
                                 fileName: "[project]/src/components/ControlsPanel.tsx",
-                                lineNumber: 172,
+                                lineNumber: 517,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/ControlsPanel.tsx",
-                        lineNumber: 148,
+                        lineNumber: 493,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/ControlsPanel.tsx",
-                lineNumber: 91,
+                lineNumber: 302,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -824,29 +1492,29 @@ function ControlsPanel({ variables = [], onVariablesChange }) {
                     borderTop: 1,
                     borderColor: 'divider'
                 },
-                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Button$2f$Button$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Button$3e$__["Button"], {
+                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(Button, {
                     variant: "contained",
                     fullWidth: true,
                     disabled: variables.length === 0,
                     children: "Apply Changes"
                 }, void 0, false, {
                     fileName: "[project]/src/components/ControlsPanel.tsx",
-                    lineNumber: 181,
+                    lineNumber: 526,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/components/ControlsPanel.tsx",
-                lineNumber: 180,
+                lineNumber: 525,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/ControlsPanel.tsx",
-        lineNumber: 57,
+        lineNumber: 259,
         columnNumber: 5
     }, this);
 }
-_s(ControlsPanel, "vvZGBcP10U6++S/BCbGMi3vonR8=");
+_s(ControlsPanel, "W8oDcXVRylA2BPhDnSNYxSdKlpo=");
 _c = ControlsPanel;
 var _c;
 __turbopack_context__.k.register(_c, "ControlsPanel");
@@ -2276,6 +2944,9 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$Control
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$VisualizationPanel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/VisualizationPanel.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$OptimizationPanel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/OptimizationPanel.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$AIConnectionStatus$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/AIConnectionStatus.tsx [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+;
+var _s = __turbopack_context__.k.signature();
 'use client';
 ;
 ;
@@ -2285,16 +2956,36 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$AIConne
 ;
 ;
 function HomePage() {
+    _s();
+    const [generatedControls, setGeneratedControls] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(null);
+    const handleControlsGenerated = (controls)=>{
+        console.log('[HomePage] Controls generated:', controls);
+        setGeneratedControls(controls);
+    };
+    // Initialize gradient visibility on mount
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
+        "HomePage.useEffect": ()=>{
+            const leftMask = document.querySelector('.gradient-left');
+            if (leftMask) {
+                leftMask.style.opacity = '0'; // Start with left hidden since we're at the left edge
+            }
+        }
+    }["HomePage.useEffect"], []);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
         sx: {
             display: 'flex',
             flexDirection: 'column',
             height: '100vh',
-            bgcolor: '#f5f5f5'
+            bgcolor: '#f5f5f5',
+            overflow: 'hidden'
         },
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$AppBar$2f$AppBar$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__AppBar$3e$__["AppBar"], {
                 position: "static",
+                sx: {
+                    flexShrink: 0,
+                    width: '100vw'
+                },
                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Toolbar$2f$Toolbar$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Toolbar$3e$__["Toolbar"], {
                     children: [
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -2303,7 +2994,7 @@ function HomePage() {
                             }
                         }, void 0, false, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 16,
+                            lineNumber: 32,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -2315,7 +3006,7 @@ function HomePage() {
                             children: "AI OPTIMISM TOOLKIT"
                         }, void 0, false, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 17,
+                            lineNumber: 33,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -2326,107 +3017,198 @@ function HomePage() {
                             },
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$AIConnectionStatus$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AIConnectionStatus"], {}, void 0, false, {
                                 fileName: "[project]/app/page.tsx",
-                                lineNumber: 21,
+                                lineNumber: 37,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 20,
+                            lineNumber: 36,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 15,
+                    lineNumber: 31,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 14,
+                lineNumber: 30,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
                 sx: {
                     flex: 1,
-                    display: 'grid',
-                    gridTemplateColumns: {
-                        xs: '1fr',
-                        md: 'repeat(4, 1fr)'
-                    },
-                    gap: 2,
-                    p: 2,
+                    position: 'relative',
+                    minHeight: 0,
                     overflow: 'hidden'
                 },
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
                         sx: {
-                            minHeight: 400
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            bottom: 0,
+                            width: '120px',
+                            background: 'linear-gradient(to right, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0) 100%)',
+                            pointerEvents: 'none',
+                            zIndex: 2,
+                            transition: 'opacity 0.3s'
                         },
-                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ChatPanel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ChatPanel"], {}, void 0, false, {
-                            fileName: "[project]/app/page.tsx",
-                            lineNumber: 42,
-                            columnNumber: 11
-                        }, this)
+                        className: "gradient-left"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 41,
+                        lineNumber: 52,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
                         sx: {
-                            minHeight: 400
+                            position: 'absolute',
+                            top: 0,
+                            right: 0,
+                            bottom: 0,
+                            width: '120px',
+                            background: 'linear-gradient(to left, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0) 100%)',
+                            pointerEvents: 'none',
+                            zIndex: 2,
+                            transition: 'opacity 0.3s'
                         },
-                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ControlsPanel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ControlsPanel"], {}, void 0, false, {
-                            fileName: "[project]/app/page.tsx",
-                            lineNumber: 47,
-                            columnNumber: 11
-                        }, this)
+                        className: "gradient-right"
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 46,
+                        lineNumber: 68,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
                         sx: {
-                            minHeight: 400
+                            overflowX: 'auto',
+                            overflowY: 'hidden',
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column'
                         },
-                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$VisualizationPanel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["VisualizationPanel"], {}, void 0, false, {
+                        onScroll: (e)=>{
+                            const target = e.currentTarget;
+                            const scrollLeft = target.scrollLeft;
+                            const maxScroll = target.scrollWidth - target.clientWidth;
+                            // Show/hide gradient masks based on scroll position
+                            const leftMask = document.querySelector('.gradient-left');
+                            const rightMask = document.querySelector('.gradient-right');
+                            if (leftMask) {
+                                leftMask.style.opacity = scrollLeft > 10 ? '1' : '0';
+                            }
+                            if (rightMask) {
+                                rightMask.style.opacity = scrollLeft < maxScroll - 10 ? '1' : '0';
+                            }
+                        },
+                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                            sx: {
+                                display: 'grid',
+                                gridTemplateColumns: {
+                                    xs: '1fr',
+                                    md: '600px 600px 600px 600px'
+                                },
+                                gap: 2,
+                                flex: 1,
+                                minHeight: 0,
+                                pl: 2,
+                                pr: 2,
+                                pt: 2,
+                                pb: 2,
+                                // Add extra width to ensure right padding is visible
+                                width: 'fit-content'
+                            },
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                    sx: {
+                                        height: '100%',
+                                        overflow: 'hidden'
+                                    },
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ChatPanel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ChatPanel"], {
+                                        onControlsGenerated: handleControlsGenerated
+                                    }, void 0, false, {
+                                        fileName: "[project]/app/page.tsx",
+                                        lineNumber: 129,
+                                        columnNumber: 13
+                                    }, this)
+                                }, void 0, false, {
+                                    fileName: "[project]/app/page.tsx",
+                                    lineNumber: 128,
+                                    columnNumber: 11
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                    sx: {
+                                        height: '100%',
+                                        overflow: 'hidden'
+                                    },
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ControlsPanel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["ControlsPanel"], {
+                                        controls: generatedControls
+                                    }, void 0, false, {
+                                        fileName: "[project]/app/page.tsx",
+                                        lineNumber: 134,
+                                        columnNumber: 13
+                                    }, this)
+                                }, void 0, false, {
+                                    fileName: "[project]/app/page.tsx",
+                                    lineNumber: 133,
+                                    columnNumber: 11
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                    sx: {
+                                        height: '100%',
+                                        overflow: 'hidden'
+                                    },
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$VisualizationPanel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["VisualizationPanel"], {}, void 0, false, {
+                                        fileName: "[project]/app/page.tsx",
+                                        lineNumber: 139,
+                                        columnNumber: 13
+                                    }, this)
+                                }, void 0, false, {
+                                    fileName: "[project]/app/page.tsx",
+                                    lineNumber: 138,
+                                    columnNumber: 11
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                    sx: {
+                                        height: '100%',
+                                        overflow: 'hidden'
+                                    },
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$OptimizationPanel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["OptimizationPanel"], {}, void 0, false, {
+                                        fileName: "[project]/app/page.tsx",
+                                        lineNumber: 144,
+                                        columnNumber: 13
+                                    }, this)
+                                }, void 0, false, {
+                                    fileName: "[project]/app/page.tsx",
+                                    lineNumber: 143,
+                                    columnNumber: 11
+                                }, this)
+                            ]
+                        }, void 0, true, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 52,
+                            lineNumber: 109,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/page.tsx",
-                        lineNumber: 51,
-                        columnNumber: 9
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
-                        sx: {
-                            minHeight: 400
-                        },
-                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$OptimizationPanel$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["OptimizationPanel"], {}, void 0, false, {
-                            fileName: "[project]/app/page.tsx",
-                            lineNumber: 57,
-                            columnNumber: 11
-                        }, this)
-                    }, void 0, false, {
-                        fileName: "[project]/app/page.tsx",
-                        lineNumber: 56,
+                        lineNumber: 84,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 27,
+                lineNumber: 43,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/page.tsx",
-        lineNumber: 12,
+        lineNumber: 28,
         columnNumber: 5
     }, this);
 }
+_s(HomePage, "jzGI5dYP1yyHY5zU285BBlzvyN0=");
 _c = HomePage;
 var _c;
 __turbopack_context__.k.register(_c, "HomePage");

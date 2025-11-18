@@ -1,56 +1,102 @@
 'use client';
 
-import { Box, Paper, Typography, Tabs, Tab, Slider, TextField, Button, Divider } from '@mui/material';
-import { useState } from 'react';
-import Editor from 'react-simple-code-editor';
-import Prism from 'prismjs';
-import 'prismjs/components/prism-python';
-import 'prismjs/themes/prism-tomorrow.css';
+import { Box, Paper, Typography, Tabs, Tab } from '@mui/material';
+import { useState, useEffect } from 'react';
+import { VariablesTab, Variable } from './controls/VariablesTab';
+import { ObjectivesTab, Objective } from './controls/ObjectivesTab';
+import { PropertiesTab, Property } from './controls/PropertiesTab';
+import { ConstraintsTab, Constraint } from './controls/ConstraintsTab';
 
-interface Variable {
-  name: string;
-  type: 'continuous' | 'discrete';
-  min: number;
-  max: number;
-  default: number;
-  unit?: string;
-  description: string;
+interface GeneratedControls {
+  variables?: Variable[];
+  objectives?: Objective[];
+  properties?: Property[];
+  constraints?: Constraint[];
 }
 
 interface ControlsPanelProps {
-  variables?: Variable[];
+  controls?: unknown;
   onVariablesChange?: (variables: Record<string, number>) => void;
+  onControlsUpdate?: (controls: GeneratedControls) => void;
 }
 
-export function ControlsPanel({ variables = [], onVariablesChange }: ControlsPanelProps) {
+export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }: ControlsPanelProps) {
   const [tabValue, setTabValue] = useState(0);
-  const [values, setValues] = useState<Record<string, number>>(() => {
+  
+  // Extract variables from generated controls
+  const generatedControls = controls as GeneratedControls | null;
+  const [variables, setVariables] = useState<Variable[]>(generatedControls?.variables || []);
+  const [objectives, setObjectives] = useState<Objective[]>(generatedControls?.objectives || []);
+  const [properties, setProperties] = useState<Property[]>(generatedControls?.properties || []);
+  const [constraints, setConstraints] = useState<Constraint[]>(generatedControls?.constraints || []);
+  
+  // Update local state when controls prop changes
+  useEffect(() => {
+    setVariables(generatedControls?.variables || []);
+    setObjectives(generatedControls?.objectives || []);
+    setProperties(generatedControls?.properties || []);
+    setConstraints(generatedControls?.constraints || []);
+  }, [controls]);
+  
+  const [values, setValues] = useState<Record<string, number>>({});
+
+  // Update values when controls change
+  useEffect(() => {
     const initial: Record<string, number> = {};
     variables.forEach((v) => {
-      initial[v.name] = v.default;
+      initial[v.name] = v.default ?? 0;
     });
-    return initial;
-  });
+    setValues(initial);
+  }, [controls, variables]);
 
-  // Generate Python script from variables
-  const generateScript = () => {
-    const lines = ['# Optimization Variables', ''];
-    variables.forEach((v) => {
-      lines.push(`${v.name} = ${values[v.name]}  # ${v.description}${v.unit ? ` (${v.unit})` : ''}`);
-      lines.push(`# Range: [${v.min}, ${v.max}]`);
-      lines.push('');
-    });
-    return lines.join('\n');
+  // Handle slider changes for variables
+  const handleSliderChange = (name: string, newValue: number) => {
+    const updated = { ...values, [name]: newValue };
+    setValues(updated);
+    onVariablesChange?.(updated);
   };
 
-  const [script, setScript] = useState(generateScript());
-
-  const handleSliderChange = (name: string) => (_event: Event, newValue: number | number[]) => {
-    const value = Array.isArray(newValue) ? newValue[0] : newValue;
-    const updated = { ...values, [name]: value };
-    setValues(updated);
-    setScript(generateScript());
-    onVariablesChange?.(updated);
+  // Handle variable name changes - propagate to objectives, properties, constraints
+  const handleVariableNameChange = (oldName: string, newName: string) => {
+    // Update expressions in objectives
+    const updatedObjectives = objectives.map(obj => ({
+      ...obj,
+      expression: obj.expression.replace(new RegExp(`\\b${oldName}\\b`, 'g'), newName)
+    }));
+    
+    // Update expressions in properties
+    const updatedProperties = properties.map(prop => ({
+      ...prop,
+      expression: prop.expression.replace(new RegExp(`\\b${oldName}\\b`, 'g'), newName)
+    }));
+    
+    // Update expressions in constraints
+    const updatedConstraints = constraints.map(cons => ({
+      ...cons,
+      expression: cons.expression.replace(new RegExp(`\\b${oldName}\\b`, 'g'), newName)
+    }));
+    
+    // Update values object
+    const updatedValues = { ...values };
+    if (updatedValues[oldName] !== undefined) {
+      updatedValues[newName] = updatedValues[oldName];
+      delete updatedValues[oldName];
+    }
+    
+    setObjectives(updatedObjectives);
+    setProperties(updatedProperties);
+    setConstraints(updatedConstraints);
+    setValues(updatedValues);
+    
+    // Notify parent
+    if (onControlsUpdate) {
+      onControlsUpdate({
+        variables,
+        objectives: updatedObjectives,
+        properties: updatedProperties,
+        constraints: updatedConstraints,
+      });
+    }
   };
 
   return (
@@ -82,105 +128,60 @@ export function ControlsPanel({ variables = [], onVariablesChange }: ControlsPan
       </Box>
 
       {/* Tabs */}
-      <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tab label="Interactive" />
-        <Tab label="Script" />
+      <Tabs 
+        value={tabValue} 
+        onChange={(_, v) => setTabValue(v)} 
+        sx={{ borderBottom: 1, borderColor: 'divider' }}
+        variant="scrollable"
+        scrollButtons="auto"
+      >
+        <Tab label="Variables" />
+        <Tab label="Objectives" />
+        <Tab label="Properties" />
+        <Tab label="Constraints" />
       </Tabs>
 
       {/* Content */}
       <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
+        {/* Tab 0: Variables (Interactive) */}
         {tabValue === 0 && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {variables.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 4 }}>
-                No variables defined yet. Use the chat to describe your optimization problem.
-              </Typography>
-            ) : (
-              variables.map((variable) => (
-                <Box key={variable.name}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    {variable.name}
-                    {variable.unit && (
-                      <Typography component="span" variant="caption" color="text.secondary">
-                        {' '}
-                        ({variable.unit})
-                      </Typography>
-                    )}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1 }}>
-                    {variable.description}
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    <Slider
-                      value={values[variable.name]}
-                      onChange={handleSliderChange(variable.name)}
-                      min={variable.min}
-                      max={variable.max}
-                      step={variable.type === 'discrete' ? 1 : (variable.max - variable.min) / 100}
-                      marks={[
-                        { value: variable.min, label: variable.min.toString() },
-                        { value: variable.max, label: variable.max.toString() },
-                      ]}
-                      valueLabelDisplay="auto"
-                      sx={{ flex: 1 }}
-                    />
-                    <TextField
-                      type="number"
-                      value={values[variable.name]}
-                      onChange={(e) => handleSliderChange(variable.name)(e as any, parseFloat(e.target.value))}
-                      size="small"
-                      sx={{ width: 100 }}
-                      inputProps={{
-                        min: variable.min,
-                        max: variable.max,
-                        step: variable.type === 'discrete' ? 1 : 0.01,
-                      }}
-                    />
-                  </Box>
-                  <Divider sx={{ mt: 2 }} />
-                </Box>
-              ))
-            )}
-          </Box>
+          <VariablesTab 
+            variables={variables}
+            values={values}
+            onValueChange={handleSliderChange}
+            onVariablesChange={setVariables}
+            onVariableNameChange={handleVariableNameChange}
+          />
         )}
 
+        {/* Tab 1: Objectives */}
         {tabValue === 1 && (
-          <Box>
-            <Box
-              sx={{
-                bgcolor: '#1e1e1e',
-                borderRadius: 1,
-                overflow: 'hidden',
-                border: 1,
-                borderColor: 'divider',
-              }}
-            >
-              <Editor
-                value={script}
-                onValueChange={setScript}
-                highlight={(code) => Prism.highlight(code, Prism.languages.python, 'python')}
-                padding={16}
-                style={{
-                  fontFamily: '"Fira code", "Fira Mono", monospace',
-                  fontSize: 13,
-                  minHeight: 200,
-                  backgroundColor: '#1e1e1e',
-                  color: '#d4d4d4',
-                }}
-              />
-            </Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Edit the script directly or use the interactive controls above
-            </Typography>
-          </Box>
+          <ObjectivesTab 
+            objectives={objectives}
+            variables={variables}
+            properties={properties}
+            onObjectivesChange={setObjectives}
+          />
         )}
-      </Box>
 
-      {/* Actions */}
-      <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-        <Button variant="contained" fullWidth disabled={variables.length === 0}>
-          Apply Changes
-        </Button>
+        {/* Tab 2: Properties */}
+        {tabValue === 2 && (
+          <PropertiesTab 
+            properties={properties}
+            variables={variables}
+            onPropertiesChange={setProperties}
+          />
+        )}
+
+        {/* Tab 3: Constraints */}
+        {tabValue === 3 && (
+          <ConstraintsTab 
+            constraints={constraints}
+            variables={variables}
+            properties={properties}
+            onConstraintsChange={setConstraints}
+          />
+        )}
       </Box>
     </Paper>
   );
