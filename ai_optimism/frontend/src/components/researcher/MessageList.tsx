@@ -4,11 +4,6 @@
 
 import { Box, Avatar, Paper, Typography, Chip, Accordion, AccordionSummary, AccordionDetails, CircularProgress } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css';
 import { Message } from '../../services/sessionManager';
 
 interface MessageListProps {
@@ -24,9 +19,6 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
     <Box sx={{ flex: 1, overflow: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
       {messages.map((message) => {
         console.log('[MessageList] Rendering message:', message.id, 'sender:', message.sender, 'metadata:', message.metadata, 'content length:', message.content?.length);
-        
-        const isGeneration = message.metadata?.type === 'generation';
-        const generationStatus = message.metadata?.generationStatus;
         
         return (
         <Box
@@ -62,20 +54,26 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                   ? 'grey.100'
                   : message.sender === 'researcher'
                   ? 'info.light'
-                  : isGeneration && generationStatus === 'success'
-                  ? 'rgba(156, 39, 176, 0.1)' // Light purple for generation success
-                  : isGeneration && generationStatus === 'failed'
-                  ? 'rgba(244, 67, 54, 0.1)' // Light red for generation failure
                   : message.metadata?.incomplete
                   ? 'rgba(255, 152, 0, 0.15)' // Soft amber for incomplete
-                  : 'success.light',
+                  : message.metadata?.type === 'formalization'
+                  ? 'success.light'
+                  : message.metadata?.type === 'controls-generation' && message.metadata?.controlsGenerated
+                  ? 'secondary.light' // Purple for successful generation
+                  : message.metadata?.type === 'controls-generation' && message.metadata?.controlsError
+                  ? 'rgba(255, 152, 0, 0.15)' // Soft amber for failed generation
+                  : 'grey.100',
               ...(message.metadata?.type === 'formalization' && {
                 border: 2,
                 borderColor: message.metadata?.incomplete ? 'warning.main' : 'success.main',
               }),
-              ...(isGeneration && {
+              ...(message.metadata?.type === 'controls-generation' && message.metadata?.controlsGenerated && {
                 border: 2,
-                borderColor: generationStatus === 'success' ? 'secondary.main' : 'error.main',
+                borderColor: 'secondary.main',
+              }),
+              ...(message.metadata?.type === 'controls-generation' && message.metadata?.controlsError && {
+                border: 2,
+                borderColor: 'warning.main',
               }),
             }}
           >
@@ -84,8 +82,40 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                 ? 'User'
                 : message.sender === 'researcher'
                 ? 'You (Researcher)'
-                : 'AI Formalization'}
+                : message.metadata?.type === 'formalization'
+                ? 'AI Formalization'
+                : 'AI Assistant'}
             </Typography>
+            
+            {/* Show chips for controls-generation messages */}
+            {message.metadata?.type === 'controls-generation' && (
+              <Box sx={{ mb: 1 }}>
+                {message.metadata?.controlsGenerated && (
+                  <Chip 
+                    label="🎛️ Controls Generated" 
+                    size="small" 
+                    color="secondary"
+                  />
+                )}
+                {message.metadata?.controlsError && (
+                  <Chip 
+                    label="❌ Generation Failed" 
+                    size="small" 
+                    color="error"
+                  />
+                )}
+              </Box>
+            )}
+            
+            {/* Show thinking indicator during generation */}
+            {message.metadata?.type === 'controls-generation' && !message.metadata?.controlsGenerated && !message.metadata?.controlsError && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                <CircularProgress size={16} thickness={5} />
+                <Typography variant="body2" color="text.secondary">
+                  Generating controls...
+                </Typography>
+              </Box>
+            )}
             
             {message.metadata?.type === 'formalization' ? (
               <Accordion
@@ -109,7 +139,7 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Chip
-                      label={message.metadata?.incomplete ? '⚠️ Incomplete Formalization' : 'Formalized Problem'}
+                      label={message.metadata?.incomplete ? '⚠️ Incomplete Formalization' : '✨ Problem Formalized'}
                       size="small"
                       color={message.metadata?.incomplete ? 'warning' : 'success'}
                     />
@@ -119,126 +149,17 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                   </Box>
                 </AccordionSummary>
                 <AccordionDetails sx={{ px: 0, pt: 1 }}>
-                  <Box
+                  <Typography
+                    variant="body2"
                     sx={{
-                      '& p': { mb: 1 },
-                      '& ul, & ol': { pl: 2, mb: 1 },
-                      '& li': { mb: 0.5 },
-                      '& code': {
-                        bgcolor: 'grey.200',
-                        px: 0.5,
-                        py: 0.25,
-                        borderRadius: 0.5,
-                        fontFamily: 'monospace',
-                        fontSize: '0.875em',
-                      },
-                      '& pre': {
-                        bgcolor: 'grey.200',
-                        p: 1,
-                        borderRadius: 1,
-                        overflow: 'auto',
-                        mb: 1,
-                      },
-                      '& pre code': {
-                        bgcolor: 'transparent',
-                        p: 0,
-                      },
-                      '& h1, & h2, & h3, & h4, & h5, & h6': {
-                        mt: 2,
-                        mb: 1,
-                        fontWeight: 'bold',
-                      },
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
                     }}
                   >
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkGfm, remarkMath]}
-                      rehypePlugins={[rehypeKatex]}
-                    >
-                      {message.content}
-                    </ReactMarkdown>
-                  </Box>
+                    {message.content}
+                  </Typography>
                 </AccordionDetails>
               </Accordion>
-            ) : isGeneration ? (
-              <Box>
-                <Box sx={{ mb: 1 }}>
-                  <Chip
-                    label={generationStatus === 'success' ? '✨ Controls Generated' : '❌ Generation Failed'}
-                    size="small"
-                    color={generationStatus === 'success' ? 'secondary' : 'error'}
-                  />
-                </Box>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {message.content}
-                </Typography>
-              </Box>
-            ) : message.sender !== 'user' ? (
-              <Box
-                sx={{
-                  '& p': { mb: 1 },
-                  '& ul, & ol': { pl: 2, mb: 1 },
-                  '& li': { mb: 0.5 },
-                  '& code': {
-                    bgcolor: 'grey.200',
-                    px: 0.5,
-                    py: 0.25,
-                    borderRadius: 0.5,
-                    fontFamily: 'monospace',
-                    fontSize: '0.875em',
-                  },
-                  '& pre': {
-                    bgcolor: 'grey.200',
-                    p: 1,
-                    borderRadius: 1,
-                    overflow: 'auto',
-                    mb: 1,
-                  },
-                  '& pre code': {
-                    bgcolor: 'transparent',
-                    p: 0,
-                  },
-                  '& table': {
-                    borderCollapse: 'collapse',
-                    width: '100%',
-                    mb: 1,
-                  },
-                  '& th, & td': {
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    p: 1,
-                    textAlign: 'left',
-                  },
-                  '& th': {
-                    bgcolor: 'grey.200',
-                    fontWeight: 'bold',
-                  },
-                  '& h1, & h2, & h3, & h4, & h5, & h6': {
-                    mt: 2,
-                    mb: 1,
-                    fontWeight: 'bold',
-                  },
-                  '& blockquote': {
-                    borderLeft: '4px solid',
-                    borderColor: 'primary.main',
-                    pl: 2,
-                    my: 1,
-                    color: 'text.secondary',
-                  },
-                }}
-              >
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm, remarkMath]}
-                  rehypePlugins={[rehypeKatex]}
-                >
-                  {message.content}
-                </ReactMarkdown>
-              </Box>
             ) : (
               <Typography
                 variant="body2"

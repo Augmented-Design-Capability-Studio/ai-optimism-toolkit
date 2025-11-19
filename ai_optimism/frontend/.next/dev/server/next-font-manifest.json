@@ -1,5 +1,8 @@
 {
-  "app": {},
+  "app": {
+    "[project]/app/page": [],
+    "[project]/app/researcher/page": []
+  },
   "appUsingSizeAdjust": false,
   "pages": {},
   "pagesUsingSizeAdjust": false

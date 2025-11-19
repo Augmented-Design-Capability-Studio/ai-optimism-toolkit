@@ -14,7 +14,6 @@ interface MessagesListProps {
   isResearcherTyping?: boolean;
   isWaitingForResearcher?: boolean;
   onGenerateControls?: (formalizationText: string) => void;
-  isGenerating?: boolean;
 }
 
 export function MessagesList({ 
@@ -26,7 +25,6 @@ export function MessagesList({
   isResearcherTyping = false,
   isWaitingForResearcher = false,
   onGenerateControls,
-  isGenerating = false,
 }: MessagesListProps) {
   const shouldShowWelcome = 
     (mode === 'ai' && messages.length === 0) ||
@@ -52,7 +50,6 @@ export function MessagesList({
           message={message} 
           mode={mode}
           onGenerateControls={onGenerateControls}
-          isGenerating={isGenerating}
         />
       ))}
       

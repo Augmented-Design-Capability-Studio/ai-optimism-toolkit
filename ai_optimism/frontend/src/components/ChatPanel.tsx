@@ -10,7 +10,7 @@ import {
   ChatInput,
   ConnectionWarning,
 } from './chat';
-import { sessionManager } from '../services/sessionManager';
+import type { Message } from '../services/sessionManager';
 
 interface ChatPanelProps {
   onControlsGenerated?: (controls: unknown) => void;
@@ -71,16 +71,39 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
 
   // Generate controls from conversation
   const handleGenerateControls = async (formalizationText?: string) => {
-    if (!currentSession) {
-      console.error('[ChatPanel] No current session available');
-      return;
-    }
-
     setIsGenerating(true);
+    
+    // Add a thinking message for the generation process
+    const sessionManager = require('../services/sessionManager').sessionManager;
+    const thinkingMessageId = `msg-${Date.now()}`;
+    
+    if (currentSession) {
+      const thinkingMessage = {
+        id: thinkingMessageId,
+        sessionId: currentSession.id,
+        sender: 'assistant' as const,
+        content: 'Generating optimization controls...',
+        timestamp: Date.now(),
+        metadata: {
+          type: 'controls-generation' as const,
+        },
+      };
+      
+      const updatedSession = sessionManager.updateSession(currentSession.id, { 
+        messages: [...currentSession.messages, thinkingMessage]
+      });
+      
+      // Force immediate refresh by getting the session again
+      if (updatedSession) {
+        const refreshedSession = sessionManager.getSession(currentSession.id);
+        console.log('[ChatPanel] Added thinking message, refreshed session:', refreshedSession?.messages.length);
+      }
+    }
+    
     try {
       let controls;
       
-      if (mode === 'experimental') {
+      if (mode === 'experimental' && currentSession) {
         // Check if session has formalized data
         const formalizedMessage = currentSession.messages.find(
           m => m.metadata?.type === 'formalization'
@@ -91,21 +114,14 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
           controls = formalizedMessage.metadata.structuredData;
           console.log('[ChatPanel] Using formalized controls:', controls);
         } else {
-          // Add failed generation message
-          sessionManager.addMessage(currentSession.id, 'ai', 'Failed to generate controls: No formalized problem data available. Please formalize the problem first.', {
-            type: 'generation',
-            generationStatus: 'failed',
-          });
+          alert('Please wait for the conversation to be analyzed first.');
           setIsGenerating(false);
           return;
         }
       } else {
         // AI mode: generate from conversation or specific formalization
         if (!apiKey) {
-          sessionManager.addMessage(currentSession.id, 'ai', 'Failed to generate controls: Please connect to an AI provider first.', {
-            type: 'generation',
-            generationStatus: 'failed',
-          });
+          alert('Please connect to an AI provider first');
           setIsGenerating(false);
           return;
         }
@@ -134,37 +150,51 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         console.log('[ChatPanel] Generated controls:', controls);
       }
       
+      // Update the thinking message to show success
+      if (currentSession) {
+        const currentMessages = sessionManager.getSession(currentSession.id)?.messages || currentSession.messages;
+        const updatedMessages = currentMessages.map((m: Message) => 
+          m.id === thinkingMessageId
+            ? { 
+                ...m, 
+                content: 'Controls generated successfully! You can now use the Optimization Panel to configure and run your optimization.',
+                metadata: { ...m.metadata, controlsGenerated: true } 
+              }
+            : m
+        );
+        const updatedSession = sessionManager.updateSession(currentSession.id, { 
+          messages: updatedMessages 
+        });
+        console.log('[ChatPanel] Updated thinking message to success, session:', updatedSession?.messages.find((m: Message) => m.id === thinkingMessageId));
+      }
+      
       // Pass to parent component
       if (onControlsGenerated && controls) {
         onControlsGenerated(controls);
-        
-        // Add success message with controls summary
-        const controlCount = controls.optimizationVariables?.length || 0;
-        const constraintCount = controls.constraints?.length || 0;
-        sessionManager.addMessage(
-          currentSession.id, 
-          'ai', 
-          `✨ Successfully generated optimization controls:\n- ${controlCount} optimization variable${controlCount !== 1 ? 's' : ''}\n- ${constraintCount} constraint${constraintCount !== 1 ? 's' : ''}`, 
-          {
-            type: 'generation',
-            generationStatus: 'success',
-            structuredData: controls,
-          }
-        );
       }
 
     } catch (error) {
       console.error('[ChatPanel] Generation error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      sessionManager.addMessage(
-        currentSession.id, 
-        'ai', 
-        `❌ Failed to generate controls: ${errorMessage}`, 
-        {
-          type: 'generation',
-          generationStatus: 'failed',
-        }
-      );
+      
+      // Update the thinking message to show error
+      if (currentSession) {
+        const currentMessages = sessionManager.getSession(currentSession.id)?.messages || currentSession.messages;
+        const updatedMessages = currentMessages.map((m: Message) => 
+          m.id === thinkingMessageId
+            ? { 
+                ...m, 
+                content: 'Failed to generate controls. Please try again or check your formalization.',
+                metadata: { ...m.metadata, controlsError: 'Generation failed' } 
+              }
+            : m
+        );
+        const updatedSession = sessionManager.updateSession(currentSession.id, { 
+          messages: updatedMessages 
+        });
+        console.log('[ChatPanel] Updated thinking message to error, session:', updatedSession?.messages.find((m: Message) => m.id === thinkingMessageId));
+      }
+      
+      alert('Failed to generate controls. Please try again.');
     } finally {
       setIsGenerating(false);
     }
@@ -197,7 +227,6 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         isResearcherTyping={currentSession?.isResearcherTyping}
         isWaitingForResearcher={isWaitingForResearcher}
         onGenerateControls={handleGenerateControls}
-        isGenerating={isGenerating}
       />
 
       {/* Show formalize button only when not formalized */}

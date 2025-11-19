@@ -88,15 +88,17 @@ Identify:
    - Use 'categorical' for named options (e.g., color, material, method)
    - For categorical variables, provide a 'categories' array with option names and omit min/max/default
    - For continuous/discrete variables, provide reasonable min/max ranges and default values
-   - **IMPORTANT**: Use human-readable names (e.g., "Baking Temperature" not "baking_temp", "Cookie Diameter" not "diam_mm")
-2. Objectives to optimize for (what to minimize or maximize, with Python expressions):
-   - **IMPORTANT**: Use clear, descriptive objective names (e.g., "Minimize Production Cost" not "min_cost", "Maximize Cookie Crispness" not "max_crisp")
-3. Properties that can be calculated from variables (with Python expressions):
-   - **IMPORTANT**: Use descriptive property names (e.g., "Total Baking Time" not "t_total", "Dough Consistency" not "consistency_val")
-4. Constraints that must be satisfied (as Python expressions):
-   - **IMPORTANT**: Use clear constraint descriptions (e.g., "Temperature must stay within oven limits" not "temp constraint")
+2. Objectives to optimize for (what to minimize or maximize, with Python expressions)
+3. Properties that can be calculated from variables (with Python expressions)
+4. Constraints that must be satisfied (as Python expressions)
 
-Be specific and practical. Use clear, human-readable names with proper capitalization and spaces.
-For Python expressions, you can still use underscored variable references (e.g., baking_temperature), but display names should be readable.
+CRITICAL NAMING RULES:
+- All names (variables, properties, objectives, constraints) MUST be human-readable in either snake_case "baking_temperature" or camelCase "bakingTemperature"
+- Avoid using Latex
+- Descriptions should be clear and concise
+- Examples of good names: "Cookie Diameter", "Baking Time", "Chocolate Chips Per Cookie"
+- Examples of bad names: "cookie_diameter", "bakingTime", "choc_chips"
+
+Be specific and practical. Use clear variable names and valid Python expressions.
 For categorical variables in expressions, they will be treated as their string values.`;
 };

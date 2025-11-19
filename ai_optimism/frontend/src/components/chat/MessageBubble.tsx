@@ -5,19 +5,15 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import 'katex/dist/katex.min.css';
 import { SessionMode } from '../../services/sessionManager';
 
 interface MessageBubbleProps {
   message: any;
   mode: SessionMode;
   onGenerateControls?: (formalizationText: string) => void;
-  isGenerating?: boolean;
 }
 
-export function MessageBubble({ message, mode, onGenerateControls, isGenerating = false }: MessageBubbleProps) {
+export function MessageBubble({ message, mode, onGenerateControls }: MessageBubbleProps) {
   // Determine message role and content based on mode
   let messageRole = message.role;
   let textContent = '';
@@ -53,9 +49,11 @@ export function MessageBubble({ message, mode, onGenerateControls, isGenerating 
   
   // Check if this is a formalization message
   const isFormalization = message.metadata?.type === 'formalization';
-  const isGeneration = message.metadata?.type === 'generation';
+  const isControlsGeneration = message.metadata?.type === 'controls-generation';
   const isIncomplete = message.metadata?.incomplete === true;
-  const generationStatus = message.metadata?.generationStatus;
+  const controlsGenerated = message.metadata?.controlsGenerated === true;
+  const controlsError = message.metadata?.controlsError;
+  const isGenerating = isControlsGeneration && !controlsGenerated && !controlsError;
   
   return (
     <Box
@@ -74,6 +72,10 @@ export function MessageBubble({ message, mode, onGenerateControls, isGenerating 
             ? 'warning.main'
             : isFormalization
             ? 'success.main'
+            : isControlsGeneration && controlsGenerated
+            ? 'secondary.main' // Purple for successful generation
+            : isControlsGeneration && controlsError
+            ? 'warning.main' // Amber for failed generation
             : 'secondary.main',
           width: 32,
           height: 32,
@@ -90,21 +92,25 @@ export function MessageBubble({ message, mode, onGenerateControls, isGenerating 
             ? 'primary.light' 
             : isIncomplete
             ? 'rgba(255, 152, 0, 0.15)' // Soft amber for incomplete
-            : isGeneration && generationStatus === 'success'
-            ? 'rgba(156, 39, 176, 0.1)' // Light purple for generation success
-            : isGeneration && generationStatus === 'failed'
-            ? 'rgba(244, 67, 54, 0.1)' // Light red for generation failure
             : isFormalization
             ? 'success.light'
+            : isControlsGeneration && controlsGenerated
+            ? 'secondary.light' // Purple for successful generation
+            : isControlsGeneration && controlsError
+            ? 'rgba(255, 152, 0, 0.15)' // Soft amber for failed generation
             : 'grey.100',
           color: displayRole === 'user' ? 'primary.contrastText' : 'text.primary',
           ...(isFormalization && {
             border: 2,
             borderColor: isIncomplete ? 'warning.main' : 'success.main',
           }),
-          ...(isGeneration && {
+          ...(isControlsGeneration && controlsGenerated && {
             border: 2,
-            borderColor: generationStatus === 'success' ? 'secondary.main' : 'error.main',
+            borderColor: 'secondary.main',
+          }),
+          ...(isControlsGeneration && controlsError && {
+            border: 2,
+            borderColor: 'warning.main',
           }),
         }}
       >
@@ -128,7 +134,7 @@ export function MessageBubble({ message, mode, onGenerateControls, isGenerating 
                   },
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                   <Chip
                     label={isIncomplete ? '⚠️ Incomplete Formalization' : '✨ Problem Formalized'}
                     size="small"
@@ -171,28 +177,24 @@ export function MessageBubble({ message, mode, onGenerateControls, isGenerating 
                     },
                   }}
                 >
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkGfm, remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
-                  >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {textContent}
                   </ReactMarkdown>
                 </Box>
               </AccordionDetails>
             </Accordion>
             
-            {/* Generate Controls button for complete formalization - outside accordion */}
+            {/* Generate Controls button for complete formalization - always show */}
             {!isIncomplete && onGenerateControls && (
               <Box sx={{ mt: 2 }}>
                 <Button
                   fullWidth
                   variant="contained"
                   color="secondary"
-                  startIcon={isGenerating ? <CircularProgress size={16} /> : <AutoFixHighIcon />}
+                  startIcon={<AutoFixHighIcon />}
                   onClick={() => onGenerateControls(textContent)}
-                  disabled={isGenerating}
                 >
-                  {isGenerating ? 'Generating Controls...' : '✨ Generate Controls Panel'}
+                  ✨ Generate Controls Panel
                 </Button>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', textAlign: 'center' }}>
                   Generate optimization controls from this problem definition
@@ -200,30 +202,42 @@ export function MessageBubble({ message, mode, onGenerateControls, isGenerating 
               </Box>
             )}
           </Box>
-        ) : isGeneration ? (
-          <Box>
-            <Box sx={{ mb: 1 }}>
-              <Chip
-                label={generationStatus === 'success' ? '✨ Controls Generated' : '❌ Generation Failed'}
-                size="small"
-                color={generationStatus === 'success' ? 'secondary' : 'error'}
-              />
-            </Box>
-            <Typography
-              variant="body2"
-              sx={{
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}
-            >
-              {textContent}
-            </Typography>
-          </Box>
         ) : (
           displayRole === 'assistant' || messageRole === 'researcher' || messageRole === 'ai' ? (
-          <Box
-            sx={{
-              '& p': { mb: 1 },
+          <Box>
+            {/* Show chips for controls-generation messages */}
+            {isControlsGeneration && (
+              <Box sx={{ mb: 1 }}>
+                {controlsGenerated && (
+                  <Chip 
+                    label="🎛️ Controls Generated" 
+                    size="small" 
+                    color="secondary"
+                  />
+                )}
+                {controlsError && (
+                  <Chip 
+                    label="❌ Generation Failed" 
+                    size="small" 
+                    color="error"
+                  />
+                )}
+              </Box>
+            )}
+            
+            {/* Show thinking indicator during generation */}
+            {isGenerating && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                <CircularProgress size={16} thickness={5} />
+                <Typography variant="body2" color="text.secondary">
+                  Generating controls...
+                </Typography>
+              </Box>
+            )}
+            
+            <Box
+              sx={{
+                '& p': { mb: 1 },
               '& ul, & ol': { pl: 2, mb: 1 },
               '& li': { mb: 0.5 },
               '& code': {
@@ -274,12 +288,10 @@ export function MessageBubble({ message, mode, onGenerateControls, isGenerating 
               },
             }}
           >
-            <ReactMarkdown 
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-            >
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
               {textContent}
             </ReactMarkdown>
+          </Box>
           </Box>
           ) : (
             <Typography

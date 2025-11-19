@@ -14,9 +14,10 @@ export interface Message {
   content: string;
   timestamp: number;
   metadata?: {
-    type?: 'formalization' | 'generation';
+    type?: 'formalization' | 'controls-generation';
     incomplete?: boolean;
-    generationStatus?: 'success' | 'failed';
+    controlsGenerated?: boolean;
+    controlsError?: string;
     structuredData?: unknown;
   };
 }

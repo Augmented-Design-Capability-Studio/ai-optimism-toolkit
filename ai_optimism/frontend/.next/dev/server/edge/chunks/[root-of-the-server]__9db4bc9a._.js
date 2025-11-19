@@ -74,7 +74,12 @@ Guide users through:
 3. Defining objectives (what to optimize for)
 4. Adding constraints (limits and requirements)
 
-When extracting information, be precise and structured. Ask clarifying questions when needed.`
+When extracting information, be precise and structured. Ask clarifying questions when needed.
+
+IMPORTANT: 
+- Once you have gathered enough information about the user's optimization problem (objectives, variables, constraints), summarize the problem clearly and explicitly tell the user: "I have enough information to formalize your optimization problem. Would you like me to create a structured problem definition?"
+- If the user wants to change or refine a previously formalized problem, acknowledge their changes and ask: "Would you like me to re-formalize the problem with these updates?"
+- Always be ready to iterate and refine the problem definition based on user feedback.`
             });
             console.log('[Chat API] Stream created, returning response...');
             // Return the stream in the UI message format that useChat expects
