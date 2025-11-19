@@ -1,19 +1,22 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 import { z } from 'zod';
+import { getGenerateControlsPrompt } from '../../../src/config/prompts';
 
 export const runtime = 'edge';
 
 // Schema for optimization problem controls
 const controlsSchema = z.object({
   variables: z.array(z.object({
-    name: z.string().describe('Variable name (e.g., "temperature", "speed")'),
-    type: z.enum(['continuous', 'discrete']).describe('Type of variable'),
-    min: z.number().describe('Minimum value'),
-    max: z.number().describe('Maximum value'),
-    default: z.number().describe('Default/initial value'),
+    name: z.string().describe('Variable name (e.g., "temperature", "speed", "material_type")'),
+    type: z.enum(['continuous', 'discrete', 'categorical']).describe('Type of variable: continuous (real numbers), discrete (integers), or categorical (named options)'),
+    min: z.number().describe('Minimum value (for continuous/discrete only)'),
+    max: z.number().describe('Maximum value (for continuous/discrete only)'),
+    default: z.number().describe('Default/initial value (for continuous/discrete only)'),
     unit: z.string().optional().describe('Unit of measurement (e.g., "°C", "rpm")'),
     description: z.string().describe('Brief description of what this variable represents'),
+    categories: z.array(z.string()).optional().describe('List of category names (for categorical variables only, e.g., ["red", "blue", "green"])'),
+    currentCategory: z.string().optional().describe('Currently selected category (for categorical variables only)'),
   })),
   objectives: z.array(z.object({
     name: z.string().describe('Objective name (e.g., "Minimize Cost", "Maximize Efficiency")'),
@@ -34,7 +37,7 @@ const controlsSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const { description } = await req.json();
+    const { description, model: modelName } = await req.json();
     const apiKey = req.headers.get('x-api-key');
     
     if (!apiKey) {
@@ -51,19 +54,9 @@ export async function POST(req: Request) {
     });
 
     const result = await generateObject({
-      model: google('gemini-2.0-flash'),
+      model: google(modelName || 'gemini-2.0-flash'),
       schema: controlsSchema,
-      prompt: `Extract optimization problem details from the following description and structure them:
-
-Description: ${description}
-
-Identify:
-1. Variables that can be changed/optimized (with reasonable min/max ranges and default values)
-2. Objectives to optimize for (what to minimize or maximize, with Python expressions)
-3. Properties that can be calculated from variables (with Python expressions)
-4. Constraints that must be satisfied (as Python expressions)
-
-Be specific and practical. Use clear variable names and valid Python expressions.`,
+      prompt: getGenerateControlsPrompt(description),
     });
 
     return Response.json(result.object);

@@ -55,8 +55,8 @@ export default function HomePage() {
             top: 0,
             left: 0,
             bottom: 0,
-            width: '120px',
-            background: 'linear-gradient(to right, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0) 100%)',
+            width: '150px',
+            background: 'linear-gradient(to right, rgba(0, 0, 0, 0.2) 0%, rgba(255, 255, 255, 0) 100%)',
             pointerEvents: 'none',
             zIndex: 2,
             transition: 'opacity 0.3s',
@@ -71,8 +71,8 @@ export default function HomePage() {
             top: 0,
             right: 0,
             bottom: 0,
-            width: '120px',
-            background: 'linear-gradient(to left, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0) 100%)',
+            width: '150px',
+            background: 'linear-gradient(to left, rgba(0, 0, 0, 0.2) 0%, rgba(255, 255, 255, 0) 100%)',
             pointerEvents: 'none',
             zIndex: 2,
             transition: 'opacity 0.3s',
@@ -109,10 +109,7 @@ export default function HomePage() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                md: '600px 600px 600px 600px', // All panels are 600px
-              },
+              gridTemplateColumns: '600px 600px 600px 600px', // Always horizontal layout
               gap: 2,
               flex: 1,
               minHeight: 0,

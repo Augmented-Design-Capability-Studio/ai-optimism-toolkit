@@ -1,5 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText, convertToCoreMessages } from 'ai';
+import { CHAT_SYSTEM_PROMPT } from '../../../src/config/prompts';
 
 export const runtime = 'edge';
 
@@ -47,15 +48,7 @@ export async function POST(req: Request) {
       const result = await streamText({
         model,
         messages: coreMessages,
-        system: `You are an expert optimization assistant helping users design optimization problems. 
-      
-Guide users through:
-1. Defining variables (what can be changed)
-2. Setting properties (calculated values based on variables)
-3. Defining objectives (what to optimize for)
-4. Adding constraints (limits and requirements)
-
-When extracting information, be precise and structured. Ask clarifying questions when needed.`,
+        system: CHAT_SYSTEM_PROMPT,
       });
 
       console.log('[Chat API] Stream created, returning response...');
