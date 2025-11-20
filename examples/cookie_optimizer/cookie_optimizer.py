@@ -67,7 +67,7 @@ class Cookie:
     """
 
     def __init__(self, flour_cups: float = 2.25, baking_soda_tsp: float = 1.0, baking_powder_tsp: float = 0.0, white_sugar_cup: float = .75, brown_sugar_cup: float = 1.0,
-                 eggs: int = 1, egg_yokes: int = 1, milk_oz: int = 2.0, melt_fat: bool = False, fat_type=Fat.Butter, flour=Flour.Bread):
+                 eggs: int = 1, egg_yolks: int = 1, milk_oz: int = 2.0, melt_fat: bool = False, fat_type=Fat.Butter, flour=Flour.Bread):
         self.fat: Fat = fat_type
         self.melt_fat: bool = melt_fat
         self.flour: Flour = flour
@@ -78,18 +78,18 @@ class Cookie:
         self.white_sugar_cup: float = white_sugar_cup
         self.brown_sugar_cup: float = brown_sugar_cup
         self.eggs: int = eggs
-        self.egg_yolks: int = egg_yokes
+        self.egg_yolks: int = egg_yolks
         self.milk_oz: float = milk_oz
         self.chips_cups: float = 2.0
         self.vanilla_tsp: float = 1.5
 
     def __str__(self):
         melted = ""
-        if self.melted_fat:
+        if self.melt_fat:
             melted = "Melted "
         return f"1c {melted}{self.fat}, {self.flour_cups} of {self.flour}," \
                f"soda={self.baking_soda_tsp}, powder={self.baking_powder_tsp}, White={self.white_sugar_cup}, Brown={self.brown_sugar_cup}," \
-                f"eggs={self.eggs}, yolks={self.egg_yolks}, milk={self.milk_oz}"
+               f"eggs={self.eggs}, yolks={self.egg_yolks}, milk={self.milk_oz}"
 
     @cookie_heuristic(Heuristic_Type.Objective, "solid_fat")
     @inverse_objective
@@ -232,14 +232,14 @@ class Cookie:
         """
             Increase teh amount of spreadable fat (butter)
         """
-        self.fat = "butter"
+        self.fat = Fat.Butter
 
     @cookie_heuristic(Heuristic_Type.Modifier, deep_copy=True)
     def use_shortening(self):
         """
             Decrease teh amount of spreadable fat (butter)
         """
-        self.fat = "shortening"
+        self.fat = Fat.Shortening
 
     @property
     def animal_proteins(self):
