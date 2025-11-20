@@ -190,11 +190,12 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
   const extractDependencies = (expression: string): string[] => {
     const variablePattern = /[a-zA-Z_][a-zA-Z0-9_]*/g;
     const matches = expression.match(variablePattern) || [];
-    const uniqueVars = [...new Set(matches)];
-    // Filter to only actual variables (not operators like 'max', 'min', etc.)
-    return uniqueVars.filter(name =>
+    // Only keep variable names that exist in parsedControls.variables
+    const validVars = matches.filter(name =>
       parsedControls?.variables?.some(v => v.name === name)
     );
+    // Remove duplicates
+    return Array.from(new Set(validVars));
   };
 
   // Calculate how many times a property is used
