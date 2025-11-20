@@ -51,7 +51,7 @@ def test_optimization():
     config = OptimizationConfig(
         problem_id=problem_id,
         population_size=20,
-        max_iterations=50,
+        max_iterations=1000,
         convergence_threshold=0.001
     )
 

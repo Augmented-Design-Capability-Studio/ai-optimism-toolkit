@@ -35,18 +35,30 @@ export const getFormalizationPrompt = (conversationContext: string): string => {
 
 ${conversationContext}
 
-Please provide a structured problem definition with:
-1. Objective: What is being optimized? (Must be specific and measurable)
-2. Variables: What can be changed? (Must list concrete variables with ranges/types)
-3. Constraints: What limitations exist? (Must specify actual constraints, or explicitly state "no constraints" if none)
+Please provide a structured problem definition with the following required sections and formats.
+
+1) Objectives (REQUIRED):
+  - You MUST provide at least one objective. For each objective include:
+    - name: a short identifier in snake_case or camelCase (e.g., "max_return", "min_cost")
+    - expression: a Python expression that computes the objective (use the variable names exactly as defined below)
+    - goal: either "minimize" or "maximize"
+    - description: one-sentence human-readable explanation
+
+2) Variables (REQUIRED):
+  - List each decision variable with: name (snake_case or camelCase), type (continuous|discrete|categorical), reasonable min/max/default (for continuous/discrete), or categories (for categorical), and a short description.
+
+3) Constraints (REQUIRED - or explicitly state "no constraints"):
+  - Provide each constraint as a Python expression (e.g., "x + y <= 100") and a one-line description.
 
 IMPORTANT NAMING CONVENTIONS:
-- Use snake_case (e.g., "cookie_diameter", "baking_time") or camelCase (e.g., "cookieDiameter", "bakingTime")
-- Names must be human-readable and descriptive
-- Avoid spaces, special characters, or Title Case
-- Examples: "chocolate_chips_count" or "chocolateChipsCount" is CORRECT, "Chocolate Chips Count" is INCORRECT
+  - Use snake_case (e.g., "cookie_diameter") or camelCase (e.g., "cookieDiameter").
+  - Variable, objective, and constraint names must be human-readable and descriptive; avoid spaces and special characters.
 
-CRITICAL: Only provide a complete formalization if ALL three sections have concrete, actionable information. If any section lacks specific details (e.g., "not yet defined", "to be determined", "user needs to specify"), you must respond with:
+PRESERVATION RULES:
+  - Preserve any mathematical expressions exactly as the user wrote them when possible.
+  - If you reformat variable names, keep a mapping note showing original -> normalized names.
+
+CRITICAL: Only provide a complete formalization if ALL three sections have concrete, actionable information. If any section lacks specific details (e.g., "not yet defined", "to be determined", "user needs to specify"), you must respond exactly with:
 
 "INCOMPLETE FORMALIZATION
 
@@ -55,7 +67,11 @@ The conversation does not yet contain enough information to formalize the proble
 
 Please continue the conversation to clarify these details before formalizing."
 
-Format your response as a clear, structured problem statement only if all information is present.`;
+RESPONSE FORMAT:
+  - Provide the structured problem using clear headings (Objectives, Variables, Constraints) and bullet lists where each item shows the required fields (name, expression, goal, description, etc.).
+  - Ensure the Objectives section appears first and contains at least one objective. If you cannot produce at least one valid objective, return the INCOMPLETE FORMALIZATION message above.
+
+Be precise and practical. Use clear variable names and valid Python expressions.`;
 };
 
 /**
@@ -71,7 +87,9 @@ export const isIncompleteFormalization = (text: string): boolean => {
     lowerText.includes('incomplete formalization') ||
     lowerText.includes('not yet defined') ||
     lowerText.includes('to be determined') ||
-    lowerText.includes('missing information')
+    lowerText.includes('missing information') ||
+    // If the model output fails to mention any objective keywords, treat as incomplete
+    (!lowerText.includes('objective') && !lowerText.includes('objectives') && !lowerText.includes('objective:'))
   );
 };
 

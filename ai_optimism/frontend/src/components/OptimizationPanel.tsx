@@ -9,12 +9,13 @@ import {
   Chip,
   Stack,
   Divider,
+  TextField,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import StopIcon from '@mui/icons-material/Stop';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { BACKEND_API } from '../config/backend';
 import type { Controls } from './controls/types';
 
@@ -207,12 +208,29 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
         </Stack>
 
         <Box sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Typography variant="body2">
+                Iteration: {iteration} /
+              </Typography>
+              <TextField
+                variant="standard"
+                type="number"
+                value={maxIterations}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setMaxIterations(Math.max(1, parseInt(e.target.value) || 0))}
+                disabled={status === 'running'}
+                inputProps={{
+                  style: {
+                    padding: 0,
+                    width: 50,
+                    textAlign: 'center',
+                    fontSize: '0.875rem'
+                  }
+                }}
+              />
+            </Box>
             <Typography variant="body2">
-              Iteration: {iteration} / {maxIterations}
-            </Typography>
-            <Typography variant="body2">
-              {((iteration / maxIterations) * 100).toFixed(0)}%
+              {maxIterations > 0 ? ((iteration / maxIterations) * 100).toFixed(0) : 0}%
             </Typography>
           </Box>
           <LinearProgress

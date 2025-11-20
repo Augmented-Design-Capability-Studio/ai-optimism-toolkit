@@ -11,11 +11,12 @@ class ConfigurableModifier:
     """
     A modifier that applies a specific strategy to a single variable in the design.
     """
-    def __init__(self, variable_name: str, strategy: Dict[str, Any], variable_config: Dict[str, Any]):
+    def __init__(self, variable_name: str, strategy: Dict[str, Any], variable_config: Dict[str, Any], direction: str = 'random'):
         self.variable_name = variable_name
         self.strategy = strategy
         self.variable_config = variable_config
         self.type = strategy.get('type', 'gaussian')
+        self.direction = direction
         
     def __call__(self, design: Any) -> Any:
         # Design is a tuple of (key, value) pairs - convert to dict
@@ -31,11 +32,25 @@ class ConfigurableModifier:
         # Apply modification based on strategy type
         if self.type == 'gaussian':
             sigma = self.strategy.get('sigma', 1.0)
-            new_value = current_value + random.gauss(0, sigma)
+            delta = abs(random.gauss(0, sigma))
+            
+            if self.direction == 'increase':
+                new_value = current_value + delta
+            elif self.direction == 'decrease':
+                new_value = current_value - delta
+            else: # random direction
+                new_value = current_value + random.gauss(0, sigma)
             
         elif self.type == 'uniform':
             step = self.strategy.get('stepSize', 1.0)
-            new_value = current_value + random.uniform(-step, step)
+            delta = abs(random.uniform(0, step))
+            
+            if self.direction == 'increase':
+                new_value = current_value + delta
+            elif self.direction == 'decrease':
+                new_value = current_value - delta
+            else: # random direction
+                new_value = current_value + random.uniform(-step, step)
             
         elif self.type == 'random_reset':
             # For categorical or discrete, pick a random valid value
@@ -64,7 +79,13 @@ class ConfigurableModifier:
                     new_value = current_value
             else:
                 # Discrete numerical step
-                new_value = current_value + random.choice([-1, 1])
+                if self.direction == 'increase':
+                    step = 1
+                elif self.direction == 'decrease':
+                    step = -1
+                else:
+                    step = random.choice([-1, 1])
+                new_value = current_value + step
 
         else:
             new_value = current_value
@@ -105,4 +126,27 @@ class RandomModifierSelector(Modifier_Selector):
         super().__init__(
             name="RandomModifierSelector",
             sort_function=lambda heuristic_map, design_iteration: list(heuristic_map.modifiers)
+        )
+
+class AdaptiveModifierSelector(Modifier_Selector):
+    """
+    Selects modifiers based on their past performance (impact on objectives).
+    """
+    def __init__(self):
+        from optimism_toolkit.selector_functions.modifier_selectors.modifier_sorting_functions import sorted_modifier_by_most_important_objective
+        
+        def _sort_by_normalized_changes(heuristic_map, design_iteration):
+            # Sort modifiers by their normalized impact on the most important objective
+            # "changes_normalize_application" divides total change by number of applications
+            return sorted_modifier_by_most_important_objective(
+                heuristic_map, 
+                design_iteration, 
+                "changes_normalize_application"
+            )
+
+        super().__init__(
+            name="AdaptiveModifierSelector",
+            sort_function=_sort_by_normalized_changes,
+            # 85% chance to pick best modifier, 15% chance to pick random (exploration)
+            threshold_probability=lambda *args, **kwargs: 0.85
         )

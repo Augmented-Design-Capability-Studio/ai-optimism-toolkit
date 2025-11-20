@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import optimization, ai_provider, evaluate
+from .routers import optimization, evaluate
 
 app = FastAPI(title="AI Optimism Toolkit API")
 
@@ -22,7 +22,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(optimization.router, prefix="/api")
-app.include_router(ai_provider.router)
+
 app.include_router(evaluate.router, prefix="/api/evaluate", tags=["evaluate"])
 
 @app.get("/")

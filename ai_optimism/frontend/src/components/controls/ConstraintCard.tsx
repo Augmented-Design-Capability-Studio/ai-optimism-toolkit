@@ -28,7 +28,7 @@ export function ConstraintCard({
   onVariableClick,
 }: ConstraintCardProps) {
   // Calculate progress percentage for visual indicator
-  const progressPercentage = limit && currentValue !== undefined 
+  const progressPercentage = limit && currentValue !== undefined
     ? Math.min(100, (currentValue / limit) * 100)
     : undefined;
 
@@ -127,7 +127,7 @@ export function ConstraintCard({
           </Box>
           <LinearProgress
             variant="determinate"
-            value={progressPercentage}
+            value={progressPercentage || 0}
             sx={{
               height: 6,
               borderRadius: 3,

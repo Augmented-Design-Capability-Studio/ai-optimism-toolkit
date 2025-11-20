@@ -18,12 +18,13 @@ const controlsSchema = z.object({
     categories: z.array(z.string()).optional().describe('List of category names (for categorical variables only, e.g., ["red", "blue", "green"])'),
     currentCategory: z.string().optional().describe('Currently selected category (for categorical variables only)'),
   })),
+  // Require at least one objective; generation should fail fast if none are provided
   objectives: z.array(z.object({
     name: z.string().describe('Objective name (e.g., "Minimize Cost", "Maximize Efficiency")'),
     expression: z.string().describe('Python expression to calculate this objective'),
     goal: z.enum(['minimize', 'maximize']).describe('Whether to minimize or maximize this objective'),
     description: z.string().describe('What this objective represents'),
-  })).optional(),
+  })).min(1, { message: 'At least one objective is required' }),
   properties: z.array(z.object({
     name: z.string().describe('Property name'),
     expression: z.string().describe('Python expression to calculate this property'),
@@ -86,6 +87,12 @@ export async function POST(req: Request) {
       filteredObject.properties = filteredObject.properties.filter(prop => 
         usedProperties.has(prop.name)
       );
+    }
+
+    // Ensure objectives were produced by the model; fail clearly if not
+    if (!filteredObject.objectives || filteredObject.objectives.length === 0) {
+      console.error('Generate result missing objectives:', filteredObject);
+      return new Response('Generated controls missing objectives', { status: 500 });
     }
 
     return Response.json(filteredObject);

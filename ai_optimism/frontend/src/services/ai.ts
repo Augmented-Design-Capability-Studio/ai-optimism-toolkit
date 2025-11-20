@@ -131,38 +131,147 @@ export interface GenerateConstraintsResponse {
 const aiApi = {
   // Validate AI provider connection
   validateConnection: async (request: AIValidationRequest): Promise<AIValidationResponse> => {
-    const response = await axios.post(`${API_URL}/ai/validate-connection/`, request);
-    return response.data;
+    // Use the new chat endpoint for validation as it's the most reliable way to test connection
+    try {
+      const response = await axios.post('/api/chat', {
+        apiKey: request.api_key,
+        provider: request.provider,
+        model: request.model,
+        messages: [{ role: 'user', content: 'Test connection' }]
+      });
+
+      if (response.status === 200) {
+        return {
+          status: 'success',
+          message: 'Successfully connected',
+          provider: request.provider,
+          model: request.model
+        };
+      }
+      throw new Error('Validation failed');
+    } catch (error: any) {
+      return {
+        status: 'error',
+        message: error.message || 'Connection failed',
+        provider: request.provider,
+        model: request.model
+      };
+    }
   },
 
   // Get list of available providers and their models
   listProviders: async (): Promise<ProvidersResponse> => {
-    const response = await axios.get(`${API_URL}/ai/providers/`);
-    return response.data;
+    // Return static list as backend no longer provides this
+    return {
+      providers: {
+        google: {
+          name: 'Google Gemini',
+          models: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
+          requires_api_key: true,
+          endpoint: null
+        },
+        openai: {
+          name: 'OpenAI',
+          models: ['gpt-4o', 'gpt-4-turbo'],
+          requires_api_key: true,
+          endpoint: null
+        },
+        anthropic: {
+          name: 'Anthropic Claude',
+          models: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229'],
+          requires_api_key: true,
+          endpoint: null
+        },
+        ollama: {
+          name: 'Ollama (Local)',
+          models: ['llama2', 'mistral'],
+          requires_api_key: false,
+          endpoint: 'http://localhost:11434'
+        },
+        custom: {
+          name: 'Custom Endpoint',
+          models: ['custom-model'],
+          requires_api_key: true,
+          endpoint: null
+        }
+      }
+    };
   },
 
   // Generate variable suggestions using AI
   generateVariables: async (request: GenerateVariablesRequest): Promise<GenerateVariablesResponse> => {
-    const response = await axios.post(`${API_URL}/ai/generate-variables/`, request);
-    return response.data;
+    // Map to the new consolidated generate endpoint
+    const response = await axios.post('/api/generate', {
+      description: request.description || request.problem_name,
+      model: request.model
+    }, {
+      headers: { 'x-api-key': request.api_key }
+    });
+
+    return {
+      status: 'success',
+      message: 'Generated variables',
+      variables: response.data.variables
+    };
   },
 
   // Generate computed properties based on variables
   generateProperties: async (request: GeneratePropertiesRequest): Promise<GeneratePropertiesResponse> => {
-    const response = await axios.post(`${API_URL}/ai/generate-properties/`, request);
-    return response.data;
+    // Map to the new consolidated generate endpoint
+    // Note: The new endpoint generates everything at once, so we might get more than just properties
+    const response = await axios.post('/api/generate', {
+      description: request.description || request.problem_name,
+      model: request.model
+    }, {
+      headers: { 'x-api-key': request.api_key }
+    });
+
+    return {
+      status: 'success',
+      message: 'Generated properties',
+      properties: response.data.properties
+    };
   },
 
   // Generate objective function code from description
   generateObjective: async (request: GenerateObjectiveRequest): Promise<GenerateObjectiveResponse> => {
-    const response = await axios.post(`${API_URL}/ai/generate-objective/`, request);
-    return response.data;
+    // The new endpoint returns structured objectives, not raw code.
+    // We'll adapt the response to fit the expected interface or warn about the change.
+    const response = await axios.post('/api/generate', {
+      description: request.objective_description || request.description,
+      model: request.model
+    }, {
+      headers: { 'x-api-key': request.api_key }
+    });
+
+    // Construct a simple code representation from the structured objective
+    const objectives = response.data.objectives || [];
+    const code = objectives.map((obj: any) =>
+      `# ${obj.name}\n# ${obj.description}\n# Goal: ${obj.goal}\n${obj.expression}`
+    ).join('\n\n');
+
+    return {
+      status: 'success',
+      message: 'Generated objectives',
+      code: code,
+      explanation: 'Generated from structured objectives'
+    };
   },
 
   // Generate constraint expressions
   generateConstraints: async (request: GenerateConstraintsRequest): Promise<GenerateConstraintsResponse> => {
-    const response = await axios.post(`${API_URL}/ai/generate-constraints/`, request);
-    return response.data;
+    const response = await axios.post('/api/generate', {
+      description: request.description || request.problem_name,
+      model: request.model
+    }, {
+      headers: { 'x-api-key': request.api_key }
+    });
+
+    return {
+      status: 'success',
+      message: 'Generated constraints',
+      constraints: response.data.constraints
+    };
   }
 };
 
