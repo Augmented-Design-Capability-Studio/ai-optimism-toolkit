@@ -211,14 +211,30 @@ class SessionManager {
     intervalMs: number = 1000
   ): () => void {
     let lastUpdate = 0;
+    let sessionWasDeleted = false;
     
     const checkUpdates = () => {
       const session = this.getSession(sessionId);
-      if (session && session.updatedAt > lastUpdate) {
+      
+      // If session no longer exists and we haven't handled this yet
+      if (!session) {
+        if (!sessionWasDeleted) {
+          sessionWasDeleted = true;
+          console.log('[SessionManager] Session', sessionId, 'was deleted - subscription will stop');
+        }
+        // Stop checking - session is gone
+        return;
+      }
+      
+      // If session exists and has updates, trigger callback
+      if (session.updatedAt > lastUpdate) {
         lastUpdate = session.updatedAt;
         callback(session);
       }
     };
+    
+    // Run initial check immediately
+    checkUpdates();
     
     const intervalId = setInterval(checkUpdates, intervalMs);
     

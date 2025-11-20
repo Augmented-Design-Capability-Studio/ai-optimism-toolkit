@@ -1,57 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-
-// System prompt for problem formalization
-const FORMALIZATION_PROMPT = `You are an expert in optimization problem formalization. 
-
-Given a conversation between a user and a researcher about an optimization problem, analyze the conversation and extract:
-
-1. **Variables**: What can be adjusted or changed? (Include name, type, and bounds)
-2. **Properties**: Derived or computed values based on variables
-3. **Objectives**: What should be optimized? (minimize or maximize)
-4. **Constraints**: What restrictions or requirements must be satisfied?
-
-Return your analysis in two parts:
-
-1. A natural language summary explaining the problem setup
-2. A structured JSON object matching this schema:
-
-\`\`\`json
-{
-  "variables": [
-    {
-      "name": "variable_name",
-      "type": "continuous" | "categorical",
-      "bounds": [min, max] (for continuous) or ["option1", "option2", ...] (for categorical),
-      "description": "What this variable represents"
-    }
-  ],
-  "properties": [
-    {
-      "name": "property_name",
-      "expression": "formula or relationship",
-      "description": "What this property computes"
-    }
-  ],
-  "objectives": [
-    {
-      "name": "objective_name",
-      "type": "minimize" | "maximize",
-      "expression": "formula to optimize",
-      "description": "What is being optimized"
-    }
-  ],
-  "constraints": [
-    {
-      "expression": "constraint formula",
-      "description": "What this constraint enforces"
-    }
-  ]
-}
-\`\`\`
-
-Be thorough but concise. Focus on extracting concrete, actionable elements from the conversation.`;
+import { getFormalizationPrompt } from '../../../../../src/config/prompts';
 
 export async function POST(
   request: NextRequest,
@@ -92,17 +42,13 @@ export async function POST(
       apiKey,
     });
 
+    // Use centralized formalization prompt
+    const formalizationPrompt = getFormalizationPrompt(conversationText);
+
     // Generate formalization
     const { text } = await generateText({
       model: google('gemini-2.0-flash-exp'),
-      system: FORMALIZATION_PROMPT,
-      prompt: `Analyze this conversation and formalize the optimization problem:
-
-${conversationText}
-
-Provide:
-1. A clear natural language summary of the problem setup
-2. The structured JSON with variables, properties, objectives, and constraints`,
+      messages: [{ role: 'user', content: formalizationPrompt }],
       temperature: 0.3, // Lower temperature for more structured output
     });
 

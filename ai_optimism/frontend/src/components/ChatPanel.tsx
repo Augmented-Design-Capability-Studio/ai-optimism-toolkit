@@ -6,10 +6,11 @@ import {
   useChatSession,
   ChatHeader,
   MessagesList,
-  GenerateControlsButton,
+  FormalizeButton,
   ChatInput,
   ConnectionWarning,
 } from './chat';
+import { sessionManager } from '../services/sessionManager';
 import type { Message } from '../services/sessionManager';
 
 interface ChatPanelProps {
@@ -74,30 +75,23 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     setIsGenerating(true);
     
     // Add a thinking message for the generation process
-    const sessionManager = require('../services/sessionManager').sessionManager;
     const thinkingMessageId = `msg-${Date.now()}`;
     
     if (currentSession) {
-      const thinkingMessage = {
+      const thinkingMessage: Message = {
         id: thinkingMessageId,
         sessionId: currentSession.id,
-        sender: 'assistant' as const,
+        sender: 'ai',
         content: 'Generating optimization controls...',
         timestamp: Date.now(),
         metadata: {
-          type: 'controls-generation' as const,
+          type: 'controls-generation',
         },
       };
       
-      const updatedSession = sessionManager.updateSession(currentSession.id, { 
+      sessionManager.updateSession(currentSession.id, { 
         messages: [...currentSession.messages, thinkingMessage]
       });
-      
-      // Force immediate refresh by getting the session again
-      if (updatedSession) {
-        const refreshedSession = sessionManager.getSession(currentSession.id);
-        console.log('[ChatPanel] Added thinking message, refreshed session:', refreshedSession?.messages.length);
-      }
     }
     
     try {
@@ -110,9 +104,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         );
         
         if (formalizedMessage?.metadata?.structuredData) {
-          // Use pre-formalized controls
           controls = formalizedMessage.metadata.structuredData;
-          console.log('[ChatPanel] Using formalized controls:', controls);
         } else {
           alert('Please wait for the conversation to be analyzed first.');
           setIsGenerating(false);
@@ -126,9 +118,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
           return;
         }
 
-        // Use provided formalization text or get from conversation
         const conversationText = formalizationText || getConversationText();
-        console.log('[ChatPanel] Generating controls from formalization:', conversationText.substring(0, 100));
         
         const response = await fetch('/api/generate', {
           method: 'POST',
@@ -147,7 +137,6 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         }
 
         controls = await response.json();
-        console.log('[ChatPanel] Generated controls:', controls);
       }
       
       // Update the thinking message to show success
@@ -162,10 +151,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
               }
             : m
         );
-        const updatedSession = sessionManager.updateSession(currentSession.id, { 
-          messages: updatedMessages 
-        });
-        console.log('[ChatPanel] Updated thinking message to success, session:', updatedSession?.messages.find((m: Message) => m.id === thinkingMessageId));
+        sessionManager.updateSession(currentSession.id, { messages: updatedMessages });
       }
       
       // Pass to parent component
@@ -188,10 +174,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
               }
             : m
         );
-        const updatedSession = sessionManager.updateSession(currentSession.id, { 
-          messages: updatedMessages 
-        });
-        console.log('[ChatPanel] Updated thinking message to error, session:', updatedSession?.messages.find((m: Message) => m.id === thinkingMessageId));
+        sessionManager.updateSession(currentSession.id, { messages: updatedMessages });
       }
       
       alert('Failed to generate controls. Please try again.');
@@ -231,17 +214,13 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
 
       {/* Show formalize button only when not formalized */}
       {currentSession?.status !== 'formalized' && (
-        <GenerateControlsButton
-          displayMessagesLength={displayMessages.length}
+        <FormalizeButton
           mode={mode}
           apiKey={apiKey}
           currentSession={currentSession}
-          isGenerating={isGenerating}
           isLoading={isLoading}
           isFormalizing={isFormalizing}
-          onGenerate={handleGenerateControls}
           onFormalize={handleFormalize}
-          onResetFormalization={handleResetFormalization}
         />
       )}
 

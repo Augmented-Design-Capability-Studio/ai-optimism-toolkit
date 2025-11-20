@@ -59,7 +59,36 @@ export async function POST(req: Request) {
       prompt: getGenerateControlsPrompt(description),
     });
 
-    return Response.json(result.object);
+    // Filter out unused properties (those not referenced in objectives or constraints)
+    const filteredObject = { ...result.object };
+    if (filteredObject.properties && filteredObject.properties.length > 0) {
+      const usedProperties = new Set<string>();
+      
+      // Check objectives for property usage
+      filteredObject.objectives?.forEach(obj => {
+        filteredObject.properties?.forEach(prop => {
+          if (obj.expression.includes(prop.name)) {
+            usedProperties.add(prop.name);
+          }
+        });
+      });
+      
+      // Check constraints for property usage
+      filteredObject.constraints?.forEach(con => {
+        filteredObject.properties?.forEach(prop => {
+          if (con.expression.includes(prop.name)) {
+            usedProperties.add(prop.name);
+          }
+        });
+      });
+      
+      // Keep only used properties
+      filteredObject.properties = filteredObject.properties.filter(prop => 
+        usedProperties.has(prop.name)
+      );
+    }
+
+    return Response.json(filteredObject);
   } catch (error) {
     console.error('Generate error:', error);
     return new Response('Error generating controls', { status: 500 });

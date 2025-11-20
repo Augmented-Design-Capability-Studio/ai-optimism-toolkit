@@ -5,7 +5,11 @@ import { useState, useEffect } from 'react';
 import type { Controls, Variable } from './controls/types';
 import { VariableWidget } from './controls/VariableWidget';
 import { VariableEditDialog } from './controls/VariableEditDialog';
+import { ObjectiveCard } from './controls/ObjectiveCard';
+import { PropertyCard } from './controls/PropertyCard';
+import { ConstraintCard } from './controls/ConstraintCard';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { BACKEND_API } from '../config/backend';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 interface ControlsPanelProps {
@@ -20,6 +24,7 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
   const [showAllVariables, setShowAllVariables] = useState(false);
   const [editingVariable, setEditingVariable] = useState<Variable | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [evaluatedExpressions, setEvaluatedExpressions] = useState<Record<string, number>>({});
 
   // Detect important variables based on:
   // 1. Used in objectives/constraints expressions
@@ -167,6 +172,115 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
     setEditDialogOpen(false);
   };
 
+  // Extract variable dependencies from expression
+  const extractDependencies = (expression: string): string[] => {
+    const variablePattern = /[a-zA-Z_][a-zA-Z0-9_]*/g;
+    const matches = expression.match(variablePattern) || [];
+    const uniqueVars = [...new Set(matches)];
+    // Filter to only actual variables (not operators like 'max', 'min', etc.)
+    return uniqueVars.filter(name => 
+      parsedControls?.variables?.some(v => v.name === name)
+    );
+  };
+
+  // Calculate how many times a property is used
+  const getPropertyUsageCount = (propertyName: string): number => {
+    let count = 0;
+    parsedControls?.objectives?.forEach(obj => {
+      if (obj.expression.includes(propertyName)) count++;
+    });
+    parsedControls?.constraints?.forEach(con => {
+      if (con.expression.includes(propertyName)) count++;
+    });
+    return count;
+  };
+
+  // Filter to get only properties that are actually used
+  const getUsedProperties = () => {
+    if (!parsedControls?.properties) return [];
+    return parsedControls.properties.filter(prop => getPropertyUsageCount(prop.name) > 0);
+  };
+
+  // Simple expression evaluator with backend preference and client-side fallback
+  const evaluateExpression = (expression: string): number | undefined => {
+    // Check if we have a cached evaluation from backend
+    if (evaluatedExpressions[expression] !== undefined) {
+      return evaluatedExpressions[expression];
+    }
+    
+    // Fallback to client-side eval for simple numeric expressions only
+    // This is safe for basic arithmetic with known variables
+    try {
+      // Replace variable names with their values
+      let expr = expression;
+      Object.entries(values).forEach(([name, value]) => {
+        expr = expr.replace(new RegExp(`\\b${name}\\b`, 'g'), String(value));
+      });
+      
+      // Only eval if expression looks safe (numbers and basic operators)
+      // This prevents executing complex Python-specific syntax client-side
+      if (/^[\d\s+\-*/().]+$/.test(expr)) {
+        // eslint-disable-next-line no-eval
+        return eval(expr);
+      }
+      
+      // For complex expressions, return undefined if backend hasn't evaluated yet
+      console.warn('[ControlsPanel] Complex expression needs backend evaluation:', expression);
+      return undefined;
+    } catch (error) {
+      console.error('[ControlsPanel] Evaluation error:', expression, error);
+      return undefined;
+    }
+  };
+
+  // Evaluate all expressions server-side when values change
+  useEffect(() => {
+    if (!parsedControls || Object.keys(values).length === 0) return;
+
+    const evaluateServerSide = async () => {
+      try {
+        // Collect all unique expressions
+        const expressions = new Set<string>();
+        
+        parsedControls.objectives?.forEach(obj => expressions.add(obj.expression));
+        parsedControls.properties?.forEach(prop => expressions.add(prop.expression));
+        parsedControls.constraints?.forEach(con => expressions.add(con.expression));
+
+        const response = await fetch(BACKEND_API.evaluate, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            expressions: Array.from(expressions),
+            variables: values,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const newCache: Record<string, number> = {};
+          
+          data.results.forEach((result: any) => {
+            if (result.value !== null && !result.error) {
+              newCache[result.expression] = result.value;
+            } else if (result.error) {
+              console.warn('[ControlsPanel] Backend evaluation error:', result.expression, result.error);
+            }
+          });
+
+          setEvaluatedExpressions(newCache);
+        } else {
+          console.error('[ControlsPanel] Backend evaluation request failed:', response.status);
+        }
+      } catch (error) {
+        console.warn('[ControlsPanel] Backend unavailable, using client-side fallback:', error);
+        // Clear cache so fallback is used
+        setEvaluatedExpressions({});
+      }
+    };
+
+    evaluateServerSide();
+  }, [values, parsedControls]);
+
   return (
     <Paper
       elevation={2}
@@ -296,68 +410,124 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
             {/* Objectives Section */}
             {parsedControls.objectives && parsedControls.objectives.length > 0 && (
               <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 2, color: 'success.main' }}>
+                <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1.5, color: 'success.main' }}>
                   🎯 Objectives ({parsedControls.objectives.length})
                 </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
+                    gridAutoRows: '70px',
+                    gridAutoFlow: 'dense',
+                    gap: 1.5,
+                  }}
+                >
                   {parsedControls.objectives.map((objective, idx) => (
-                    <Box key={idx} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-                      <Typography variant="caption" fontWeight="bold">
-                        {objective.name} ({objective.goal})
-                      </Typography>
-                      <Typography variant="caption" display="block" color="text.secondary">
-                        {objective.description}
-                      </Typography>
-                      <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace', mt: 0.5 }}>
-                        {objective.expression}
-                      </Typography>
-                    </Box>
+                    <ObjectiveCard
+                      key={idx}
+                      objective={objective}
+                      currentValue={evaluateExpression(objective.expression)}
+                      dependencies={extractDependencies(objective.expression)}
+                      onVariableClick={(varName) => {
+                        // Scroll to variable card - implementation TBD
+                        console.log('Navigate to variable:', varName);
+                      }}
+                    />
                   ))}
                 </Box>
               </Box>
             )}
 
             {/* Properties Section */}
-            {parsedControls.properties && parsedControls.properties.length > 0 && (
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 2, color: 'info.main' }}>
-                  📊 Properties ({parsedControls.properties.length})
-                </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {parsedControls.properties.map((property, idx) => (
-                    <Box key={idx} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-                      <Typography variant="caption" fontWeight="bold">
-                        {property.name}
-                      </Typography>
-                      <Typography variant="caption" display="block" color="text.secondary">
-                        {property.description}
-                      </Typography>
-                      <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace', mt: 0.5 }}>
-                        {property.expression}
-                      </Typography>
-                    </Box>
-                  ))}
+            {(() => {
+              const usedProperties = getUsedProperties();
+              return usedProperties.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1.5, color: 'info.main' }}>
+                    📊 Properties ({usedProperties.length})
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
+                      gridAutoRows: '70px',
+                      gridAutoFlow: 'dense',
+                      gap: 1.5,
+                    }}
+                  >
+                    {usedProperties.map((property, idx) => (
+                      <PropertyCard
+                        key={idx}
+                        property={property}
+                        currentValue={evaluateExpression(property.expression)}
+                        dependencies={extractDependencies(property.expression)}
+                        usedByCount={getPropertyUsageCount(property.name)}
+                        onVariableClick={(varName) => {
+                          console.log('Navigate to variable:', varName);
+                        }}
+                      />
+                    ))}
+                  </Box>
                 </Box>
-              </Box>
-            )}
+              );
+            })()}
 
             {/* Constraints Section */}
             {parsedControls.constraints && parsedControls.constraints.length > 0 && (
               <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 2, color: 'warning.main' }}>
+                <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1.5, color: 'warning.main' }}>
                   ⚠️ Constraints ({parsedControls.constraints.length})
                 </Typography>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {parsedControls.constraints.map((constraint, idx) => (
-                    <Box key={idx} sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-                      <Typography variant="caption" display="block" color="text.secondary">
-                        {constraint.description}
-                      </Typography>
-                      <Typography variant="caption" display="block" sx={{ fontFamily: 'monospace', mt: 0.5 }}>
-                        {constraint.expression}
-                      </Typography>
-                    </Box>
-                  ))}
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
+                    gridAutoRows: '70px',
+                    gridAutoFlow: 'dense',
+                    gap: 1.5,
+                  }}
+                >
+                  {parsedControls.constraints.map((constraint, idx) => {
+                    // Simply evaluate the full constraint expression
+                    // Backend handles all operators: <=, >=, <, >, ==, !=, and complex logic
+                    const result = evaluateExpression(constraint.expression);
+                    
+                    // Constraint is satisfied if result is truthy (>0 or true)
+                    const isSatisfied = result !== undefined && result > 0.5; // Use 0.5 threshold for boolean-like values
+                    
+                    // Try to parse for display purposes (LHS vs RHS)
+                    const parseForDisplay = (expr: string): { lhs: string; rhs: string } | null => {
+                      const operators = ['<=', '>=', '==', '!=', '<', '>'];
+                      for (const op of operators) {
+                        const idx = expr.indexOf(op);
+                        if (idx > 0) {
+                          return {
+                            lhs: expr.substring(0, idx).trim(),
+                            rhs: expr.substring(idx + op.length).trim(),
+                          };
+                        }
+                      }
+                      return null;
+                    };
+
+                    const parsed = parseForDisplay(constraint.expression);
+                    const currentValue = parsed ? evaluateExpression(parsed.lhs) : undefined;
+                    const limit = parsed ? evaluateExpression(parsed.rhs) : undefined;
+                    
+                    return (
+                      <ConstraintCard
+                        key={idx}
+                        constraint={constraint}
+                        currentValue={currentValue}
+                        limit={limit}
+                        isSatisfied={isSatisfied}
+                        dependencies={extractDependencies(constraint.expression)}
+                        onVariableClick={(varName) => {
+                          console.log('Navigate to variable:', varName);
+                        }}
+                      />
+                    );
+                  })}
                 </Box>
               </Box>
             )}

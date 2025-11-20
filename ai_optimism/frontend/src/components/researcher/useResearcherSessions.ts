@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { sessionManager, Session } from '../../services/sessionManager';
 import { useAIProvider } from '../../contexts/AIProviderContext';
-import { getFormalizationPrompt, isIncompleteFormalization } from '../../config/prompts';
+import { executeFormalization } from '../../services/formalizationHelper';
 
 export const useResearcherSessions = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -69,14 +69,21 @@ export const useResearcherSessions = () => {
   };
 
   // Handle delete session
-  const handleDeleteSession = (sessionId: string) => {
+  const handleDeleteSession = async (sessionId: string) => {
     if (!confirm('Permanently delete this session from records? This will terminate the session and cannot be undone.')) {
       return;
     }
+    
     // First terminate the session so the user gets notified
     sessionManager.updateSession(sessionId, { status: 'completed' });
+    
+    // Wait for 2 polling cycles (2 seconds) to ensure the client detects the completion
+    // The subscription polls every 1 second, so 2 seconds guarantees detection
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
     // Then delete it from records
     sessionManager.deleteSession(sessionId);
+    
     if (selectedSession?.id === sessionId) {
       setSelectedSession(null);
     }
@@ -96,83 +103,12 @@ export const useResearcherSessions = () => {
     setIsFormalizingId(sessionId);
 
     try {
-      // Build context from conversation messages
-      const conversationContext = session.messages
-        .map(msg => `${msg.sender === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-        .join('\n\n');
-
-      // Create formalization prompt
-      const formalizationPrompt = getFormalizationPrompt(conversationContext);
-
-      // Use the same approach as useChat - let AI SDK handle the streaming
-      const { streamText } = await import('ai');
-      const { createGoogleGenerativeAI } = await import('@ai-sdk/google');
-
-      const google = createGoogleGenerativeAI({
-        apiKey: aiState.apiKey,
-      });
-
-      const model = google(aiState.model || 'gemini-2.0-flash');
-
-      console.log('[Formalization] Starting streamText...');
-      
-      const result = await streamText({
-        model,
-        messages: [
-          {
-            role: 'user',
-            content: formalizationPrompt,
-          },
-        ],
-      });
-
-      // Collect the full text from the stream
-      let formalizedText = '';
-      for await (const textPart of result.textStream) {
-        formalizedText += textPart;
-        console.log('[Formalization] Received chunk:', textPart.substring(0, 50));
-      }
-
-      console.log('[Formalization] Generated text:', formalizedText);
-      console.log('[Formalization] Text length:', formalizedText.length);
-
-      if (!formalizedText || formalizedText.trim().length === 0) {
-        throw new Error('No content received from AI. The response was empty.');
-      }
-
-      // Check if formalization was incomplete
-      const incomplete = isIncompleteFormalization(formalizedText);
-      
-      if (incomplete) {
-        // Add as AI message with incomplete metadata for special styling
-        sessionManager.addMessage(sessionId, 'ai', formalizedText, {
-          type: 'formalization',
-          incomplete: true,
-        });
-        loadSessions();
-        return;
-      }
-
-      // Add formalized message to session
-      const addedMessage = sessionManager.addMessage(
+      await executeFormalization({
         sessionId,
-        'ai',
-        formalizedText,
-        {
-          type: 'formalization',
-        }
-      );
-
-      console.log('[Formalization] Message added to session:', addedMessage);
-      console.log('[Formalization] Message content length:', addedMessage?.content?.length);
-
-      // Update session status
-      sessionManager.updateSession(sessionId, { status: 'formalized' });
-      
-      // Verify the session was updated
-      const updatedSession = sessionManager.getSession(sessionId);
-      console.log('[Formalization] Updated session message count:', updatedSession?.messages.length);
-      console.log('[Formalization] Last message:', updatedSession?.messages[updatedSession.messages.length - 1]);
+        apiKey: aiState.apiKey,
+        model: aiState.model || 'gemini-2.0-flash',
+        messages: session.messages,
+      });
       
       loadSessions();
     } catch (error) {

@@ -18,7 +18,8 @@ Guide users through:
 When extracting information, be precise and structured. Ask clarifying questions when needed.
 
 IMPORTANT: 
-- Once you have gathered enough information about the user's optimization problem (objectives, variables, constraints), summarize the problem clearly and explicitly tell the user: "I have enough information to formalize your optimization problem. Would you like me to create a structured problem definition?"
+- Once you have gathered enough information about the user's optimization problem (objectives, variables, and constraints), summarize the problem clearly and explicitly tell the user: "I have enough information to formalize your optimization problem. Would you like me to create a structured problem definition?"
+- Don't worry about stopping criteria (max iterations, convergence) - these will be set automatically with reasonable defaults
 - If the user wants to change or refine a previously formalized problem, acknowledge their changes and ask: "Would you like me to re-formalize the problem with these updates?"
 - Always be ready to iterate and refine the problem definition based on user feedback.`;
 
@@ -37,8 +38,7 @@ ${conversationContext}
 Please provide a structured problem definition with:
 1. Objective: What is being optimized? (Must be specific and measurable)
 2. Variables: What can be changed? (Must list concrete variables with ranges/types)
-3. Constraints: What limitations exist? (Must specify actual constraints, not just "not defined")
-4. Success Criteria: How will we measure success? (Must define specific metrics)
+3. Constraints: What limitations exist? (Must specify actual constraints, or explicitly state "no constraints" if none)
 
 IMPORTANT NAMING CONVENTIONS:
 - Use snake_case (e.g., "cookie_diameter", "baking_time") or camelCase (e.g., "cookieDiameter", "bakingTime")
@@ -46,7 +46,7 @@ IMPORTANT NAMING CONVENTIONS:
 - Avoid spaces, special characters, or Title Case
 - Examples: "chocolate_chips_count" or "chocolateChipsCount" is CORRECT, "Chocolate Chips Count" is INCORRECT
 
-CRITICAL: Only provide a complete formalization if ALL four sections have concrete, actionable information. If any section lacks specific details (e.g., "not yet defined", "to be determined", "user needs to specify"), you must respond with:
+CRITICAL: Only provide a complete formalization if ALL three sections have concrete, actionable information. If any section lacks specific details (e.g., "not yet defined", "to be determined", "user needs to specify"), you must respond with:
 
 "INCOMPLETE FORMALIZATION
 
@@ -96,7 +96,14 @@ Identify:
    - For continuous/discrete variables, provide reasonable min/max ranges and default values
 2. Objectives to optimize for (what to minimize or maximize, with Python expressions)
 3. Properties that can be calculated from variables (with Python expressions)
+   - CRITICAL: ONLY create properties that will be referenced in objectives or constraints
+   - Do NOT create intermediate calculations unless they are explicitly used
+   - Each property MUST appear in at least one objective or constraint expression
+   - If a calculation can be done directly in an objective/constraint, do it there instead of creating a property
 4. Constraints that must be satisfied (as Python expressions)
+5. Stopping criteria:
+   - max_iterations: Maximum number of optimization iterations (default: 100, range: 10-10000)
+   - convergence_threshold: Threshold for convergence detection (default: 0.001, range: 0.00001-0.1)
 
 CRITICAL NAMING RULES:
 - All names (variables, properties, objectives, constraints) MUST be in snake_case (e.g., "cookie_diameter", "baking_time") or camelCase (e.g., "cookieDiameter", "bakingTime")

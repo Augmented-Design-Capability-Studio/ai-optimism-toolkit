@@ -30,6 +30,9 @@ export function GenerateControlsButton({
   onFormalize,
   onResetFormalization,
 }: GenerateControlsButtonProps) {
+  // Count actual user messages to determine if there's real conversation
+  const userMessageCount = currentSession?.messages.filter(m => m.sender === 'user').length || 0;
+  
   if (displayMessagesLength === 0 || (mode === 'ai' && !apiKey)) {
     return null;
   }
@@ -41,8 +44,13 @@ export function GenerateControlsButton({
   // Check if AI has explicitly indicated readiness (status: 'waiting')
   const aiIsReady = currentSession?.status === 'waiting';
 
-  // Show formalize button after 2+ messages (for both AI and Experimental mode), but with different states
-  const canShowFormalize = displayMessagesLength >= 2 && !hasFormalization;
+  // Show formalize button only if there are real user messages (not just AI greeting)
+  const canShowFormalize = userMessageCount >= 1 && !hasFormalization;
+  
+  // If we can't show formalize button yet, don't render anything
+  if (!canShowFormalize && !hasFormalization) {
+    return null;
+  }
   
   // Button is discouraged (grey/inherit) if AI hasn't indicated readiness
   const isPremature = canShowFormalize && !aiIsReady;

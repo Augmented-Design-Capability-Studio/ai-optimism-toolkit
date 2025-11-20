@@ -26,8 +26,9 @@ export function MessagesList({
   isWaitingForResearcher = false,
   onGenerateControls,
 }: MessagesListProps) {
+  // Only show welcome message in experimental mode or when missing API key
+  // In AI mode, let the AI's initialization message be the greeting
   const shouldShowWelcome = 
-    (mode === 'ai' && messages.length === 0) ||
     (mode === 'experimental' && messages.length === 0) ||
     (!apiKey && mode === 'ai');
 

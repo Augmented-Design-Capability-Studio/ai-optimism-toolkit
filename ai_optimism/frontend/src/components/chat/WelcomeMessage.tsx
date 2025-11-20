@@ -85,17 +85,16 @@ Click the "AI Connection" button in the top-right corner to configure your API k
             wordBreak: 'break-word',
           }}
         >
-          {`Welcome to the AI Optimism Toolkit! 👋
+          {`Hello! I'm here to help you design an optimization problem. To get started, let's think about what you're trying to optimize.
 
-I'll help you design your optimization problem. Let's start by understanding what you're trying to optimize.
+We can break it down into a few steps:
 
-What problem would you like to solve? For example:
-• Optimize a recipe
-• Minimize manufacturing costs
-• Maximize energy efficiency
-• Design an optimal schedule
+• Variables: What are the things you can change or decide upon? These are the "levers" you can pull.
+• Properties: Are there any values that are calculated based on your variables?
+• Objectives: What do you want to achieve? Are you trying to maximize something (like profit) or minimize something (like cost or time)?
+• Constraints: What are the limits, rules, or requirements that your solution must satisfy?
 
-Describe your problem, and I'll help you define variables, constraints, and objectives.`}
+Let's start with the first step: What are the variables in your problem? What can you change or decide upon?`}
         </Typography>
         </Paper>
       </Box>

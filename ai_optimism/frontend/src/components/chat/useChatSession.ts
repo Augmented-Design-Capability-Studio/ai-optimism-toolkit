@@ -5,7 +5,7 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { sessionManager, Session, SessionMode } from '../../services/sessionManager';
 import { useAIProvider } from '../../contexts/AIProviderContext';
-import { getFormalizationPrompt, isIncompleteFormalization } from '../../config/prompts';
+import { executeFormalization, detectFormalizationReadiness } from '../../services/formalizationHelper';
 
 export function useChatSession() {
   const { state } = useAIProvider();
@@ -29,47 +29,64 @@ export function useChatSession() {
     }
   }, [apiKey]);
 
+  // Helper to show termination notification
+  const showTerminationNotification = () => {
+    setSessionTerminated(true);
+    setTimeout(() => setSessionTerminated(false), 5000);
+  };
+
   // Initialize or load session on mount
   useEffect(() => {
     let session = sessionManager.getCurrentSession();
     
     // Always ensure there's a session
     if (!session || session.status === 'completed') {
-      // If session was completed (terminated), show message to user
       if (session?.status === 'completed') {
-        setSessionTerminated(true);
-        setTimeout(() => setSessionTerminated(false), 5000);
+        showTerminationNotification();
       }
-      // Create a new session that starts in AI mode
       session = sessionManager.createSession('ai');
+      // Explicitly ensure new session starts fresh
+      sessionManager.updateSession(session.id, { status: 'active' });
       console.log('[useChatSession] Created new session:', session.id);
     }
     
     setCurrentSession(session);
     
     // Subscribe to session updates
-    const unsubscribe = sessionManager.subscribeToSession(session.id, (updatedSession) => {
-      // If session is terminated, create a new one
-      if (updatedSession.status === 'completed') {
-        setSessionTerminated(true);
-        setTimeout(() => setSessionTerminated(false), 5000);
-        
-        // Create new session and update
-        const newSession = sessionManager.createSession('ai');
-        console.log('[useChatSession] Session terminated, created new session:', newSession.id);
-        setCurrentSession(newSession);
-        
-        // Restart subscription for new session
-        unsubscribe();
-        sessionManager.subscribeToSession(newSession.id, (newUpdatedSession) => {
-          setCurrentSession(newUpdatedSession);
-        });
-      } else {
-        setCurrentSession(updatedSession);
-      }
-    });
+    let currentUnsubscribe: (() => void) | null = null;
     
-    return unsubscribe;
+    const subscribeToCurrentSession = (sessionId: string) => {
+      // Clean up previous subscription if it exists
+      if (currentUnsubscribe) {
+        currentUnsubscribe();
+      }
+      
+      currentUnsubscribe = sessionManager.subscribeToSession(sessionId, (updatedSession) => {
+        if (updatedSession.status === 'completed') {
+          showTerminationNotification();
+          const newSession = sessionManager.createSession('ai');
+          console.log('[useChatSession] Session terminated, created new session:', newSession.id);
+          
+          // Explicitly ensure new session starts with active status (not waiting)
+          sessionManager.updateSession(newSession.id, { status: 'active' });
+          setCurrentSession(newSession);
+          
+          // Restart subscription for new session
+          subscribeToCurrentSession(newSession.id);
+        } else {
+          setCurrentSession(updatedSession);
+        }
+      });
+    };
+    
+    subscribeToCurrentSession(session.id);
+    
+    // Return cleanup function
+    return () => {
+      if (currentUnsubscribe) {
+        currentUnsubscribe();
+      }
+    };
   }, []);
 
   // Create transport with body containing API key, provider, and model
@@ -84,8 +101,9 @@ export function useChatSession() {
     });
   }, [apiKey, provider, model]);
 
-  // Use useChat with custom transport
-  const chatId = apiKey ? 'optimization-chat' : 'optimization-chat-disconnected';
+  // Use session ID as chat ID to ensure each session has separate message history
+  // This prevents messages from old sessions appearing in new sessions
+  const chatId = currentSession ? `chat-${currentSession.id}` : 'chat-disconnected';
   
   const { messages, sendMessage, status, error } = useChat({
     id: chatId,
@@ -93,6 +111,22 @@ export function useChatSession() {
   });
   
   const isLoading = status === 'streaming' || status === 'submitted';
+
+  // Initialize AI greeting for new AI-mode sessions
+  useEffect(() => {
+    if (!currentSession || !apiKey || isResearcherControlled) return;
+    
+    // Check if session has no messages and useChat has no messages
+    if (currentSession.messages.length === 0 && messages.length === 0 && !isLoading) {
+      console.log('[useChatSession] Initializing AI greeting for new session');
+      
+      // Send an initialization prompt to get the AI's greeting
+      sendMessage({
+        role: 'user',
+        parts: [{ type: 'text', text: 'Initialize' }],
+      });
+    }
+  }, [currentSession?.id, apiKey, isResearcherControlled, messages.length, isLoading]);
 
   // Log errors (but suppress API key errors when not connected)
   useEffect(() => {
@@ -115,51 +149,28 @@ export function useChatSession() {
         );
         
         if (text.trim() && !existingMessage) {
+          // Get fresh session data from storage to check user message count
+          const freshSession = sessionManager.getSession(currentSession.id);
+          const userMessageCount = freshSession?.messages.filter(m => m.sender === 'user').length || 0;
+          
+          console.log('[useChatSession] Saving AI message, userMessageCount:', userMessageCount);
           sessionManager.addMessage(currentSession.id, 'ai', text);
           
-          const lowerText = text.toLowerCase();
-          
-          // Check if AI explicitly indicates readiness to formalize
-          // Looking for strong signals like "enough information" or "ready to formalize"
-          const explicitlyReady = (
-            (lowerText.includes('enough information') || lowerText.includes('ready to formalize') ||
-             lowerText.includes('can now formalize') || lowerText.includes('sufficient information')) &&
-            (lowerText.includes('formalize') || lowerText.includes('formalise'))
-          );
-          
-          // Check if AI asks if user wants to formalize
-          const asksToFormalize = (
-            (lowerText.includes('would you like') || lowerText.includes('shall i') || 
-             lowerText.includes('should i') || lowerText.includes('want me to')) &&
-            (lowerText.includes('formalize') || lowerText.includes('formalise') || 
-             lowerText.includes('structured') || lowerText.includes('problem definition'))
-          );
-          
-          // Check if AI is suggesting re-formalization
-          const suggestsReformalizing = (
-            (lowerText.includes('re-formalize') || lowerText.includes('refine') || lowerText.includes('update')) &&
-            (lowerText.includes('problem') || lowerText.includes('definition'))
-          );
-          
-          // Check if AI acknowledges new problem or restart
-          const acknowledgesRestart = (
-            lowerText.includes('start fresh') ||
-            lowerText.includes('new problem') ||
-            lowerText.includes('different problem') ||
-            lowerText.includes('moving on') ||
-            lowerText.includes("let's start") ||
-            lowerText.includes("let's begin") ||
-            (lowerText.includes('starting') && (lowerText.includes('over') || lowerText.includes('fresh')))
-          );
-          
-          if ((explicitlyReady || asksToFormalize) && currentSession.status !== 'formalized') {
-            console.log('[useChatSession] AI indicated readiness to formalize');
-            // Update session to indicate formalization is ready
-            sessionManager.updateSession(currentSession.id, { status: 'waiting' });
-          } else if ((suggestsReformalizing || acknowledgesRestart) && currentSession.status === 'formalized') {
-            console.log('[useChatSession] AI suggests re-formalization or acknowledges restart, resetting status');
-            // Reset status to allow re-formalization
-            sessionManager.updateSession(currentSession.id, { status: 'active' });
+          // Only check for formalization readiness if there are actual user messages
+          // This prevents the initialization greeting from triggering readiness detection
+          if (userMessageCount > 0) {
+            // Check for formalization readiness signals
+            const { isReady, suggestsReformalizing, acknowledgesRestart } = detectFormalizationReadiness(text);
+            
+            if (isReady && currentSession.status !== 'formalized') {
+              console.log('[useChatSession] AI indicated readiness to formalize');
+              sessionManager.updateSession(currentSession.id, { status: 'waiting' });
+            } else if ((suggestsReformalizing || acknowledgesRestart) && currentSession.status === 'formalized') {
+              console.log('[useChatSession] AI suggests re-formalization, resetting status');
+              sessionManager.updateSession(currentSession.id, { status: 'active' });
+            }
+          } else {
+            console.log('[useChatSession] Skipping readiness check - no user messages yet');
           }
         }
       }
@@ -215,46 +226,12 @@ export function useChatSession() {
     if (!currentSession || !apiKey) return;
 
     try {
-      const { streamText } = await import('ai');
-      const { createGoogleGenerativeAI } = await import('@ai-sdk/google');
-
-      const google = createGoogleGenerativeAI({ apiKey });
-      const aiModel = google(model || 'gemini-2.0-flash');
-
-      const conversationContext = currentSession.messages
-        .map(msg => `${msg.sender === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-        .join('\n\n');
-
-      const formalizationPrompt = getFormalizationPrompt(conversationContext);
-
-      const result = await streamText({
-        model: aiModel,
-        messages: [{ role: 'user', content: formalizationPrompt }],
+      await executeFormalization({
+        sessionId: currentSession.id,
+        apiKey,
+        model: model || 'gemini-2.0-flash',
+        messages: currentSession.messages,
       });
-
-      let formalizedText = '';
-      for await (const textPart of result.textStream) {
-        formalizedText += textPart;
-      }
-
-      if (formalizedText.trim()) {
-        // Check if formalization was incomplete
-        const incomplete = isIncompleteFormalization(formalizedText);
-        
-        if (incomplete) {
-          // Add as AI message with incomplete metadata for special styling
-          sessionManager.addMessage(currentSession.id, 'ai', formalizedText, {
-            type: 'formalization',
-            incomplete: true,
-          });
-          // Don't change status - keep it as active to allow more conversation
-        } else {
-          sessionManager.addMessage(currentSession.id, 'ai', formalizedText, {
-            type: 'formalization',
-          });
-          sessionManager.updateSession(currentSession.id, { status: 'formalized' });
-        }
-      }
     } catch (error) {
       console.error('[useChatSession] Formalization error:', error);
       throw error;

@@ -1,8 +1,0 @@
-cookies:
-I'm optimizing a recipe for cookies in terms of the only two variables baking_temperature and flour_type. 
-
-I want to maximize the cakey-ness.
-
-
-
-can you generate a sample cookie recipe optimization problem for me? I want to maximize protein with 500g of total ingredients. You can define other variables, properties, and constraints as you see fit.

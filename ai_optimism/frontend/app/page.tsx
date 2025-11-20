@@ -6,6 +6,7 @@ import { ControlsPanel } from '../src/components/ControlsPanel';
 import { VisualizationPanel } from '../src/components/VisualizationPanel';
 import { OptimizationPanel } from '../src/components/OptimizationPanel';
 import { AIConnectionStatus } from '../src/components/AIConnectionStatus';
+import { BackendStatusIndicator } from '../src/components/BackendStatusIndicator';
 import { useState, useEffect } from 'react';
 
 export default function HomePage() {
@@ -39,15 +40,11 @@ export default function HomePage() {
         </Toolbar>
       </AppBar>
 
-      {/* 4-Panel Layout - Scrollable horizontally with gradient masks */}
-      <Box
-        sx={{
-          flex: 1,
-          position: 'relative',
-          minHeight: 0,
-          overflow: 'hidden', // Container doesn't scroll
-        }}
-      >
+      {/* Backend status warning - full width banner */}
+      <BackendStatusIndicator />
+
+      {/* Content area with panels and gradient masks */}
+      <Box sx={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden' }}>
         {/* Left gradient mask */}
         <Box
           sx={{
