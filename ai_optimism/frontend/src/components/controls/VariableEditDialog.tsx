@@ -18,6 +18,7 @@ import {
   IconButton,
   Chip,
   Stack,
+  Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
@@ -226,6 +227,104 @@ export function VariableEditDialog({
               </Stack>
             </Box>
           )}
+
+          {/* Modifier Strategy Section */}
+          <Box sx={{ pt: 1, borderTop: 1, borderColor: 'divider' }}>
+            <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'primary.main' }}>
+              Optimization Modifier
+            </Typography>
+
+            <FormControl component="fieldset" fullWidth sx={{ mb: 2 }}>
+              <FormLabel component="legend" sx={{ fontSize: '0.85rem' }}>Strategy</FormLabel>
+              <RadioGroup
+                row
+                value={editedVariable.modifierStrategy?.type || (editedVariable.type === 'categorical' ? 'random_reset' : 'gaussian')}
+                onChange={(e) => {
+                  const newType = e.target.value as any;
+                  setEditedVariable({
+                    ...editedVariable,
+                    modifierStrategy: {
+                      type: newType,
+                      // Set reasonable defaults based on new type
+                      sigma: newType === 'gaussian' ? (editedVariable.max! - editedVariable.min!) * 0.1 : undefined,
+                      stepSize: newType === 'uniform' ? (editedVariable.max! - editedVariable.min!) * 0.1 : undefined,
+                      probability: 1.0,
+                    }
+                  });
+                }}
+              >
+                {editedVariable.type === 'categorical' ? (
+                  <>
+                    <FormControlLabel value="random_reset" control={<Radio size="small" />} label={<Typography variant="body2">Random Reset</Typography>} />
+                    <FormControlLabel value="neighbor_step" control={<Radio size="small" />} label={<Typography variant="body2">Neighbor Step</Typography>} />
+                  </>
+                ) : (
+                  <>
+                    <FormControlLabel value="gaussian" control={<Radio size="small" />} label={<Typography variant="body2">Gaussian</Typography>} />
+                    <FormControlLabel value="uniform" control={<Radio size="small" />} label={<Typography variant="body2">Uniform Step</Typography>} />
+                  </>
+                )}
+              </RadioGroup>
+            </FormControl>
+
+            {/* Strategy Parameters */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              {(editedVariable.modifierStrategy?.type === 'gaussian' || (!editedVariable.modifierStrategy && editedVariable.type !== 'categorical')) && (
+                <TextField
+                  label="Sigma (Std Dev)"
+                  type="number"
+                  size="small"
+                  fullWidth
+                  value={editedVariable.modifierStrategy?.sigma ?? ((editedVariable.max! - editedVariable.min!) * 0.1).toFixed(2)}
+                  onChange={(e) => setEditedVariable({
+                    ...editedVariable,
+                    modifierStrategy: {
+                      ...editedVariable.modifierStrategy,
+                      type: 'gaussian',
+                      sigma: parseFloat(e.target.value)
+                    }
+                  })}
+                  helperText="Spread of random changes"
+                />
+              )}
+
+              {editedVariable.modifierStrategy?.type === 'uniform' && (
+                <TextField
+                  label="Step Size"
+                  type="number"
+                  size="small"
+                  fullWidth
+                  value={editedVariable.modifierStrategy?.stepSize ?? ((editedVariable.max! - editedVariable.min!) * 0.1).toFixed(2)}
+                  onChange={(e) => setEditedVariable({
+                    ...editedVariable,
+                    modifierStrategy: {
+                      ...editedVariable.modifierStrategy,
+                      type: 'uniform',
+                      stepSize: parseFloat(e.target.value)
+                    }
+                  })}
+                  helperText="Max size of single step"
+                />
+              )}
+
+              <TextField
+                label="Probability"
+                type="number"
+                size="small"
+                fullWidth
+                inputProps={{ min: 0, max: 1, step: 0.1 }}
+                value={editedVariable.modifierStrategy?.probability ?? 1.0}
+                onChange={(e) => setEditedVariable({
+                  ...editedVariable,
+                  modifierStrategy: {
+                    ...editedVariable.modifierStrategy!,
+                    probability: parseFloat(e.target.value)
+                  }
+                })}
+                helperText="Chance to modify (0-1)"
+              />
+            </Box>
+          </Box>
         </Stack>
       </DialogContent>
 

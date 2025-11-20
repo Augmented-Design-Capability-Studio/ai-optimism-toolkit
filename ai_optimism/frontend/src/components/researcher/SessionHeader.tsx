@@ -18,7 +18,7 @@ import StopIcon from '@mui/icons-material/Stop';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { Session } from '../../services/sessionManager';
+import { Session, sessionManager } from '../../services/sessionManager';
 
 interface SessionHeaderProps {
   session: Session;
@@ -40,15 +40,15 @@ export function SessionHeader({
   const handleExport = () => {
     // Generate chat log text
     const header = `Chat Session: ${session.id}\nCreated: ${new Date(session.createdAt).toLocaleString()}\nStatus: ${session.status}\nMode: ${session.mode}\n${'='.repeat(80)}\n\n`;
-    
+
     const messagesText = session.messages.map(msg => {
       const timestamp = new Date(msg.timestamp).toLocaleTimeString();
       const sender = msg.sender === 'user' ? 'User' : msg.sender === 'researcher' ? 'Researcher' : 'AI';
       return `[${timestamp}] ${sender}:\n${msg.content}\n`;
     }).join('\n');
-    
+
     const content = header + messagesText;
-    
+
     // Create and download file
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -63,8 +63,6 @@ export function SessionHeader({
 
   const handleResetFormalization = () => {
     if (window.confirm('Reset formalization status to allow re-formalization?')) {
-      // Import sessionManager to update status
-      const sessionManager = require('../../services/sessionManager').sessionManager;
       sessionManager.updateSession(session.id, { status: 'active' });
       // Force immediate UI update by triggering parent's loadSessions
       // The onModeToggle function will call loadSessions which refreshes the UI
@@ -89,13 +87,13 @@ export function SessionHeader({
           <Typography variant="caption" color="text.secondary">
             Updated: {new Date(session.updatedAt).toLocaleString()}
           </Typography>
-          <Chip 
-            label={session.status} 
-            size="small" 
+          <Chip
+            label={session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+            size="small"
             color={
               session.status === 'completed' ? 'default' :
-              session.status === 'formalized' ? 'success' :
-              session.status === 'waiting' ? 'warning' : 'primary'
+                session.status === 'formalized' ? 'success' :
+                  session.status === 'waiting' ? 'warning' : 'primary'
             }
           />
         </Box>
@@ -118,7 +116,7 @@ export function SessionHeader({
             }}
             size="small"
           >
-            <Tooltip 
+            <Tooltip
               title="Direct AI responses using configured provider (Google Gemini). User receives automated AI assistance. You can still send messages as researcher if needed."
               arrow
               placement="top"
@@ -127,7 +125,7 @@ export function SessionHeader({
                 🤖 AI Mode
               </ToggleButton>
             </Tooltip>
-            <Tooltip 
+            <Tooltip
               title="Wizard-of-Oz mode: You manually craft each response as the researcher. User believes they're chatting with AI. Switch to AI Mode anytime to let the AI respond automatically."
               arrow
               placement="top"
@@ -148,7 +146,7 @@ export function SessionHeader({
           size="small"
           startIcon={
             isFormalizingId === session.id ? undefined :
-            session.status === 'formalized' ? <RefreshIcon /> : <AutoFixHighIcon />
+              session.status === 'formalized' ? <RefreshIcon /> : <AutoFixHighIcon />
           }
           onClick={session.status === 'formalized' ? handleResetFormalization : () => onFormalize(session.id)}
           disabled={
@@ -159,8 +157,8 @@ export function SessionHeader({
           {isFormalizingId === session.id
             ? 'Formalizing...'
             : session.status === 'formalized'
-            ? 'Reset Formalization'
-            : 'Formalize Problem'}
+              ? 'Reset Formalization'
+              : 'Formalize Problem'}
         </Button>
 
         <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />

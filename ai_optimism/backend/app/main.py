@@ -21,7 +21,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(optimization.router)
+app.include_router(optimization.router, prefix="/api")
 app.include_router(ai_provider.router)
 app.include_router(evaluate.router, prefix="/api/evaluate", tags=["evaluate"])
 

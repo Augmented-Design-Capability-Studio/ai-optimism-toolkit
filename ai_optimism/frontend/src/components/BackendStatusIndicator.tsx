@@ -1,6 +1,11 @@
 'use client';
 
-import { Alert, Collapse } from '@mui/material';
+import { Chip, Tooltip } from '@mui/material';
+import {
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  HourglassEmpty as HourglassEmptyIcon,
+} from '@mui/icons-material';
 import { useEffect, useState } from 'react';
 import { BACKEND_API } from '../config/backend';
 
@@ -56,20 +61,63 @@ export function BackendStatusIndicator({ className }: BackendStatusIndicatorProp
     };
   }, []);
 
-  // Don't show anything while initially checking or if backend is available
-  if (isChecking || isBackendAvailable) {
-    return null;
-  }
+  const getStatusIcon = () => {
+    if (isChecking) {
+      return <HourglassEmptyIcon fontSize="small" />;
+    }
+    return isBackendAvailable ? <CheckCircleIcon fontSize="small" /> : <WarningIcon fontSize="small" />;
+  };
+
+  const getStatusLabel = () => {
+    if (isChecking) {
+      return 'Backend: Checking...';
+    }
+    return isBackendAvailable ? 'Backend: Connected' : 'Backend: Offline';
+  };
+
+  const getTooltipText = () => {
+    if (isChecking) {
+      return 'Checking backend server status...';
+    }
+    return isBackendAvailable
+      ? 'Backend server is available for complex constraint evaluation'
+      : 'Backend server unavailable. Using limited client-side evaluation.';
+  };
+
+  const getBackgroundColor = () => {
+    if (isChecking) {
+      return 'rgba(158, 158, 158, 0.7)';
+    }
+    return isBackendAvailable ? 'rgba(76, 175, 80, 0.9)' : 'rgba(255, 152, 0, 0.9)';
+  };
 
   return (
-    <Collapse in={!isBackendAvailable}>
-      <Alert 
-        severity="warning" 
+    <Tooltip title={getTooltipText()} arrow>
+      <Chip
+        label={getStatusLabel()}
+        icon={getStatusIcon()}
+        size="small"
         className={className}
-        sx={{ m: 0 }}
-      >
-        Backend server unavailable. Complex constraints will use limited client-side evaluation.
-      </Alert>
-    </Collapse>
+        sx={{
+          fontSize: '0.75rem', // Slightly smaller to fit better when stacked
+          height: '24px',      // Explicit height for better stacking
+          fontWeight: 500,
+          color: '#ffffff',
+          cursor: 'default',   // Explicitly show it's not clickable
+          '& .MuiChip-label': {
+            px: 1.5,
+          },
+          '& .MuiChip-icon': {
+            color: '#ffffff',
+            fontSize: '1rem',
+          },
+          backgroundColor: getBackgroundColor(),
+          // No hover effect to indicate non-interactivity
+          '&:hover': {
+            backgroundColor: getBackgroundColor(),
+          },
+        }}
+      />
+    </Tooltip>
   );
 }

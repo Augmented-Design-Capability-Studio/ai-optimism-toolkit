@@ -11,10 +11,20 @@ import { useState, useEffect } from 'react';
 
 export default function HomePage() {
   const [generatedControls, setGeneratedControls] = useState<unknown>(null);
+  const [variableValues, setVariableValues] = useState<Record<string, number>>({});
 
   const handleControlsGenerated = (controls: unknown) => {
     console.log('[HomePage] Controls generated:', controls);
     setGeneratedControls(controls);
+  };
+
+  const handleOptimizationResults = (results: any[]) => {
+    if (results && results.length > 0) {
+      // Apply best result to variable values
+      const bestSolution = results[0].variables;
+      console.log('[HomePage] Applying optimization results:', bestSolution);
+      setVariableValues(bestSolution);
+    }
   };
 
   // Initialize gradient visibility on mount
@@ -30,18 +40,17 @@ export default function HomePage() {
       {/* Top App Bar - Fixed width, doesn't scroll */}
       <AppBar position="static" sx={{ flexShrink: 0, width: '100vw' }}>
         <Toolbar>
-          <Box sx={{ flex: 1 }} />
+
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5, py: 1 }}>
+            <AIConnectionStatus />
+            <BackendStatusIndicator />
+          </Box>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
             AI OPTIMISM TOOLKIT
           </Typography>
-          <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-            <AIConnectionStatus />
-          </Box>
+          <Box sx={{ flex: 1 }} />
         </Toolbar>
       </AppBar>
-
-      {/* Backend status warning - full width banner */}
-      <BackendStatusIndicator />
 
       {/* Content area with panels and gradient masks */}
       <Box sx={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden' }}>
@@ -60,7 +69,7 @@ export default function HomePage() {
           }}
           className="gradient-left"
         />
-        
+
         {/* Right gradient mask */}
         <Box
           sx={{
@@ -90,11 +99,11 @@ export default function HomePage() {
             const target = e.currentTarget;
             const scrollLeft = target.scrollLeft;
             const maxScroll = target.scrollWidth - target.clientWidth;
-            
+
             // Show/hide gradient masks based on scroll position
             const leftMask = document.querySelector('.gradient-left') as HTMLElement;
             const rightMask = document.querySelector('.gradient-right') as HTMLElement;
-            
+
             if (leftMask) {
               leftMask.style.opacity = scrollLeft > 10 ? '1' : '0';
             }
@@ -118,26 +127,29 @@ export default function HomePage() {
               width: 'fit-content',
             }}
           >
-          {/* Panel 1: Chat */}
-          <Box sx={{ height: '100%', overflow: 'hidden' }}>
-            <ChatPanel onControlsGenerated={handleControlsGenerated} />
-          </Box>
+            {/* Panel 1: Chat */}
+            <Box sx={{ height: '100%', overflow: 'hidden' }}>
+              <ChatPanel onControlsGenerated={handleControlsGenerated} />
+            </Box>
 
-          {/* Panel 2: Controls */}
-          <Box sx={{ height: '100%', overflow: 'hidden' }}>
-            <ControlsPanel controls={generatedControls} />
-          </Box>
+            {/* Panel 2: Controls */}
+            <Box sx={{ height: '100%', overflow: 'hidden' }}>
+              <ControlsPanel controls={generatedControls} initialValues={variableValues} />
+            </Box>
 
-          {/* Panel 3: Visualization */}
-          <Box sx={{ height: '100%', overflow: 'hidden' }}>
-            <VisualizationPanel />
-          </Box>
+            {/* Panel 3: Visualization */}
+            <Box sx={{ height: '100%', overflow: 'hidden' }}>
+              <VisualizationPanel />
+            </Box>
 
-          {/* Panel 4: Optimization */}
-          <Box sx={{ height: '100%', overflow: 'hidden' }}>
-            <OptimizationPanel />
+            {/* Panel 4: Optimization */}
+            <Box sx={{ height: '100%', overflow: 'hidden' }}>
+              <OptimizationPanel
+                controls={generatedControls as any}
+                onResultsUpdate={handleOptimizationResults}
+              />
+            </Box>
           </Box>
-        </Box>
         </Box>
       </Box>
     </Box>

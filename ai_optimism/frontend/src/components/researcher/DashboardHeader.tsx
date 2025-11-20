@@ -12,16 +12,17 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
   return (
-    <>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Box>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
-            🧙 Researcher Dashboard
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Monitor sessions, provide guidance, and formalize optimization problems
-          </Typography>
-        </Box>
+    <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box>
+        <Typography variant="h4" fontWeight="bold" gutterBottom>
+          🧙 Researcher Dashboard
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Monitor sessions, provide guidance, and formalize optimization problems
+        </Typography>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <BackendStatusIndicator />
         <Button
           variant="outlined"
           startIcon={<RefreshIcon />}
@@ -30,7 +31,6 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
           Refresh
         </Button>
       </Box>
-      <BackendStatusIndicator />
-    </>
+    </Box>
   );
 }

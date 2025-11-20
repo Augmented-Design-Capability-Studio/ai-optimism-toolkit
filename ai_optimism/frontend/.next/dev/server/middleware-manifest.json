@@ -3,42 +3,6 @@
   "middleware": {},
   "sortedMiddleware": [],
   "functions": {
-    "/api/chat/route": {
-      "files": [
-        "server/middleware-build-manifest.js",
-        "server/interception-route-rewrite-manifest.js",
-        "server/server-reference-manifest.js",
-        "server/app/api/chat/route_client-reference-manifest.js",
-        "server/edge/chunks/_next-internal_server_app_api_chat_route_actions_65685355.js",
-        "server/edge/chunks/node_modules_next_dist_esm_d7e42d52._.js",
-        "server/edge/chunks/node_modules_next_dist_compiled_9d1d39d4._.js",
-        "server/edge/chunks/node_modules_next_dist_7bea040f._.js",
-        "server/edge/chunks/edge-wrapper_d7ce9b1c.js",
-        "server/edge/chunks/node_modules_@opentelemetry_api_build_esm_5713bd62._.js",
-        "server/edge/chunks/node_modules_zod_17f953ab._.js",
-        "server/edge/chunks/node_modules_ai_dist_index_mjs_910668be._.js",
-        "server/edge/chunks/node_modules_e5d76534._.js",
-        "server/edge/chunks/[root-of-the-server]__c2003827._.js",
-        "server/edge/chunks/turbopack-edge-wrapper_4d1cbf03.js"
-      ],
-      "name": "app/api/chat/route",
-      "page": "/api/chat/route",
-      "matchers": [
-        {
-          "regexp": "^/api/chat(?:/)?$",
-          "originalSource": "/api/chat"
-        }
-      ],
-      "wasm": [],
-      "assets": [],
-      "env": {
-        "__NEXT_BUILD_ID": "development",
-        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "6JfnnRIyimH/SHa+byJYTSBKqkJgvfQ/5ir2rg3jjKM=",
-        "__NEXT_PREVIEW_MODE_ID": "c62e884199e110436260d2833c2ef56c",
-        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "bcd1c8e448d3f2de41952a8b8f40101980929c058212bc9ee7b0d1803c276fe0",
-        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "5984dd7d8ae6876700445b0921896a0b82f16ac8f08de81a5c271c5532580de2"
-      }
-    },
     "/api/generate/route": {
       "files": [
         "server/middleware-build-manifest.js",
@@ -70,9 +34,9 @@
       "env": {
         "__NEXT_BUILD_ID": "development",
         "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "6JfnnRIyimH/SHa+byJYTSBKqkJgvfQ/5ir2rg3jjKM=",
-        "__NEXT_PREVIEW_MODE_ID": "c62e884199e110436260d2833c2ef56c",
-        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "bcd1c8e448d3f2de41952a8b8f40101980929c058212bc9ee7b0d1803c276fe0",
-        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "5984dd7d8ae6876700445b0921896a0b82f16ac8f08de81a5c271c5532580de2"
+        "__NEXT_PREVIEW_MODE_ID": "fab04a309a5ec0d306cfd979187c7f64",
+        "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "0a7fb630c011a304f489a8c23e61174e9d1ae64475b1680ca5db15f11e106353",
+        "__NEXT_PREVIEW_MODE_SIGNING_KEY": "e90a1cac6d7306e76e7163543c17022c1fb92942d9aa3ae7922af9b80e431a9e"
       }
     }
   }

@@ -11,20 +11,26 @@ import { ConstraintCard } from './controls/ConstraintCard';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { BACKEND_API } from '../config/backend';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import { AdvancedCodeView } from './controls/AdvancedCodeView';
+import CodeIcon from '@mui/icons-material/Code';
+import TuneIcon from '@mui/icons-material/Tune';
+import { Switch, FormControlLabel } from '@mui/material';
 
 interface ControlsPanelProps {
   controls?: unknown;
+  initialValues?: Record<string, number>;
   onVariablesChange?: (variables: Record<string, number>) => void;
   onControlsUpdate?: (controls: unknown) => void;
 }
 
-export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }: ControlsPanelProps) {
+export function ControlsPanel({ controls, initialValues, onVariablesChange, onControlsUpdate }: ControlsPanelProps) {
   const [parsedControls, setParsedControls] = useState<Controls | null>(null);
   const [values, setValues] = useState<Record<string, number>>({});
   const [showAllVariables, setShowAllVariables] = useState(false);
   const [editingVariable, setEditingVariable] = useState<Variable | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [evaluatedExpressions, setEvaluatedExpressions] = useState<Record<string, number>>({});
+  const [advancedMode, setAdvancedMode] = useState(false);
 
   // Detect important variables based on:
   // 1. Used in objectives/constraints expressions
@@ -32,47 +38,47 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
   // 3. Limited range suggesting precision requirements
   const getVariableImportance = (variable: Variable): number => {
     let score = 0;
-    
+
     // Check if used in objectives
     const usedInObjectives = parsedControls?.objectives?.some(
       obj => obj.expression.includes(variable.name)
     );
     if (usedInObjectives) score += 3;
-    
+
     // Check if used in constraints
     const usedInConstraints = parsedControls?.constraints?.some(
       con => con.expression.includes(variable.name)
     );
     if (usedInConstraints) score += 2;
-    
+
     // Has specific unit (suggests importance)
     if (variable.unit && variable.unit.length > 0) score += 1;
-    
+
     // Small range suggests precision (important)
     if (variable.type !== 'categorical') {
       const range = (variable.max ?? 100) - (variable.min ?? 0);
       if (range <= 10) score += 1;
     }
-    
+
     return score;
   };
 
   const getSortedVariables = (): { important: Variable[], other: Variable[] } => {
     if (!parsedControls?.variables) return { important: [], other: [] };
-    
+
     const scored = parsedControls.variables.map(v => ({
       variable: v,
       score: getVariableImportance(v)
     }));
-    
+
     scored.sort((a, b) => b.score - a.score);
-    
+
     // Show variables with score > 1 or at least top 6
     const importantCount = Math.max(
       6,
       scored.filter(s => s.score > 1).length
     );
-    
+
     return {
       important: scored.slice(0, importantCount).map(s => s.variable),
       other: scored.slice(importantCount).map(s => s.variable)
@@ -86,7 +92,7 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
     if (controls) {
       const c = controls as Controls;
       setParsedControls(c);
-      
+
       // Initialize values from defaults
       const initialValues: Record<string, number> = {};
       c.variables?.forEach((v: Variable) => {
@@ -99,6 +105,14 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
       setValues(initialValues);
     }
   }, [controls]);
+
+  // Apply optimization results when initialValues change
+  useEffect(() => {
+    if (initialValues && Object.keys(initialValues).length > 0) {
+      console.log('[ControlsPanel] Applying optimization results:', initialValues);
+      setValues(prev => ({ ...prev, ...initialValues }));
+    }
+  }, [initialValues]);
 
   // Notify parent of value changes
   useEffect(() => {
@@ -130,7 +144,7 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
     };
 
     setParsedControls(updatedControls);
-    
+
     // Update value if type changed or range changed
     if (updatedVariable.type === 'categorical') {
       setValues(prev => ({ ...prev, [updatedVariable.name]: 0 }));
@@ -160,7 +174,7 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
     };
 
     setParsedControls(updatedControls);
-    
+
     // Remove value
     const newValues = { ...values };
     delete newValues[editingVariable.name];
@@ -168,7 +182,7 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
 
     // Notify parent
     onControlsUpdate?.(updatedControls);
-    
+
     setEditDialogOpen(false);
   };
 
@@ -178,7 +192,7 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
     const matches = expression.match(variablePattern) || [];
     const uniqueVars = [...new Set(matches)];
     // Filter to only actual variables (not operators like 'max', 'min', etc.)
-    return uniqueVars.filter(name => 
+    return uniqueVars.filter(name =>
       parsedControls?.variables?.some(v => v.name === name)
     );
   };
@@ -207,7 +221,7 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
     if (evaluatedExpressions[expression] !== undefined) {
       return evaluatedExpressions[expression];
     }
-    
+
     // Fallback to client-side eval for simple numeric expressions only
     // This is safe for basic arithmetic with known variables
     try {
@@ -216,14 +230,14 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
       Object.entries(values).forEach(([name, value]) => {
         expr = expr.replace(new RegExp(`\\b${name}\\b`, 'g'), String(value));
       });
-      
+
       // Only eval if expression looks safe (numbers and basic operators)
       // This prevents executing complex Python-specific syntax client-side
       if (/^[\d\s+\-*/().]+$/.test(expr)) {
         // eslint-disable-next-line no-eval
         return eval(expr);
       }
-      
+
       // For complex expressions, return undefined if backend hasn't evaluated yet
       console.warn('[ControlsPanel] Complex expression needs backend evaluation:', expression);
       return undefined;
@@ -241,24 +255,36 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
       try {
         // Collect all unique expressions
         const expressions = new Set<string>();
-        
+
         parsedControls.objectives?.forEach(obj => expressions.add(obj.expression));
         parsedControls.properties?.forEach(prop => expressions.add(prop.expression));
         parsedControls.constraints?.forEach(con => expressions.add(con.expression));
+
+        // Prepare variables for backend: map categorical indices to string values
+        const variablesForEval: Record<string, string | number> = { ...values };
+
+        parsedControls.variables?.forEach(variable => {
+          if (variable.type === 'categorical' && variable.categories) {
+            const index = values[variable.name];
+            if (typeof index === 'number' && variable.categories[index]) {
+              variablesForEval[variable.name] = variable.categories[index];
+            }
+          }
+        });
 
         const response = await fetch(BACKEND_API.evaluate, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             expressions: Array.from(expressions),
-            variables: values,
+            variables: variablesForEval,
           }),
         });
 
         if (response.ok) {
           const data = await response.json();
           const newCache: Record<string, number> = {};
-          
+
           data.results.forEach((result: any) => {
             if (result.value !== null && !result.error) {
               newCache[result.expression] = result.value;
@@ -291,6 +317,10 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
         overflow: 'hidden',
       }}
     >
+
+
+
+
       {/* Header */}
       <Box
         sx={{
@@ -299,14 +329,31 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
           borderColor: 'divider',
           bgcolor: 'secondary.main',
           color: 'secondary.contrastText',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
         }}
       >
-        <Typography variant="h6" fontWeight="bold">
-          🎛️ Controls
-        </Typography>
-        <Typography variant="caption">
-          Adjust optimization parameters
-        </Typography>
+        <Box>
+          <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {advancedMode ? <CodeIcon /> : <TuneIcon />}
+            {advancedMode ? 'Advanced Code' : 'Controls'}
+          </Typography>
+          <Typography variant="caption">
+            {advancedMode ? 'View generated Python configuration' : 'Adjust optimization parameters'}
+          </Typography>
+        </Box>
+        <FormControlLabel
+          control={
+            <Switch
+              size="small"
+              color="default"
+              checked={advancedMode}
+              onChange={(e) => setAdvancedMode(e.target.checked)}
+            />
+          }
+          label={<Typography variant="caption" sx={{ color: 'inherit' }}>Advanced</Typography>}
+        />
       </Box>
 
       {/* Content */}
@@ -325,8 +372,11 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
               Generate controls from your conversation to get started
             </Typography>
           </Box>
+        ) : advancedMode ? (
+          <AdvancedCodeView controls={parsedControls} />
         ) : (
           <Box>
+            {/* ... existing controls content ... */}
             {/* Variables Section */}
             {parsedControls.variables && parsedControls.variables.length > 0 && (
               <Box sx={{ mb: 3 }}>
@@ -354,7 +404,7 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
                     </Box>
                   )}
                 </Box>
-                
+
                 {/* Important variables */}
                 <Box
                   sx={{
@@ -376,7 +426,7 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
                     />
                   ))}
                 </Box>
-                
+
                 {/* Other variables (collapsible) */}
                 {showAllVariables && other.length > 0 && (
                   <>
@@ -491,10 +541,10 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
                     // Simply evaluate the full constraint expression
                     // Backend handles all operators: <=, >=, <, >, ==, !=, and complex logic
                     const result = evaluateExpression(constraint.expression);
-                    
+
                     // Constraint is satisfied if result is truthy (>0 or true)
                     const isSatisfied = result !== undefined && result > 0.5; // Use 0.5 threshold for boolean-like values
-                    
+
                     // Try to parse for display purposes (LHS vs RHS)
                     const parseForDisplay = (expr: string): { lhs: string; rhs: string } | null => {
                       const operators = ['<=', '>=', '==', '!=', '<', '>'];
@@ -513,7 +563,7 @@ export function ControlsPanel({ controls, onVariablesChange, onControlsUpdate }:
                     const parsed = parseForDisplay(constraint.expression);
                     const currentValue = parsed ? evaluateExpression(parsed.lhs) : undefined;
                     const limit = parsed ? evaluateExpression(parsed.rhs) : undefined;
-                    
+
                     return (
                       <ConstraintCard
                         key={idx}

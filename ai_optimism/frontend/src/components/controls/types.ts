@@ -2,6 +2,16 @@
  * Type definitions for optimization controls
  */
 
+export interface ModifierStrategy {
+  type: 'gaussian' | 'uniform' | 'random_reset' | 'neighbor_step';
+  // For continuous/gaussian
+  sigma?: number;
+  // For uniform
+  stepSize?: number;
+  // For discrete/categorical
+  probability?: number; // Chance of modification
+}
+
 export interface Variable {
   name: string;
   type: 'continuous' | 'discrete' | 'categorical';
@@ -12,6 +22,7 @@ export interface Variable {
   description: string;
   categories?: string[];
   currentCategory?: string;
+  modifierStrategy?: ModifierStrategy;
 }
 
 export interface Objective {

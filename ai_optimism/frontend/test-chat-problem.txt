@@ -1,0 +1,41 @@
+## Optimization Problem: Cookie Production Planning
+
+**Objective:**
+Maximize `total_profit`
+
+**Variables:**
+*   `num_chocolate_chip_cookies`: Integer, number of chocolate chip cookies to bake.
+*   `num_oatmeal_raisin_cookies`: Integer, number of oatmeal raisin cookies to bake.
+*   `num_sugar_cookies`: Integer, number of sugar cookies to bake.
+
+**Parameters (for clarity in objective and constraints):**
+*   `cost_per_chocolate_chip_cookie = 0.20`
+*   `profit_per_chocolate_chip_cookie = 0.30`
+*   `time_per_chocolate_chip_cookie = 2.0`
+*   `cost_per_oatmeal_raisin_cookie = 0.15`
+*   `profit_per_oatmeal_raisin_cookie = 0.25`
+*   `time_per_oatmeal_raisin_cookie = 1.5`
+*   `cost_per_sugar_cookie = 0.18`
+*   `profit_per_sugar_cookie = 0.28`
+*   `time_per_sugar_cookie = 1.8`
+
+**Objective Function:**
+`maximize total_profit = (num_chocolate_chip_cookies * profit_per_chocolate_chip_cookie) + (num_oatmeal_raisin_cookies * profit_per_oatmeal_raisin_cookie) + (num_sugar_cookies * profit_per_sugar_cookie)`
+
+**Constraints:**
+1.  **Budget Constraint:**
+    `(num_chocolate_chip_cookies * cost_per_chocolate_chip_cookie) + (num_oatmeal_raisin_cookies * cost_per_oatmeal_raisin_cookie) + (num_sugar_cookies * cost_per_sugar_cookie) <= 50.00`
+2.  **Time Constraint:**
+    `(num_chocolate_chip_cookies * time_per_chocolate_chip_cookie) + (num_oatmeal_raisin_cookies * time_per_oatmeal_raisin_cookie) + (num_sugar_cookies * time_per_sugar_cookie) <= 240`
+3.  **Oven Capacity Constraint:**
+    `num_chocolate_chip_cookies + num_oatmeal_raisin_cookies + num_sugar_cookies <= 300`
+4.  **Minimum Chocolate Chip Production:**
+    `num_chocolate_chip_cookies >= 20`
+5.  **Minimum Oatmeal Raisin Production:**
+    `num_oatmeal_raisin_cookies >= 15`
+6.  **Maximum Sugar Cookie Production:**
+    `num_sugar_cookies <= 100`
+7.  **Non-negativity and Integer Constraints:**
+    `num_chocolate_chip_cookies >= 0`, integer
+    `num_oatmeal_raisin_cookies >= 0`, integer
+    `num_sugar_cookies >= 0`, integer

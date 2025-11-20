@@ -1,36 +1,46 @@
-from pydantic import BaseModel, validator, Field
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Literal
+
+class ModifierStrategy(BaseModel):
+    type: Literal["gaussian", "uniform", "random_reset", "neighbor_step"]
+    sigma: Optional[float] = None
+    stepSize: Optional[float] = None
+    probability: Optional[float] = 1.0
 
 class Variable(BaseModel):
     name: str
-    type: Literal["numerical", "categorical"] = "numerical"
-    # Numerical properties
+    type: Literal["continuous", "discrete", "categorical"]
     min: Optional[float] = None
     max: Optional[float] = None
+    default: Optional[float] = None
     unit: Optional[str] = None
-    # Categorical properties
+    description: str
     categories: Optional[List[str]] = None
-    modifier_strategy: Optional[Literal["cycle", "random"]] = "cycle"  # Only for categorical variables
-    
-    @validator('categories')
-    def validate_categories(cls, v, values):
-        if values.get('type') == 'categorical':
-            if not v or len(v) < 2:
-                raise ValueError('Categorical variables must have at least 2 categories')
-        return v
-    
-    @validator('min', 'max')
-    def validate_numerical_bounds(cls, v, values):
-        if values.get('type') == 'numerical' and v is None:
-            raise ValueError('Numerical variables must have min and max values')
-        return v
+    currentCategory: Optional[str] = None
+    modifierStrategy: Optional[ModifierStrategy] = None
+
+class Objective(BaseModel):
+    name: str
+    expression: str
+    goal: Literal["minimize", "maximize"]
+    description: str
+
+class Property(BaseModel):
+    name: str
+    expression: str
+    description: str
+
+class Constraint(BaseModel):
+    expression: str
+    description: str
 
 class OptimizationProblem(BaseModel):
     name: str
     description: Optional[str] = None
-    variables: List[Variable]  # List of Variable objects with type support
-    objective_function: str  # Description or code for the objective function
-    constraints: Optional[List[str]] = None  # Optional list of constraint descriptions
+    variables: List[Variable]
+    objectives: List[Objective]
+    properties: Optional[List[Property]] = None
+    constraints: Optional[List[Constraint]] = None
 
 class OptimizationConfig(BaseModel):
     problem_id: str
