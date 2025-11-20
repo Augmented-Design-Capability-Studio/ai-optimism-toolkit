@@ -40,6 +40,12 @@ Please provide a structured problem definition with:
 3. Constraints: What limitations exist? (Must specify actual constraints, not just "not defined")
 4. Success Criteria: How will we measure success? (Must define specific metrics)
 
+IMPORTANT NAMING CONVENTIONS:
+- Use snake_case (e.g., "cookie_diameter", "baking_time") or camelCase (e.g., "cookieDiameter", "bakingTime")
+- Names must be human-readable and descriptive
+- Avoid spaces, special characters, or Title Case
+- Examples: "chocolate_chips_count" or "chocolateChipsCount" is CORRECT, "Chocolate Chips Count" is INCORRECT
+
 CRITICAL: Only provide a complete formalization if ALL four sections have concrete, actionable information. If any section lacks specific details (e.g., "not yet defined", "to be determined", "user needs to specify"), you must respond with:
 
 "INCOMPLETE FORMALIZATION
@@ -93,11 +99,13 @@ Identify:
 4. Constraints that must be satisfied (as Python expressions)
 
 CRITICAL NAMING RULES:
-- All names (variables, properties, objectives, constraints) MUST be human-readable in either snake_case "baking_temperature" or camelCase "bakingTemperature"
-- Avoid using Latex
-- Descriptions should be clear and concise
-- Examples of good names: "Cookie Diameter", "Baking Time", "Chocolate Chips Per Cookie"
-- Examples of bad names: "cookie_diameter", "bakingTime", "choc_chips"
+- All names (variables, properties, objectives, constraints) MUST be in snake_case (e.g., "cookie_diameter", "baking_time") or camelCase (e.g., "cookieDiameter", "bakingTime")
+- Names must be human-readable and descriptive
+- Do NOT use Title Case with spaces (e.g., "Cookie Diameter" is WRONG)
+- Do NOT use special characters or spaces in names
+- Descriptions can use natural language with spaces
+- Examples of CORRECT names: "cookie_diameter", "baking_time", "chocolate_chips_count" OR "cookieDiameter", "bakingTime", "chocolateChipsCount"
+- Examples of INCORRECT names: "Cookie Diameter", "Baking Time", "Chocolate Chips Count"
 
 Be specific and practical. Use clear variable names and valid Python expressions.
 For categorical variables in expressions, they will be treated as their string values.`;
