@@ -1,7 +1,11 @@
 import { Box, Typography } from '@mui/material';
 import GridOnIcon from '@mui/icons-material/GridOn';
 
-export function TableViz() {
+interface TableVizProps {
+    data?: unknown;
+}
+
+export function TableViz({ data }: TableVizProps) {
     return (
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
             <GridOnIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />

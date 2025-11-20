@@ -19,6 +19,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { Session, sessionManager } from '../../services/sessionManager';
+import { AIConnectionStatus } from '../AIConnectionStatus';
 
 interface SessionHeaderProps {
   session: Session;
@@ -76,9 +77,12 @@ export function SessionHeader({
     <Box sx={{ p: 2, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider' }}>
       {/* Session Info */}
       <Box sx={{ mb: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Session {session.id.slice(-8)}
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+          <Typography variant="h6">
+            Session {session.id.slice(-8)}
+          </Typography>
+          <AIConnectionStatus />
+        </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
           <Typography variant="caption" color="text.secondary">
             Created: {new Date(session.createdAt).toLocaleString()}

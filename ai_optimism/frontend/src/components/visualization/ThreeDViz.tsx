@@ -1,7 +1,11 @@
 import { Box, Typography } from '@mui/material';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
 
-export function ThreeDViz() {
+interface ThreeDVizProps {
+    data?: unknown;
+}
+
+export function ThreeDViz({ data }: ThreeDVizProps) {
     return (
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
             <ViewInArIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />

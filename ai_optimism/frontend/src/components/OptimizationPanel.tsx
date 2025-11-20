@@ -33,7 +33,7 @@ interface OptimizationPanelProps {
   onPause?: () => void;
   onStop?: () => void;
   onReset?: () => void;
-  onResultsUpdate?: (results: OptimizationResult[]) => void;
+  onResultsUpdate?: (results: OptimizationResult[], fullData?: any) => void;
 }
 
 export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset, onResultsUpdate }: OptimizationPanelProps) {
@@ -121,8 +121,8 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
         addLog(`🎯 Best score: ${executeData.results[0].score.toFixed(4)}`);
         addLog(`📊 Found ${executeData.results.length} solutions`);
 
-        // Notify parent component
-        onResultsUpdate?.(executeData.results);
+        // Notify parent component with both results and full data (includes heuristic_map)
+        onResultsUpdate?.(executeData.results, executeData);
       }
 
       setStatus('completed');

@@ -12,18 +12,25 @@ import { useState, useEffect } from 'react';
 export default function HomePage() {
   const [generatedControls, setGeneratedControls] = useState<unknown>(null);
   const [variableValues, setVariableValues] = useState<Record<string, number>>({});
+  const [optimizationData, setOptimizationData] = useState<unknown>(null);
 
   const handleControlsGenerated = (controls: unknown) => {
     console.log('[HomePage] Controls generated:', controls);
     setGeneratedControls(controls);
   };
 
-  const handleOptimizationResults = (results: any[]) => {
+  const handleOptimizationResults = (results: any[], fullData?: any) => {
     if (results && results.length > 0) {
       // Apply best result to variable values
       const bestSolution = results[0].variables;
       console.log('[HomePage] Applying optimization results:', bestSolution);
       setVariableValues(bestSolution);
+    }
+
+    // Store full optimization data (includes heuristic_map)
+    if (fullData) {
+      console.log('[HomePage] Storing optimization data:', fullData);
+      setOptimizationData(fullData);
     }
   };
 
@@ -139,7 +146,7 @@ export default function HomePage() {
 
             {/* Panel 3: Visualization */}
             <Box sx={{ height: '100%', overflow: 'hidden' }}>
-              <VisualizationPanel />
+              <VisualizationPanel data={optimizationData} />
             </Box>
 
             {/* Panel 4: Optimization */}

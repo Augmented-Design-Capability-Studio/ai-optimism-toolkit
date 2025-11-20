@@ -232,7 +232,14 @@ class OptimizationService:
             
             left_vars, right_vars, op = analyze_constraint(constraint.expression)
             
-            violation_name = f"Violation({constraint.expression})"
+            # Use constraint description as name if available, otherwise use expression
+            # This makes the heuristic map more readable
+            if constraint.description and constraint.description.strip():
+                violation_name = f"Violation: {constraint.description}"
+            else:
+                # Fallback to expression, but limit length for readability
+                expr_display = constraint.expression if len(constraint.expression) <= 30 else constraint.expression[:27] + "..."
+                violation_name = f"Violation({expr_display})"
             
             # Define the violation evaluator
             def make_violation_evaluator(expr):

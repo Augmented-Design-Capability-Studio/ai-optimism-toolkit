@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   try {
     const { description, model: modelName } = await req.json();
     const apiKey = req.headers.get('x-api-key');
-    
+
     if (!apiKey) {
       return new Response('API key required', { status: 400 });
     }
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     const filteredObject = { ...result.object };
     if (filteredObject.properties && filteredObject.properties.length > 0) {
       const usedProperties = new Set<string>();
-      
+
       // Check objectives for property usage
       filteredObject.objectives?.forEach(obj => {
         filteredObject.properties?.forEach(prop => {
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
           }
         });
       });
-      
+
       // Check constraints for property usage
       filteredObject.constraints?.forEach(con => {
         filteredObject.properties?.forEach(prop => {
@@ -82,11 +82,47 @@ export async function POST(req: Request) {
           }
         });
       });
-      
+
       // Keep only used properties
-      filteredObject.properties = filteredObject.properties.filter(prop => 
+      filteredObject.properties = filteredObject.properties.filter(prop =>
         usedProperties.has(prop.name)
       );
+    }
+
+    // Filter out simple bound constraints that are redundant with variable min/max
+    if (filteredObject.constraints && filteredObject.constraints.length > 0 && filteredObject.variables) {
+      filteredObject.constraints = filteredObject.constraints.filter(constraint => {
+        const expr = constraint.expression.replace(/\s/g, ''); // Remove whitespace
+
+        // Check each variable to see if this is a simple bound constraint
+        for (const variable of filteredObject.variables) {
+          if (variable.type === 'categorical') continue; // Skip categorical variables
+
+          const varName = variable.name;
+          const min = variable.min;
+          const max = variable.max;
+
+          // Check for patterns like: varName >= min, varName <= max, min <= varName, varName < max, etc.
+          const patterns = [
+            new RegExp(`^${varName}>=${min}$`),
+            new RegExp(`^${varName}>${min}$`),
+            new RegExp(`^${varName}<=${max}$`),
+            new RegExp(`^${varName}<${max}$`),
+            new RegExp(`^${min}<=${varName}$`),
+            new RegExp(`^${min}<${varName}$`),
+            new RegExp(`^${max}>=${varName}$`),
+            new RegExp(`^${max}>${varName}$`),
+          ];
+
+          // If any pattern matches, this is a redundant simple bound
+          if (patterns.some(pattern => pattern.test(expr))) {
+            console.log(`[Generate] Filtering redundant constraint: ${constraint.expression} (covered by ${varName} min/max)`);
+            return false; // Filter out this constraint
+          }
+        }
+
+        return true; // Keep this constraint
+      });
     }
 
     // Ensure objectives were produced by the model; fail clearly if not

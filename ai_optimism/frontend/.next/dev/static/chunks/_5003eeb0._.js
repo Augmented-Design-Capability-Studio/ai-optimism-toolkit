@@ -29,34 +29,77 @@ const AIProviderProvider = ({ children })=>{
     // Load saved configuration from localStorage on mount
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useEffect"])({
         "AIProviderProvider.useEffect": ()=>{
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                try {
-                    const config = JSON.parse(saved);
-                    // If we have a saved API key and provider, restore as connected
-                    const hasValidConfig = config.apiKey && config.provider && config.model;
-                    setState({
-                        "AIProviderProvider.useEffect": (prev)=>({
-                                ...prev,
-                                provider: config.provider,
-                                model: config.model,
-                                apiKey: config.apiKey,
-                                endpoint: config.endpoint,
-                                status: hasValidConfig ? 'connected' : 'disconnected',
-                                lastValidated: hasValidConfig ? new Date() : null
-                            })
-                    }["AIProviderProvider.useEffect"]);
-                    if (hasValidConfig) {
-                        console.log('[AIProvider] Restored connection from localStorage:', {
-                            provider: config.provider,
-                            model: config.model,
-                            hasApiKey: !!config.apiKey
-                        });
+            const loadConfig = {
+                "AIProviderProvider.useEffect.loadConfig": ()=>{
+                    const saved = localStorage.getItem(STORAGE_KEY);
+                    if (saved) {
+                        try {
+                            const config = JSON.parse(saved);
+                            // If we have a saved API key and provider, restore as connected
+                            const hasValidConfig = config.apiKey && config.provider && config.model;
+                            setState({
+                                "AIProviderProvider.useEffect.loadConfig": (prev)=>({
+                                        ...prev,
+                                        provider: config.provider,
+                                        model: config.model,
+                                        apiKey: config.apiKey,
+                                        endpoint: config.endpoint,
+                                        status: hasValidConfig ? 'connected' : 'disconnected',
+                                        lastValidated: hasValidConfig ? new Date() : null
+                                    })
+                            }["AIProviderProvider.useEffect.loadConfig"]);
+                            if (hasValidConfig) {
+                                console.log('[AIProvider] Restored connection from localStorage:', {
+                                    provider: config.provider,
+                                    model: config.model,
+                                    hasApiKey: !!config.apiKey
+                                });
+                            }
+                        } catch (e) {
+                            console.error('Failed to load saved AI provider config:', e);
+                        }
+                    } else {
+                        // No saved config, ensure disconnected state
+                        setState({
+                            "AIProviderProvider.useEffect.loadConfig": (prev)=>({
+                                    ...prev,
+                                    provider: null,
+                                    model: null,
+                                    apiKey: null,
+                                    endpoint: null,
+                                    status: 'disconnected',
+                                    lastValidated: null
+                                })
+                        }["AIProviderProvider.useEffect.loadConfig"]);
                     }
-                } catch (e) {
-                    console.error('Failed to load saved AI provider config:', e);
                 }
-            }
+            }["AIProviderProvider.useEffect.loadConfig"];
+            // Load on mount
+            loadConfig();
+            // Listen for storage changes from other tabs/windows
+            const handleStorageChange = {
+                "AIProviderProvider.useEffect.handleStorageChange": (e)=>{
+                    if (e.key === STORAGE_KEY) {
+                        console.log('[AIProvider] Storage changed in another tab, reloading config');
+                        loadConfig();
+                    }
+                }
+            }["AIProviderProvider.useEffect.handleStorageChange"];
+            // Listen for custom event for same-window updates
+            const handleCustomUpdate = {
+                "AIProviderProvider.useEffect.handleCustomUpdate": ()=>{
+                    console.log('[AIProvider] Config updated in same window, reloading');
+                    loadConfig();
+                }
+            }["AIProviderProvider.useEffect.handleCustomUpdate"];
+            window.addEventListener('storage', handleStorageChange);
+            window.addEventListener('ai-provider-updated', handleCustomUpdate);
+            return ({
+                "AIProviderProvider.useEffect": ()=>{
+                    window.removeEventListener('storage', handleStorageChange);
+                    window.removeEventListener('ai-provider-updated', handleCustomUpdate);
+                }
+            })["AIProviderProvider.useEffect"];
         }
     }["AIProviderProvider.useEffect"], []);
     const connect = async (provider, apiKey, model, endpoint)=>{
@@ -154,6 +197,8 @@ const AIProviderProvider = ({ children })=>{
                 endpoint
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+            // Dispatch custom event to notify other components in same window
+            window.dispatchEvent(new Event('ai-provider-updated'));
             return true;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Connection failed';
@@ -176,6 +221,8 @@ const AIProviderProvider = ({ children })=>{
             errorMessage: null
         });
         localStorage.removeItem(STORAGE_KEY);
+        // Dispatch custom event to notify other components in same window
+        window.dispatchEvent(new Event('ai-provider-updated'));
     };
     const value = {
         state,
@@ -188,7 +235,7 @@ const AIProviderProvider = ({ children })=>{
         children: children
     }, void 0, false, {
         fileName: "[project]/src/contexts/AIProviderContext.tsx",
-        lineNumber: 188,
+        lineNumber: 232,
         columnNumber: 9
     }, ("TURBOPACK compile-time value", void 0));
 };

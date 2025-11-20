@@ -119,6 +119,12 @@ Identify:
    - Each property MUST appear in at least one objective or constraint expression
    - If a calculation can be done directly in an objective/constraint, do it there instead of creating a property
 4. Constraints that must be satisfied (as Python expressions)
+   - CRITICAL: Do NOT create simple bound constraints like "x >= 0" or "x <= 100" - these are already handled by variable min/max
+   - ONLY create constraints that involve:
+     * Relationships between multiple variables (e.g., "x + y <= 100")
+     * Complex conditions (e.g., "x * y >= 50")
+     * Conditional logic (e.g., "x > 0 if y == 'option1' else True")
+   - If a constraint is just a simple bound on a single variable, adjust that variable's min/max instead
 5. Stopping criteria:
    - max_iterations: Maximum number of optimization iterations (default: 100, range: 10-10000)
    - convergence_threshold: Threshold for convergence detection (default: 0.001, range: 0.00001-0.1)

@@ -87,13 +87,33 @@ export function VisualizationPanel({ data }: VisualizationPanelProps) {
                     flexDirection: 'column',
                     p: 0,
                     bgcolor: 'grey.50',
-                    overflow: 'hidden'
                 }}
             >
-                {vizType === 'chart' && <ChartViz data={data} />}
-                {vizType === 'table' && <TableViz />}
-                {vizType === '3d' && <ThreeDViz />}
-                {vizType === 'weights' && <HeuristicNetwork data={data} />}
+                {/* Content */}
+                <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                    {vizType === 'chart' && <ChartViz data={data} />}
+                    {vizType === 'table' && <TableViz data={data} />}
+                    {vizType === '3d' && <ThreeDViz data={data} />}
+                    {vizType === 'weights' && (
+                        (data && (data as any)?.heuristic_map) ? (
+                            <HeuristicNetwork data={data} />
+                        ) : (
+                            <Box sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                height: '100%',
+                                color: 'text.secondary',
+                                p: 4,
+                                textAlign: 'center'
+                            }}>
+                                <Typography variant="body2">
+                                    Run optimization to view heuristic network
+                                </Typography>
+                            </Box>
+                        )
+                    )}
+                </Box>
             </Box>
 
             {/* Info Footer */}

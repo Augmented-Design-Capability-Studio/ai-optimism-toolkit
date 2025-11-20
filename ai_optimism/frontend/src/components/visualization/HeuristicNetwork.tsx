@@ -21,10 +21,15 @@ const formatLabel = (label: string, type: 'objective' | 'modifier'): string => {
 
     // Handle Objectives/Violations
     if (type === 'objective') {
+        // New format: "Violation: description"
+        if (label.startsWith('Violation: ')) {
+            return label; // Already in readable format
+        }
+        // Old format: "Violation(expression)"
         if (label.startsWith('Violation(')) {
             // Extract content inside Violation(...)
             const content = label.substring(10, label.length - 1);
-            return `Avoid Violation: ${content}`;
+            return `Avoid: ${content}`;
         }
         return label;
     }

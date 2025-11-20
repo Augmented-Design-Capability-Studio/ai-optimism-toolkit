@@ -38,32 +38,70 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
 
     // Load saved configuration from localStorage on mount
     useEffect(() => {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            try {
-                const config = JSON.parse(saved);
-                // If we have a saved API key and provider, restore as connected
-                const hasValidConfig = config.apiKey && config.provider && config.model;
-                setState(prev => ({
-                    ...prev,
-                    provider: config.provider,
-                    model: config.model,
-                    apiKey: config.apiKey,
-                    endpoint: config.endpoint,
-                    status: hasValidConfig ? 'connected' : 'disconnected',
-                    lastValidated: hasValidConfig ? new Date() : null,
-                }));
-                if (hasValidConfig) {
-                    console.log('[AIProvider] Restored connection from localStorage:', {
+        const loadConfig = () => {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const config = JSON.parse(saved);
+                    // If we have a saved API key and provider, restore as connected
+                    const hasValidConfig = config.apiKey && config.provider && config.model;
+                    setState(prev => ({
+                        ...prev,
                         provider: config.provider,
                         model: config.model,
-                        hasApiKey: !!config.apiKey
-                    });
+                        apiKey: config.apiKey,
+                        endpoint: config.endpoint,
+                        status: hasValidConfig ? 'connected' : 'disconnected',
+                        lastValidated: hasValidConfig ? new Date() : null,
+                    }));
+                    if (hasValidConfig) {
+                        console.log('[AIProvider] Restored connection from localStorage:', {
+                            provider: config.provider,
+                            model: config.model,
+                            hasApiKey: !!config.apiKey
+                        });
+                    }
+                } catch (e) {
+                    console.error('Failed to load saved AI provider config:', e);
                 }
-            } catch (e) {
-                console.error('Failed to load saved AI provider config:', e);
+            } else {
+                // No saved config, ensure disconnected state
+                setState(prev => ({
+                    ...prev,
+                    provider: null,
+                    model: null,
+                    apiKey: null,
+                    endpoint: null,
+                    status: 'disconnected',
+                    lastValidated: null,
+                }));
             }
-        }
+        };
+
+        // Load on mount
+        loadConfig();
+
+        // Listen for storage changes from other tabs/windows
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === STORAGE_KEY) {
+                console.log('[AIProvider] Storage changed in another tab, reloading config');
+                loadConfig();
+            }
+        };
+
+        // Listen for custom event for same-window updates
+        const handleCustomUpdate = () => {
+            console.log('[AIProvider] Config updated in same window, reloading');
+            loadConfig();
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('ai-provider-updated', handleCustomUpdate);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('ai-provider-updated', handleCustomUpdate);
+        };
     }, []);
 
     const connect = async (provider: AIProvider, apiKey: string, model: string, endpoint?: string): Promise<boolean> => {
@@ -91,7 +129,7 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
                 controller.abort();
                 console.log('[AIProvider] Validation timeout');
             }, 10000); // 10 second timeout
-            
+
             const testResponse = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -122,7 +160,7 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
             // Reading the full stream for validation is complex and unnecessary
             const contentType = testResponse.headers.get('content-type');
             console.log('[AIProvider] Response content-type:', contentType);
-            
+
             if (!contentType || !contentType.includes('text')) {
                 clearTimeout(timeoutId);
                 console.error('[AIProvider] Invalid content type:', contentType);
@@ -151,7 +189,10 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
             // Save to localStorage for persistence (consider encrypting in production)
             const config = { provider, apiKey, model, endpoint };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-            
+
+            // Dispatch custom event to notify other components in same window
+            window.dispatchEvent(new Event('ai-provider-updated'));
+
             return true;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Connection failed';
@@ -175,6 +216,9 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
             errorMessage: null,
         });
         localStorage.removeItem(STORAGE_KEY);
+
+        // Dispatch custom event to notify other components in same window
+        window.dispatchEvent(new Event('ai-provider-updated'));
     };
 
     const value: AIProviderContextType = {
