@@ -10,4 +10,4 @@ export { SessionDetail } from './SessionDetail';
 export { SessionHeader } from './SessionHeader';
 export { MessageList } from './MessageList';
 export { MessageInput } from './MessageInput';
-export { AuthWrapper } from './ResearcherAuthWrapper';
+export { ResearcherAuthWrapper } from './ResearcherAuthWrapper';
