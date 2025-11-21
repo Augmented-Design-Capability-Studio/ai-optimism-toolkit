@@ -1,6 +1,6 @@
 'use client';
 
-import { Paper, Alert } from '@mui/material';
+import { Paper, Alert, Box, Typography } from '@mui/material';
 import { useRef, useState, useEffect } from 'react';
 import { 
   useChatSession,
@@ -44,6 +44,48 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayMessages]);
+
+  // Show warning if no API key
+  if (!apiKey) {
+    return (
+      <Paper
+        elevation={2}
+        sx={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <Box
+          sx={{
+            p: 2,
+            borderBottom: 1,
+            borderColor: 'divider',
+            bgcolor: 'warning.main',
+            color: 'warning.contrastText',
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold">
+            🤖 AI Chat
+          </Typography>
+          <Typography variant="caption">
+            Connect to AI for assistance
+          </Typography>
+        </Box>
+        <Box sx={{ p: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Alert severity="warning" sx={{ maxWidth: 400 }}>
+            <Typography variant="body2">
+              <strong>No AI API key configured.</strong>
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Click the AI connection status chip to set up your API key and enable chat functionality.
+            </Typography>
+          </Alert>
+        </Box>
+      </Paper>
+    );
+  }
 
   // Handle formalization
   const handleFormalize = async () => {
