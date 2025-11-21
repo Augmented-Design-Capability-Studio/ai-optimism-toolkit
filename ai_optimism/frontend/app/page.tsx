@@ -1,12 +1,13 @@
 'use client';
 
-import { Box, AppBar, Toolbar, Typography } from '@mui/material';
+import { Box, AppBar, Toolbar, Typography, Button } from '@mui/material';
 import { ChatPanel } from '../src/components/ChatPanel';
 import { ControlsPanel } from '../src/components/ControlsPanel';
 import { VisualizationPanel } from '../src/components/VisualizationPanel';
 import { OptimizationPanel } from '../src/components/OptimizationPanel';
 import { AIConnectionStatus } from '../src/components/AIConnectionStatus';
 import { BackendStatusIndicator } from '../src/components/BackendStatusIndicator';
+import { ClientAuthWrapper } from '../src/components/ClientAuthWrapper';
 import { useState, useEffect } from 'react';
 import { useAIProvider } from '../src/contexts/AIProviderContext';
 
@@ -47,21 +48,32 @@ export default function HomePage() {
   }, []);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: '#f5f5f5', overflow: 'hidden' }}>
-      {/* Top App Bar - Fixed width, doesn't scroll */}
-      <AppBar position="static" sx={{ flexShrink: 0, width: '100vw' }}>
-        <Toolbar>
+    <ClientAuthWrapper>
+      {(handleLogout) => (
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: '#f5f5f5', overflow: 'hidden' }}>
+          {/* Top App Bar - Fixed width, doesn't scroll */}
+          <AppBar position="static" sx={{ flexShrink: 0, width: '100vw' }}>
+            <Toolbar>
 
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5, py: 1 }}>
-            <AIConnectionStatus />
-            <BackendStatusIndicator />
-          </Box>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
-            AI OPTIMISM TOOLKIT
-          </Typography>
-          <Box sx={{ flex: 1 }} />
-        </Toolbar>
-      </AppBar>
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5, py: 1 }}>
+                <AIConnectionStatus />
+                <BackendStatusIndicator />
+              </Box>
+              <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+                AI OPTIMISM TOOLKIT
+              </Typography>
+              <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  onClick={handleLogout}
+                  sx={{ color: 'white', borderColor: 'rgba(255, 255, 255, 0.3)' }}
+                >
+                  Logout
+                </Button>
+              </Box>
+            </Toolbar>
+          </AppBar>
 
       {/* Content area with panels and gradient masks */}
       <Box sx={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden' }}>
@@ -164,5 +176,7 @@ export default function HomePage() {
         </Box>
       </Box>
     </Box>
+      )}
+    </ClientAuthWrapper>
   );
 }

@@ -24,7 +24,7 @@ interface AuthWrapperProps {
 const STORAGE_KEY = 'researcher_auth_token';
 const AUTH_PASSWORD = process.env.NEXT_PUBLIC_RESEARCHER_PASSWORD || 'researcher123'; // Change this!
 
-export function AuthWrapper({ children }: AuthWrapperProps) {
+export function ResearcherAuthWrapper({ children }: AuthWrapperProps) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');

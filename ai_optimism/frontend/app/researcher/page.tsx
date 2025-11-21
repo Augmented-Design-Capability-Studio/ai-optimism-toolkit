@@ -9,7 +9,7 @@ import {
   SessionList,
   SessionDetail,
 } from '../../src/components/researcher';
-import { AuthWrapper } from '../../src/components/researcher/AuthWrapper';
+import { ResearcherAuthWrapper } from '../../src/components/researcher/ResearcherAuthWrapper';
 
 export default function ResearcherDashboard() {
   const {
@@ -33,7 +33,7 @@ export default function ResearcherDashboard() {
   };
 
   return (
-    <AuthWrapper>
+    <ResearcherAuthWrapper>
       {(handleLogout) => (
         <Container maxWidth="xl" sx={{ py: 4 }}>
           <DashboardHeader onRefresh={loadSessions} onLogout={handleLogout} />
@@ -66,6 +66,6 @@ export default function ResearcherDashboard() {
           </Box>
         </Container>
       )}
-    </AuthWrapper>
+    </ResearcherAuthWrapper>
   );
 }
