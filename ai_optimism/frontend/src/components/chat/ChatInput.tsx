@@ -9,17 +9,13 @@ interface ChatInputProps {
   onInputChange: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
-  mode: SessionMode;
-  apiKey: string | null;
 }
 
 export function ChatInput({ 
   input, 
   onInputChange, 
   onSubmit, 
-  isLoading, 
-  mode, 
-  apiKey 
+  isLoading 
 }: ChatInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Submit on Enter (without Shift)
@@ -49,20 +45,16 @@ export function ChatInput({
         maxRows={6}
         minRows={1}
         size="small"
-        placeholder={
-          mode === 'experimental' 
-            ? 'Describe your problem...'
-            : 'Describe your optimization problem...'
-        }
+        placeholder="Describe your optimization problem..."
         value={input}
         onChange={(e) => onInputChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        disabled={isLoading || (mode === 'ai' && !apiKey)}
+        disabled={isLoading}
       />
       <IconButton
         type="submit"
         color="primary"
-        disabled={isLoading || !input.trim() || (mode === 'ai' && !apiKey)}
+        disabled={isLoading || !input.trim()}
       >
         <SendIcon />
       </IconButton>

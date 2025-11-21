@@ -44,10 +44,11 @@ export function useChatSession() {
       if (session?.status === 'completed') {
         showTerminationNotification();
       }
-      session = sessionManager.createSession('ai');
+      // Create session in experimental mode so researchers can always see it
+      session = sessionManager.createSession('experimental');
       // Explicitly ensure new session starts fresh
       sessionManager.updateSession(session.id, { status: 'active' });
-      console.log('[useChatSession] Created new session:', session.id);
+      console.log('[useChatSession] Created new experimental session:', session.id);
     }
     
     setCurrentSession(session);

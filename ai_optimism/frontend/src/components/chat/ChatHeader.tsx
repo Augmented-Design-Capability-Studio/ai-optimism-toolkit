@@ -1,10 +1,9 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { SessionMode } from '../../services/sessionManager';
 
 interface ChatHeaderProps {
-  mode: SessionMode;
+  mode?: string;
 }
 
 export function ChatHeader({ mode }: ChatHeaderProps) {
@@ -22,7 +21,7 @@ export function ChatHeader({ mode }: ChatHeaderProps) {
         💬 Chat Assistant
       </Typography>
       <Typography variant="caption">
-        Describe your optimization problem and get help formalizing it
+        We will guide you through the optimization process
       </Typography>
     </Box>
   );

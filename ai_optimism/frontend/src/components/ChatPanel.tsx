@@ -192,7 +192,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         overflow: 'hidden',
       }}
     >
-      <ChatHeader mode={mode} />
+      <ChatHeader />
       
       {sessionTerminated && (
         <Alert severity="info" sx={{ m: 2 }}>
@@ -228,8 +228,6 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         onInputChange={setInput}
         onSubmit={handleSubmit}
         isLoading={isLoading}
-        mode={mode}
-        apiKey={apiKey}
       />
 
       {!apiKey && (
