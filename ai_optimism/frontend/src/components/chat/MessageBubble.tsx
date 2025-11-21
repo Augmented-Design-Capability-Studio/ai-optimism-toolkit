@@ -41,11 +41,6 @@ export function MessageBubble({ message, mode, onGenerateControls }: MessageBubb
   
   // Map researcher to assistant for display
   const displayRole = messageRole === 'researcher' ? 'assistant' : messageRole;
-  const avatarEmoji = displayRole === 'user' 
-    ? '👤' 
-    : messageRole === 'ai' 
-    ? '✨'  // Special emoji for AI formalization
-    : '🤖';
   
   // Check if this is a formalization message
   const isFormalization = message.metadata?.type === 'formalization';
@@ -54,6 +49,15 @@ export function MessageBubble({ message, mode, onGenerateControls }: MessageBubb
   const controlsGenerated = message.metadata?.controlsGenerated === true;
   const controlsError = message.metadata?.controlsError;
   const isGenerating = isControlsGeneration && !controlsGenerated && !controlsError;
+  
+  // Determine avatar emoji based on message type
+  const avatarEmoji = displayRole === 'user' 
+    ? '👤' 
+    : isControlsGeneration
+    ? '🎛️'  // Emoji for controls generation
+    : messageRole === 'ai' 
+    ? '✨'  // Special emoji for AI formalization
+    : '🤖';
   
   return (
     <Box
@@ -184,7 +188,7 @@ export function MessageBubble({ message, mode, onGenerateControls }: MessageBubb
               </AccordionDetails>
             </Accordion>
             
-            {/* Generate Controls button for complete formalization - always show */}
+            {/* Generate Controls button for complete formalization - show only if controls haven't been generated yet */}
             {!isIncomplete && onGenerateControls && (
               <Box sx={{ mt: 2 }}>
                 <Button

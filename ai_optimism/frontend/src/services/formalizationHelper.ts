@@ -67,8 +67,11 @@ export async function executeFormalization(config: FormalizationConfig): Promise
       type: 'formalization',
     });
 
-    // Update session status
-    config.sessionManager.updateSession(sessionId, { status: 'formalized' });
+    // Update session status and reset readyToFormalize
+    config.sessionManager.updateSession(sessionId, { 
+      status: 'formalized',
+      readyToFormalize: false 
+    });
 
     return true;
   } catch (error) {

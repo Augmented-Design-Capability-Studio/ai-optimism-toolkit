@@ -32,9 +32,18 @@ export function MessagesList({
   const [isNearBottom, setIsNearBottom] = useState(true);
 
   // Auto-scroll to bottom when new messages arrive (only if user is near bottom)
+  // Use scrollTo instead of scrollIntoView to avoid affecting parent horizontal scroll
   useEffect(() => {
-    if (isNearBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (isNearBottom && messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      // Only scroll vertically, preserve horizontal scroll of parent
+      // Use requestAnimationFrame to ensure this doesn't interfere with parent scroll
+      requestAnimationFrame(() => {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth',
+        });
+      });
     }
   }, [messages, isNearBottom]);
 

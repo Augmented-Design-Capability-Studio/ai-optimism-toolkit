@@ -41,8 +41,8 @@ export function GenerateControlsButton({
   // This allows re-formalization after reset
   const hasFormalization = currentSession?.status === 'formalized';
   
-  // Check if AI has explicitly indicated readiness (status: 'waiting')
-  const aiIsReady = currentSession?.status === 'waiting';
+  // Check if AI or researcher has indicated readiness to formalize
+  const aiIsReady = currentSession?.readyToFormalize === true;
 
   // Show formalize button only if there are real user messages (not just AI greeting)
   const canShowFormalize = userMessageCount >= 1 && !hasFormalization;
@@ -121,8 +121,8 @@ export function GenerateControlsButton({
         {hasFormalization
           ? 'Ready to generate controls from formalized problem'
           : isPremature
-          ? '💬 Continue chatting - AI gathering more details'
-          : '✓ Ready to formalize - AI has sufficient information'}
+          ? '💬 Continue chatting - gathering more details'
+          : '✓ Ready to formalize - sufficient information gathered'}
       </Typography>
     </Box>
   );

@@ -30,6 +30,7 @@ class Session(BaseModel):
     messages: List[Message] = []
     isResearcherTyping: Optional[bool] = None
     isAIResponding: Optional[bool] = None
+    readyToFormalize: Optional[bool] = False
 
 class CreateSessionRequest(BaseModel):
     mode: Literal["ai", "experimental"]
@@ -42,6 +43,8 @@ class UpdateSessionRequest(BaseModel):
     researcherId: Optional[str] = None
     isResearcherTyping: Optional[bool] = None
     isAIResponding: Optional[bool] = None
+    readyToFormalize: Optional[bool] = None
+    messages: Optional[List[Message]] = None
 
 class AddMessageRequest(BaseModel):
     sender: Literal["user", "researcher", "ai"]

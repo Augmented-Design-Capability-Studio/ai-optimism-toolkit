@@ -12,6 +12,8 @@ import {
   ToggleButton,
   IconButton,
   Tooltip,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import StopIcon from '@mui/icons-material/Stop';
@@ -65,13 +67,21 @@ export function SessionHeader({
 
   const handleResetFormalization = async () => {
     if (window.confirm('Reset formalization status to allow re-formalization?')) {
-      await sessionManager.updateSession(session.id, { status: 'active' });
+      await sessionManager.updateSession(session.id, { 
+        status: 'active',
+        readyToFormalize: false 
+      });
       // Force immediate UI update by triggering parent's loadSessions
       // The onModeToggle function will call loadSessions which refreshes the UI
       setTimeout(() => {
         onModeToggle(session.id, session.mode);
       }, 0);
     }
+  };
+
+  const handleToggleReadyToFormalize = async () => {
+    const newValue = !session.readyToFormalize;
+    await sessionManager.updateSession(session.id, { readyToFormalize: newValue });
   };
 
   return (
@@ -149,6 +159,31 @@ export function SessionHeader({
         </Box>
 
         <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
+
+        {/* Ready to Formalize Toggle */}
+        {session.status !== 'formalized' && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={session.readyToFormalize === true}
+                onChange={handleToggleReadyToFormalize}
+                size="small"
+                sx={{
+                  color: session.readyToFormalize ? 'success.main' : 'default',
+                  '&.Mui-checked': {
+                    color: 'success.main',
+                  },
+                }}
+              />
+            }
+            label={
+              <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+                Ready to Formalize
+              </Typography>
+            }
+            sx={{ mr: 1 }}
+          />
+        )}
 
         {/* Formalization Button */}
         <Button

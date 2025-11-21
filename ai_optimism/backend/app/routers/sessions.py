@@ -6,6 +6,31 @@ from ..models.session import (
     Session, Message, CreateSessionRequest, UpdateSessionRequest, AddMessageRequest
 )
 
+
+def _detect_formalization_readiness(text: str) -> bool:
+    """Check if message text indicates readiness to formalize"""
+    lower_text = text.lower()
+    
+    # Check for explicit readiness signals
+    is_ready = (
+        ('enough information' in lower_text or 
+         'ready to formalize' in lower_text or
+         'can now formalize' in lower_text or 
+         'sufficient information' in lower_text) and
+        ('formalize' in lower_text or 'formalise' in lower_text)
+    ) or (
+        ('would you like' in lower_text or 
+         'shall i' in lower_text or 
+         'should i' in lower_text or 
+         'want me to' in lower_text) and
+        ('formalize' in lower_text or 
+         'formalise' in lower_text or 
+         'structured' in lower_text or 
+         'problem definition' in lower_text)
+    )
+    
+    return is_ready
+
 router = APIRouter(tags=["sessions"])
 
 # In-memory storage for sessions (replace with database later)
@@ -30,6 +55,7 @@ async def create_session(request: CreateSessionRequest):
         updatedAt=int(time.time() * 1000),
         lastActivity=int(time.time() * 1000),
         messages=[],
+        readyToFormalize=False,
     )
     _sessions.append(session)
     return session
@@ -65,6 +91,10 @@ async def update_session(session_id: str, request: UpdateSessionRequest):
         session.isResearcherTyping = request.isResearcherTyping
     if request.isAIResponding is not None:
         session.isAIResponding = request.isAIResponding
+    if request.readyToFormalize is not None:
+        session.readyToFormalize = request.readyToFormalize
+    if request.messages is not None:
+        session.messages = request.messages
 
     session.updatedAt = int(time.time() * 1000)
     return session
@@ -114,10 +144,18 @@ async def add_message(session_id: str, request: AddMessageRequest):
     # Update session status based on message context
     if request.sender == "user" and session.mode == "experimental":
         session.status = "waiting"
+        # Reset readyToFormalize when user sends a new message (conversation continues)
+        session.readyToFormalize = False
     elif request.sender == "researcher":
         session.status = "active"
+        # Check if researcher message indicates readiness to formalize
+        if _detect_formalization_readiness(request.content):
+            session.readyToFormalize = True
     elif request.sender == "ai":
         session.status = "active"
+        # Check if AI message indicates readiness to formalize
+        if _detect_formalization_readiness(request.content):
+            session.readyToFormalize = True
 
     return message
 

@@ -37,6 +37,7 @@ export interface Session {
   messages: Message[];
   isResearcherTyping?: boolean;
   isAIResponding?: boolean;
+  readyToFormalize?: boolean;
 }
 
 interface BackendApi {

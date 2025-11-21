@@ -71,23 +71,22 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     setIsGenerating(true);
     
     // Add a thinking message for the generation process
-    const thinkingMessageId = `msg-${Date.now()}`;
+    let thinkingMessageId: string | null = null;
     
     if (currentSession) {
-      const thinkingMessage: Message = {
-        id: thinkingMessageId,
-        sessionId: currentSession.id,
-        sender: 'ai',
-        content: 'Generating optimization controls...',
-        timestamp: Date.now(),
-        metadata: {
+      // Use addMessage to properly add the message to the session
+      const addedMessage = await sessionManager.addMessage(
+        currentSession.id,
+        'ai',
+        'Generating optimization controls...',
+        {
           type: 'controls-generation',
-        },
-      };
+        }
+      );
       
-      sessionManager.updateSession(currentSession.id, { 
-        messages: [...currentSession.messages, thinkingMessage]
-      });
+      if (addedMessage) {
+        thinkingMessageId = addedMessage.id;
+      }
     }
     
     try {
@@ -136,19 +135,45 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
       }
       
       // Update the thinking message to show success
-      if (currentSession) {
-        const sessionData = await sessionManager.getSession(currentSession.id);
-        const currentMessages = sessionData?.messages || currentSession.messages;
-        const updatedMessages = currentMessages.map((m: Message) => 
-          m.id === thinkingMessageId
-            ? { 
-                ...m, 
-                content: 'Controls generated successfully! You can now use the Optimization Panel to configure and run your optimization.',
-                metadata: { ...m.metadata, controlsGenerated: true } 
-              }
-            : m
-        );
-        sessionManager.updateSession(currentSession.id, { messages: updatedMessages });
+      if (currentSession && thinkingMessageId) {
+        // Wait a bit for the message to be added to the backend and session to refresh
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Retry getting fresh session data a few times to ensure message is there
+        let sessionData = await sessionManager.getSession(currentSession.id);
+        let retries = 0;
+        while (retries < 5 && sessionData) {
+          const messageExists = sessionData.messages.some((m: Message) => m.id === thinkingMessageId);
+          if (messageExists) break;
+          await new Promise(resolve => setTimeout(resolve, 100));
+          sessionData = await sessionManager.getSession(currentSession.id);
+          retries++;
+        }
+        
+        if (sessionData) {
+          const currentMessages = sessionData.messages;
+          const messageToUpdate = currentMessages.find((m: Message) => m.id === thinkingMessageId);
+          
+          if (messageToUpdate) {
+            const updatedMessages = currentMessages.map((m: Message) => 
+              m.id === thinkingMessageId
+                ? { 
+                    ...m, 
+                    content: 'Controls generated successfully! You can now use the Optimization Panel to configure and run your optimization.',
+                    metadata: { 
+                      ...(m.metadata || {}), 
+                      type: 'controls-generation',
+                      controlsGenerated: true 
+                    } 
+                  }
+                : m
+            );
+            console.log('[ChatPanel] Updating message with controlsGenerated:', thinkingMessageId);
+            await sessionManager.updateSession(currentSession.id, { messages: updatedMessages });
+          } else {
+            console.warn('[ChatPanel] Message not found for update:', thinkingMessageId);
+          }
+        }
       }
       
       // Pass to parent component
@@ -160,7 +185,10 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
       console.error('[ChatPanel] Generation error:', error);
       
       // Update the thinking message to show error
-      if (currentSession) {
+      if (currentSession && thinkingMessageId) {
+        // Wait a bit for the message to be added to the backend
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const sessionData = await sessionManager.getSession(currentSession.id);
         const currentMessages = sessionData?.messages || currentSession.messages;
         const updatedMessages = currentMessages.map((m: Message) => 
@@ -168,11 +196,15 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
             ? { 
                 ...m, 
                 content: 'Failed to generate controls. Please try again or check your formalization.',
-                metadata: { ...m.metadata, controlsError: 'Generation failed' } 
+                metadata: { 
+                  ...(m.metadata || {}), 
+                  type: 'controls-generation',
+                  controlsError: 'Generation failed' 
+                } 
               }
             : m
         );
-        sessionManager.updateSession(currentSession.id, { messages: updatedMessages });
+        await sessionManager.updateSession(currentSession.id, { messages: updatedMessages });
       }
       
       alert('Failed to generate controls. Please try again.');

@@ -267,10 +267,10 @@ export function useChatSession() {
               
               if (isReady && currentSession.status !== 'formalized') {
                 console.log('[useChatSession] AI indicated readiness to formalize');
-                await sessionManager.updateSession(currentSession.id, { status: 'waiting' });
+                await sessionManager.updateSession(currentSession.id, { readyToFormalize: true });
               } else if ((suggestsReformalizing || acknowledgesRestart) && currentSession.status === 'formalized') {
                 console.log('[useChatSession] AI suggests re-formalization, resetting status');
-                await sessionManager.updateSession(currentSession.id, { status: 'active' });
+                await sessionManager.updateSession(currentSession.id, { status: 'active', readyToFormalize: false });
               }
             } else {
               console.log('[useChatSession] Skipping readiness check - no real user messages yet');
@@ -282,6 +282,47 @@ export function useChatSession() {
     
     saveAIResponse();
   }, [messages, status, currentSession, isResearcherControlled]);
+
+  // Check researcher messages for formalization readiness in Experimental mode
+  // Note: Backend also checks this automatically, but this ensures frontend state stays in sync
+  useEffect(() => {
+    const checkResearcherMessages = async () => {
+      if (isResearcherControlled && currentSession) {
+        // Get fresh session data to check for new researcher messages
+        const freshSession = await sessionManager.getSession(currentSession.id);
+        if (!freshSession) return;
+
+        // Only check if there are real user messages (excluding initialization)
+        const realUserMessages = freshSession.messages.filter((m: Message) => 
+          m.sender === 'user' && m.content !== 'Initialize'
+        ).length;
+
+        if (realUserMessages > 0 && freshSession.status !== 'formalized') {
+          // Get the last researcher message
+          const lastResearcherMessage = [...freshSession.messages]
+            .reverse()
+            .find((m: Message) => m.sender === 'researcher');
+
+          if (lastResearcherMessage) {
+            // Check for readiness keywords (backend also does this, but sync frontend state)
+            const { isReady } = detectFormalizationReadiness(lastResearcherMessage.content);
+            
+            // Only update if the state doesn't match what we detected
+            // This avoids unnecessary updates since backend already handles this
+            if (isReady && !freshSession.readyToFormalize) {
+              console.log('[useChatSession] Researcher message indicates readiness to formalize (syncing frontend state)');
+              await sessionManager.updateSession(currentSession.id, { readyToFormalize: true });
+            }
+          }
+        }
+      }
+    };
+
+    // Only check when session updates (new messages added)
+    if (currentSession?.updatedAt) {
+      checkResearcherMessages();
+    }
+  }, [currentSession?.updatedAt, currentSession?.id, isResearcherControlled, sessionManager]);
 
   // Handle message submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -328,8 +369,12 @@ export function useChatSession() {
         // We'll need to watch for the response and save it
       } else {
         // In experimental mode, set status to waiting since user is waiting for researcher
+        // Also reset readyToFormalize when user sends a new message (conversation continues)
         if (isResearcherControlled) {
-          await sessionManager.updateSession(currentSession.id, { status: 'waiting' });
+          await sessionManager.updateSession(currentSession.id, { 
+            status: 'waiting',
+            readyToFormalize: false 
+          });
         }
         setInput('');
       }
@@ -389,7 +434,12 @@ export function useChatSession() {
   // Reset formalization to allow re-formalization
   const resetFormalization = async () => {
     if (!currentSession) return;
-    await sessionManager.updateSession(currentSession.id, { status: 'active' });
+    
+    // Reset status to active and clear readyToFormalize
+    await sessionManager.updateSession(currentSession.id, { 
+      status: 'active',
+      readyToFormalize: false 
+    });
   };
 
   return {

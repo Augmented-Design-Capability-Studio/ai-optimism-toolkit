@@ -26,9 +26,8 @@ export function FormalizeButton({
     m.sender === 'user' && m.content !== 'Initialize'
   ).length || 0;
   
-  // Check if AI has explicitly indicated readiness (status: 'waiting')
-  // In experimental mode or when no AI is connected, AI never indicates readiness
-  const aiIsReady = currentSession?.status === 'waiting' && mode === 'ai' && !!apiKey;
+  // Check if AI or researcher has indicated readiness to formalize
+  const aiIsReady = currentSession?.readyToFormalize === true;
 
   // Show formalize button only if there are real user messages (not just AI greeting)
   if (userMessageCount < 1) {
@@ -68,8 +67,8 @@ export function FormalizeButton({
       </Button>
       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
         {isPremature
-          ? '💬 Continue chatting - AI gathering more details'
-          : '✓ Ready to formalize - AI has sufficient information'}
+          ? '💬 Continue chatting - gathering more details'
+          : '✓ Ready to formalize - sufficient information gathered'}
       </Typography>
     </Box>
   );

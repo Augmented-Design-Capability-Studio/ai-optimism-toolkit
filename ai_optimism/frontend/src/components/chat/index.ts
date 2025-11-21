@@ -4,5 +4,6 @@ export { MessagesList } from './MessagesList';
 export { WelcomeMessage } from './WelcomeMessage';
 export { ChatInput } from './ChatInput';
 export { FormalizeButton } from './FormalizeButton';
+export { GenerateControlsButton } from './GenerateControlsButton';
 export { ConnectionWarning } from './ConnectionWarning';
 export { useChatSession } from './useChatSession';
