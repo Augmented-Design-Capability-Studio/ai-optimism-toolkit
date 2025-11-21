@@ -9,7 +9,7 @@ import { AIConnectionStatus } from '../src/components/AIConnectionStatus';
 import { BackendStatusIndicator } from '../src/components/BackendStatusIndicator';
 import { BackendSettings } from '../src/components/BackendSettings';
 import { ClientAuthWrapper } from '../src/components/ClientAuthWrapper';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAIProvider } from '../src/contexts/AIProviderContext';
 import { useSessionManager, Session } from '../src/services/sessionManager';
 
@@ -23,10 +23,6 @@ export default function HomePage() {
   const { apiKey } = state;
   const sessionManager = useSessionManager();
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
-
-  // Store horizontal scroll position to preserve it across re-renders
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const savedScrollLeftRef = useRef<number>(0);
 
   // Load and monitor current session
   useEffect(() => {
@@ -42,20 +38,6 @@ export default function HomePage() {
     
     return () => clearInterval(interval);
   }, [sessionManager]);
-
-  // Prevent horizontal scroll from being reset when ChatPanel remounts
-  useEffect(() => {
-    // When apiKey changes and ChatPanel remounts, preserve horizontal scroll
-    if (scrollContainerRef.current && savedScrollLeftRef.current > 0) {
-      // Use a small delay to ensure the remount has happened
-      const timeoutId = setTimeout(() => {
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollLeft = savedScrollLeftRef.current;
-        }
-      }, 50);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [apiKey]);
 
   const handleControlsGenerated = (controls: unknown) => {
     console.log('[HomePage] Controls generated:', controls);
@@ -119,7 +101,7 @@ export default function HomePage() {
           </AppBar>
 
           {/* Content area with panels and gradient masks */}
-          <Box sx={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden', width: '100%' }}>
+          <Box sx={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden' }}>
             {/* Left gradient mask */}
             <Box
               sx={{
@@ -154,23 +136,17 @@ export default function HomePage() {
 
             {/* Scrollable content */}
             <Box
-              ref={scrollContainerRef}
               sx={{
                 overflowX: 'auto',
                 overflowY: 'hidden',
                 height: '100%',
-                width: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
               }}
               onScroll={(e) => {
                 const target = e.currentTarget;
                 const scrollLeft = target.scrollLeft;
                 const maxScroll = target.scrollWidth - target.clientWidth;
-
-                // Save scroll position to preserve it
-                savedScrollLeftRef.current = scrollLeft;
 
                 // Show/hide gradient masks based on scroll position
                 const leftMask = document.querySelector('.gradient-left') as HTMLElement;
@@ -189,6 +165,7 @@ export default function HomePage() {
                   display: 'grid',
                   gridTemplateColumns: '600px 600px 600px 600px', // Always horizontal layout
                   gap: 2,
+                  flex: 1,
                   minHeight: 0,
                   pl: 2, // Left padding
                   pr: 2, // Right padding
@@ -196,7 +173,6 @@ export default function HomePage() {
                   pb: 2, // Bottom padding
                   // Add extra width to ensure right padding is visible
                   width: 'fit-content',
-                  minWidth: 'min-content', // Ensure minimum width respects content
                 }}
               >
                 {/* Panel 1: Chat */}
