@@ -156,8 +156,7 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
                 return false;
             }
 
-            // For streaming responses, we'll just check that we got a 200 and the response started
-            // Reading the full stream for validation is complex and unnecessary
+            // For streaming responses, check that we got a 200 and validate the stream content
             const contentType = testResponse.headers.get('content-type');
             console.log('[AIProvider] Response content-type:', contentType);
 
@@ -172,7 +171,66 @@ export const AIProviderProvider: React.FC<{ children: ReactNode }> = ({ children
                 return false;
             }
 
-            // Response looks good - connection is valid
+            // Read the stream to validate the response contains actual AI content, not an error
+            let accumulated = '';
+            let hasValidContent = false;
+            let hasError = false;
+            const reader = testResponse.body?.getReader();
+            
+            if (reader) {
+                try {
+                    // Try to read up to 3 chunks or until we have enough data to validate
+                    for (let i = 0; i < 3 && !hasError && !hasValidContent; i++) {
+                        const readPromise = reader.read();
+                        const timeoutPromise = new Promise<never>((_, reject) => 
+                            setTimeout(() => reject(new Error('Read timeout')), 2000)
+                        );
+                        
+                        const { done, value } = await Promise.race([readPromise, timeoutPromise]);
+                        
+                        if (done) break;
+                        
+                        const chunk = new TextDecoder().decode(value);
+                        accumulated += chunk;
+                        console.log('[AIProvider] Validation chunk:', chunk.substring(0, 100));
+
+                        // Check for error indicators in the accumulated content
+                        if (accumulated.includes('"error"') || 
+                            accumulated.includes('API_KEY') || 
+                            accumulated.includes('invalid') || 
+                            accumulated.includes('unauthorized') ||
+                            accumulated.includes('403') ||
+                            accumulated.includes('401') ||
+                            accumulated.includes('authentication') ||
+                            accumulated.includes('permission')) {
+                            hasError = true;
+                        }
+
+                        // If we have substantial content without errors, consider it valid
+                        if (accumulated.length > 200 && !hasError) {
+                            hasValidContent = true;
+                        }
+                    }
+                } catch (readError) {
+                    console.error('[AIProvider] Error reading stream during validation:', readError);
+                    hasError = true;
+                } finally {
+                    reader.releaseLock();
+                }
+            }
+
+            if (hasError || !hasValidContent) {
+                clearTimeout(timeoutId);
+                console.error('[AIProvider] Validation failed - hasError:', hasError, 'hasValidContent:', hasValidContent);
+                setState(prev => ({
+                    ...prev,
+                    status: 'error',
+                    errorMessage: hasError ? 'Invalid API key or connection failed' : 'No valid response from AI service',
+                }));
+                return false;
+            }
+
+            // Response validation successful
             clearTimeout(timeoutId);
             console.log('[AIProvider] Validation successful!');
             setState(prev => ({

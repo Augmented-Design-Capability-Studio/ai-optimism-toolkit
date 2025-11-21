@@ -14,6 +14,7 @@ export default function HomePage() {
   const [generatedControls, setGeneratedControls] = useState<unknown>(null);
   const [variableValues, setVariableValues] = useState<Record<string, number>>({});
   const [optimizationData, setOptimizationData] = useState<unknown>(null);
+  
   const { state } = useAIProvider();
   const { apiKey } = state;
 

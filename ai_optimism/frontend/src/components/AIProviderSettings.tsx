@@ -117,7 +117,7 @@ export const AIProviderSettings: React.FC<AIProviderSettingsProps> = ({ open, on
                 setSuccess(false);
             }, 1500);
         } else {
-            setError(state.errorMessage || 'Connection failed');
+            setError(state.errorMessage || 'AI connection failed');
         }
     };
 

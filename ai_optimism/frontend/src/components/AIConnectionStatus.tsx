@@ -50,7 +50,7 @@ export const AIConnectionStatus: React.FC = () => {
             return 'Connecting...';
         }
         if (state.status === 'error') {
-            return 'Connection Failed';
+            return 'AI Connection Failed';
         }
         return 'No AI Connected';
     };
