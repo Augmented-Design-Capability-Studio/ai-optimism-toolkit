@@ -162,7 +162,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
                     content: 'Controls generated successfully! You can now use the Optimization Panel to configure and run your optimization.',
                     metadata: { 
                       ...(m.metadata || {}), 
-                      type: 'controls-generation',
+                      type: 'controls-generation' as const,
                       controlsGenerated: true 
                     } 
                   }
@@ -198,7 +198,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
                 content: 'Failed to generate controls. Please try again or check your formalization.',
                 metadata: { 
                   ...(m.metadata || {}), 
-                  type: 'controls-generation',
+                  type: 'controls-generation' as const,
                   controlsError: 'Generation failed' 
                 } 
               }
