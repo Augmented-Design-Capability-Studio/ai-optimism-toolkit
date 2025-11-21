@@ -5,6 +5,7 @@
 
 import { useBackend } from '../contexts/BackendContext';
 import { useMemo } from 'react';
+import axios, { AxiosInstance } from 'axios';
 
 export type MessageRole = 'user' | 'researcher' | 'ai';
 export type SessionMode = 'ai' | 'experimental';
@@ -40,56 +41,24 @@ export interface Session {
   readyToFormalize?: boolean;
 }
 
-interface BackendApi {
-  evaluate: string;
-  optimization: {
-    createProblem: string;
-    listProblems: string;
-    execute: string;
-    clear: string;
-  };
-  sessions: {
-    create: string;
-    list: string;
-    get: (id: string) => string;
-    update: (id: string) => string;
-    delete: (id: string) => string;
-    addMessage: (id: string) => string;
-    getMessages: (id: string) => string;
-    heartbeat: (id: string) => string;
-    waiting: string;
-    clear: string;
-  };
-}
-
 class SessionManager {
   private readonly CURRENT_SESSION_KEY = 'wizard_current_session';
-  private backendApi: BackendApi;
+  private client: AxiosInstance;
 
-  constructor(backendApi: BackendApi) {
-    if (!backendApi) {
-      throw new Error('backendApi is required');
-    }
-    if (!backendApi.sessions) {
-      throw new Error('backendApi.sessions is required');
-    }
-    this.backendApi = backendApi;
+  constructor(backendUrl: string) {
+    this.client = axios.create({
+      baseURL: `${backendUrl}/api`,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 
   // Get all sessions
   async getSessions(): Promise<Session[]> {
-    if (!this.backendApi) {
-      console.error('[SessionManager] this.backendApi is undefined!');
-      return [];
-    }
-    if (!this.backendApi.sessions) {
-      console.error('[SessionManager] this.backendApi.sessions is undefined!');
-      return [];
-    }
     try {
-      const response = await fetch(this.backendApi.sessions.list);
-      if (!response.ok) throw new Error('Failed to fetch sessions');
-      return await response.json();
+      const response = await this.client.get('/sessions/');
+      return response.data;
     } catch (error) {
       console.error('[SessionManager] Failed to get sessions:', error);
       return [];
@@ -99,13 +68,10 @@ class SessionManager {
   // Get single session
   async getSession(sessionId: string): Promise<Session | null> {
     try {
-      const response = await fetch(this.backendApi.sessions.get(sessionId));
-      if (!response.ok) {
-        if (response.status === 404) return null;
-        throw new Error('Failed to fetch session');
-      }
-      return await response.json();
-    } catch (error) {
+      const response = await this.client.get(`/sessions/${sessionId}`);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) return null;
       console.error('[SessionManager] Failed to get session:', error);
       return null;
     }
@@ -114,15 +80,8 @@ class SessionManager {
   // Create new session
   async createSession(mode: SessionMode, userId: string = 'default-user', researcherId?: string): Promise<Session> {
     try {
-      const response = await fetch(this.backendApi.sessions.create, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, userId, researcherId }),
-      });
-
-      if (!response.ok) throw new Error('Failed to create session');
-
-      const session = await response.json();
+      const response = await this.client.post('/sessions/', { mode, userId, researcherId });
+      const session = response.data;
 
       // Set as current session
       this.setCurrentSession(session.id);
@@ -137,19 +96,10 @@ class SessionManager {
   // Update session
   async updateSession(sessionId: string, updates: Partial<Session>): Promise<Session | null> {
     try {
-      const response = await fetch(this.backendApi.sessions.update(sessionId), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) return null;
-        throw new Error('Failed to update session');
-      }
-
-      return await response.json();
-    } catch (error) {
+      const response = await this.client.put(`/sessions/${sessionId}`, updates);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 404) return null;
       console.error('[SessionManager] Failed to update session:', error);
       return null;
     }
@@ -168,15 +118,8 @@ class SessionManager {
     metadata?: Message['metadata']
   ): Promise<Message | null> {
     try {
-      const response = await fetch(this.backendApi.sessions.addMessage(sessionId), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sender, content, metadata }),
-      });
-
-      if (!response.ok) throw new Error('Failed to add message');
-
-      return await response.json();
+      const response = await this.client.post(`/sessions/${sessionId}/messages`, { sender, content, metadata });
+      return response.data;
     } catch (error) {
       console.error('[SessionManager] Failed to add message:', error);
       return null;
@@ -186,9 +129,8 @@ class SessionManager {
   // Get messages for session
   async getMessages(sessionId: string): Promise<Message[]> {
     try {
-      const response = await fetch(this.backendApi.sessions.getMessages(sessionId));
-      if (!response.ok) throw new Error('Failed to fetch messages');
-      return await response.json();
+      const response = await this.client.get(`/sessions/${sessionId}/messages`);
+      return response.data;
     } catch (error) {
       console.error('[SessionManager] Failed to get messages:', error);
       return [];
@@ -198,12 +140,7 @@ class SessionManager {
   // Send heartbeat to indicate client is active
   async sendHeartbeat(sessionId: string): Promise<void> {
     try {
-      const response = await fetch(this.backendApi.sessions.heartbeat(sessionId), {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        console.warn('[SessionManager] Heartbeat failed:', response.status);
-      }
+      await this.client.post(`/sessions/${sessionId}/heartbeat`);
     } catch (error) {
       console.warn('[SessionManager] Heartbeat error:', error);
     }
@@ -231,8 +168,6 @@ class SessionManager {
   }
 
   // Get active sessions (for researcher dashboard)
-  // Note: Returns all sessions including completed ones
-  // Researcher must explicitly delete to remove from list
   async getActiveSessions(): Promise<Session[]> {
     return await this.getSessions();
   }
@@ -240,9 +175,8 @@ class SessionManager {
   // Get sessions waiting for researcher
   async getWaitingSessions(): Promise<Session[]> {
     try {
-      const response = await fetch(this.backendApi.sessions.waiting);
-      if (!response.ok) throw new Error('Failed to fetch waiting sessions');
-      return await response.json();
+      const response = await this.client.get('/sessions/waiting/');
+      return response.data;
     } catch (error) {
       console.error('[SessionManager] Failed to get waiting sessions:', error);
       return [];
@@ -252,11 +186,7 @@ class SessionManager {
   // Delete session
   async deleteSession(sessionId: string): Promise<boolean> {
     try {
-      const response = await fetch(this.backendApi.sessions.delete(sessionId), {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) return false;
+      await this.client.delete(`/sessions/${sessionId}`);
 
       // Clear current session if deleted
       const current = await this.getCurrentSession();
@@ -274,7 +204,7 @@ class SessionManager {
   // Clear all sessions (for testing)
   async clearAllSessions(): Promise<void> {
     try {
-      await fetch(this.backendApi.sessions.clear, { method: 'DELETE' });
+      await this.client.delete('/sessions/clear/');
       this.setCurrentSession(null);
     } catch (error) {
       console.error('[SessionManager] Failed to clear sessions:', error);
@@ -328,24 +258,20 @@ class SessionManager {
   }
 }
 
-// Factory function to create session manager with backend API
-export const createSessionManager = (backendApi: BackendApi) => {
-  return new SessionManager(backendApi);
+// Factory function to create session manager
+export const createSessionManager = (backendUrl: string) => {
+  return new SessionManager(backendUrl);
 };
 
-// React hook to use session manager with backend context
+// React hook to use session manager
 export const useSessionManager = () => {
   const context = useBackend();
   if (!context) {
     throw new Error('BackendContext not found');
   }
-  const { backendApi } = context;
-  if (!backendApi) {
-    throw new Error('backendApi is undefined');
-  }
-  if (!backendApi.sessions) {
-    throw new Error('backendApi.sessions is undefined');
-  }
+
+  const { state } = context;
+
   // Memoize the session manager instance
-  return useMemo(() => createSessionManager(backendApi), [backendApi]);
+  return useMemo(() => createSessionManager(state.backendUrl), [state.backendUrl]);
 };

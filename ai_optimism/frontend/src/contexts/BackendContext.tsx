@@ -38,7 +38,7 @@ const BackendContext = createContext<BackendContextType | undefined>(undefined);
 const STORAGE_KEY = 'backend_config';
 
 const getBackendApi = (url: string) => ({
-    evaluate: `${url}/api/evaluate/evaluate`,
+    evaluate: `${url}/api/evaluate/`,
     optimization: {
         createProblem: `${url}/api/optimization/problems/`,
         listProblems: `${url}/api/optimization/problems/`,

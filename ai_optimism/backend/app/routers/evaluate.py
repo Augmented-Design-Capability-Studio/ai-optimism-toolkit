@@ -2,32 +2,13 @@
 API endpoint for safely evaluating Python expressions
 """
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from ..models.evaluate import EvaluationRequest, EvaluationResponse, EvaluationResult
 from ..utils.evaluation import safe_eval
 
 router = APIRouter()
 
 
-class EvaluationRequest(BaseModel):
-    """Request to evaluate expressions"""
-    expressions: List[str]  # List of Python expressions to evaluate
-    variables: Dict[str, Any]  # Variable name -> value mapping
-
-
-class EvaluationResult(BaseModel):
-    """Result of expression evaluation"""
-    expression: str
-    value: Optional[float]
-    error: Optional[str]
-
-
-class EvaluationResponse(BaseModel):
-    """Response containing all evaluation results"""
-    results: List[EvaluationResult]
-
-
-@router.post("/evaluate", response_model=EvaluationResponse)
+@router.post("/", response_model=EvaluationResponse)
 async def evaluate_expressions(request: EvaluationRequest):
     """
     Safely evaluate multiple Python expressions with given variables

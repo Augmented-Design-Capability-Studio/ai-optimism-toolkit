@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_URL = '/api';
+import { apiClient } from '../lib/apiClient';
 
 export type AIProvider = 'openai' | 'anthropic' | 'google' | 'ollama' | 'custom';
 
@@ -133,7 +131,7 @@ const aiApi = {
   validateConnection: async (request: AIValidationRequest): Promise<AIValidationResponse> => {
     // Use the new chat endpoint for validation as it's the most reliable way to test connection
     try {
-      const response = await axios.post('/api/chat', {
+      const response = await apiClient.post('/chat', {
         apiKey: request.api_key,
         provider: request.provider,
         model: request.model,
@@ -201,7 +199,7 @@ const aiApi = {
   // Generate variable suggestions using AI
   generateVariables: async (request: GenerateVariablesRequest): Promise<GenerateVariablesResponse> => {
     // Map to the new consolidated generate endpoint
-    const response = await axios.post('/api/generate', {
+    const response = await apiClient.post('/generate', {
       description: request.description || request.problem_name,
       model: request.model
     }, {
@@ -219,7 +217,7 @@ const aiApi = {
   generateProperties: async (request: GeneratePropertiesRequest): Promise<GeneratePropertiesResponse> => {
     // Map to the new consolidated generate endpoint
     // Note: The new endpoint generates everything at once, so we might get more than just properties
-    const response = await axios.post('/api/generate', {
+    const response = await apiClient.post('/generate', {
       description: request.description || request.problem_name,
       model: request.model
     }, {
@@ -237,7 +235,7 @@ const aiApi = {
   generateObjective: async (request: GenerateObjectiveRequest): Promise<GenerateObjectiveResponse> => {
     // The new endpoint returns structured objectives, not raw code.
     // We'll adapt the response to fit the expected interface or warn about the change.
-    const response = await axios.post('/api/generate', {
+    const response = await apiClient.post('/generate', {
       description: request.objective_description || request.description,
       model: request.model
     }, {
@@ -260,7 +258,7 @@ const aiApi = {
 
   // Generate constraint expressions
   generateConstraints: async (request: GenerateConstraintsRequest): Promise<GenerateConstraintsResponse> => {
-    const response = await axios.post('/api/generate', {
+    const response = await apiClient.post('/generate', {
       description: request.description || request.problem_name,
       model: request.model
     }, {

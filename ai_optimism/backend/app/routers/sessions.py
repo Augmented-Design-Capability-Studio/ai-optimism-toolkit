@@ -5,48 +5,18 @@ import time
 from ..models.session import (
     Session, Message, CreateSessionRequest, UpdateSessionRequest, AddMessageRequest
 )
-
-
-def _detect_formalization_readiness(text: str) -> bool:
-    """Check if message text indicates readiness to formalize"""
-    lower_text = text.lower()
-    
-    # Check for explicit readiness signals
-    is_ready = (
-        ('enough information' in lower_text or 
-         'ready to formalize' in lower_text or
-         'can now formalize' in lower_text or 
-         'sufficient information' in lower_text) and
-        ('formalize' in lower_text or 'formalise' in lower_text)
-    ) or (
-        ('would you like' in lower_text or 
-         'shall i' in lower_text or 
-         'should i' in lower_text or 
-         'want me to' in lower_text) and
-        ('formalize' in lower_text or 
-         'formalise' in lower_text or 
-         'structured' in lower_text or 
-         'problem definition' in lower_text)
-    )
-    
-    return is_ready
+from ..utils.common import generate_id, detect_formalization_readiness
 
 router = APIRouter(tags=["sessions"])
 
 # In-memory storage for sessions (replace with database later)
 _sessions: List[Session] = []
 
-def _generate_id() -> str:
-    """Generate a unique ID for sessions/messages"""
-    import time
-    import random
-    return f"{int(time.time() * 1000)}-{random.randint(1000, 9999)}"
-
 @router.post("/", response_model=Session)
 async def create_session(request: CreateSessionRequest):
     """Create a new chat session"""
     session = Session(
-        id=_generate_id(),
+        id=generate_id(),
         mode=request.mode,
         status="active",
         userId=request.userId,
@@ -129,7 +99,7 @@ async def add_message(session_id: str, request: AddMessageRequest):
         raise HTTPException(status_code=404, detail="Session not found")
 
     message = Message(
-        id=_generate_id(),
+        id=generate_id(),
         sessionId=session_id,
         sender=request.sender,
         content=request.content,
@@ -149,12 +119,12 @@ async def add_message(session_id: str, request: AddMessageRequest):
     elif request.sender == "researcher":
         session.status = "active"
         # Check if researcher message indicates readiness to formalize
-        if _detect_formalization_readiness(request.content):
+        if detect_formalization_readiness(request.content):
             session.readyToFormalize = True
     elif request.sender == "ai":
         session.status = "active"
         # Check if AI message indicates readiness to formalize
-        if _detect_formalization_readiness(request.content):
+        if detect_formalization_readiness(request.content):
             session.readyToFormalize = True
 
     return message

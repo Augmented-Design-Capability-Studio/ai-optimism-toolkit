@@ -8,7 +8,7 @@ export const BACKEND_URL =
   'http://localhost:8000';
 
 export const BACKEND_API = {
-  evaluate: `${BACKEND_URL}/api/evaluate/evaluate`,
+  evaluate: `${BACKEND_URL}/api/evaluate/`,
   optimization: {
     createProblem: `${BACKEND_URL}/api/optimization/problems/`,
     listProblems: `${BACKEND_URL}/api/optimization/problems/`,
