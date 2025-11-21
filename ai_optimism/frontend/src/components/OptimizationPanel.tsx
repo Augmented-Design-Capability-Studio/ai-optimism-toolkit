@@ -16,7 +16,7 @@ import PauseIcon from '@mui/icons-material/Pause';
 import StopIcon from '@mui/icons-material/Stop';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useState, type ChangeEvent } from 'react';
-import { BACKEND_API } from '../config/backend';
+import { useBackend } from '../contexts/BackendContext';
 import type { Controls } from './controls/types';
 
 type OptimizationStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error';
@@ -45,6 +45,8 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
   const [logs, setLogs] = useState<string[]>([]);
   const [results, setResults] = useState<OptimizationResult[]>([]);
 
+  const { backendApi } = useBackend();
+
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setLogs((prev) => [...prev, `[${timestamp}] ${message}`]);
@@ -70,7 +72,7 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
     try {
       // Step 1: Create optimization problem
       addLog('📝 Creating optimization problem...');
-      const problemResponse = await fetch(BACKEND_API.optimization.createProblem, {
+      const problemResponse = await fetch(backendApi.optimization.createProblem, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -95,7 +97,7 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
       addLog(`⚙️ Running optimization (${maxIterations} iterations, population: ${populationSize})...`);
       setIteration(0);
 
-      const executeResponse = await fetch(BACKEND_API.optimization.execute, {
+      const executeResponse = await fetch(backendApi.optimization.execute, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

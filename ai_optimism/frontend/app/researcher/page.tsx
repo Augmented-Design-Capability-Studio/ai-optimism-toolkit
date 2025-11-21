@@ -1,7 +1,7 @@
 'use client';
 
 import { Alert, Container, Box } from '@mui/material';
-import { sessionManager } from '../../src/services/sessionManager';
+import { useSessionManager } from '../../src/services/sessionManager';
 import {
   useResearcherSessions,
   DashboardHeader,
@@ -12,6 +12,7 @@ import {
 import { ResearcherAuthWrapper } from '../../src/components/researcher/ResearcherAuthWrapper';
 
 export default function ResearcherDashboard() {
+  const sessionManager = useSessionManager();
   const {
     sessions,
     selectedSession,
@@ -27,9 +28,11 @@ export default function ResearcherDashboard() {
   } = useResearcherSessions();
 
   // Handle sending message
-  const handleSendMessage = (sessionId: string, message: string) => {
-    sessionManager.addMessage(sessionId, 'researcher', message);
-    loadSessions();
+  const handleSendMessage = async (sessionId: string, message: string) => {
+    await sessionManager.addMessage(sessionId, 'researcher', message);
+    // Set status back to active since we've responded
+    await sessionManager.updateSession(sessionId, { status: 'active' });
+    await loadSessions();
   };
 
   return (

@@ -9,7 +9,7 @@ import {
   FormalizeButton,
   ChatInput,
 } from './chat';
-import { sessionManager } from '../services/sessionManager';
+import { useSessionManager } from '../services/sessionManager';
 import type { Message } from '../services/sessionManager';
 
 interface ChatPanelProps {
@@ -18,8 +18,10 @@ interface ChatPanelProps {
 
 export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isFormalizing, setIsFormalizing] = useState(false);
+  const sessionManager = useSessionManager();
 
   const {
     input,
@@ -38,11 +40,6 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     formalizeProblem,
     resetFormalization,
   } = useChatSession();
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [displayMessages]);
 
   // Handle formalization
   const handleFormalize = async () => {
@@ -140,7 +137,8 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
       
       // Update the thinking message to show success
       if (currentSession) {
-        const currentMessages = sessionManager.getSession(currentSession.id)?.messages || currentSession.messages;
+        const sessionData = await sessionManager.getSession(currentSession.id);
+        const currentMessages = sessionData?.messages || currentSession.messages;
         const updatedMessages = currentMessages.map((m: Message) => 
           m.id === thinkingMessageId
             ? { 
@@ -163,7 +161,8 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
       
       // Update the thinking message to show error
       if (currentSession) {
-        const currentMessages = sessionManager.getSession(currentSession.id)?.messages || currentSession.messages;
+        const sessionData = await sessionManager.getSession(currentSession.id);
+        const currentMessages = sessionData?.messages || currentSession.messages;
         const updatedMessages = currentMessages.map((m: Message) => 
           m.id === thinkingMessageId
             ? { 
@@ -192,11 +191,11 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         overflow: 'hidden',
       }}
     >
-      <ChatHeader />
+      <ChatHeader session={currentSession} />
       
       {sessionTerminated && (
         <Alert severity="info" sx={{ m: 2 }}>
-          Your previous session has ended. Starting a fresh conversation.
+          Your session was ended by a researcher. Starting a fresh conversation.
         </Alert>
       )}
       
@@ -206,6 +205,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         apiKey={apiKey}
         isLoading={isLoading}
         messagesEndRef={messagesEndRef}
+        messagesContainerRef={messagesContainerRef}
         isResearcherTyping={currentSession?.isResearcherTyping}
         isWaitingForResearcher={isWaitingForResearcher}
         onGenerateControls={handleGenerateControls}

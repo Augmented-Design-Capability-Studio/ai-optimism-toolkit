@@ -18,7 +18,7 @@ import StopIcon from '@mui/icons-material/Stop';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { Session, sessionManager } from '../../services/sessionManager';
+import { Session, useSessionManager } from '../../services/sessionManager';
 import { AIConnectionStatus } from '../AIConnectionStatus';
 
 interface SessionHeaderProps {
@@ -38,6 +38,7 @@ export function SessionHeader({
   onTerminate,
   onDelete,
 }: SessionHeaderProps) {
+  const sessionManager = useSessionManager();
   const handleExport = () => {
     // Generate chat log text
     const header = `Chat Session: ${session.id}\nCreated: ${new Date(session.createdAt).toLocaleString()}\nStatus: ${session.status}\nMode: ${session.mode}\n${'='.repeat(80)}\n\n`;
@@ -62,9 +63,9 @@ export function SessionHeader({
     URL.revokeObjectURL(url);
   };
 
-  const handleResetFormalization = () => {
+  const handleResetFormalization = async () => {
     if (window.confirm('Reset formalization status to allow re-formalization?')) {
-      sessionManager.updateSession(session.id, { status: 'active' });
+      await sessionManager.updateSession(session.id, { status: 'active' });
       // Force immediate UI update by triggering parent's loadSessions
       // The onModeToggle function will call loadSessions which refreshes the UI
       setTimeout(() => {
@@ -99,6 +100,12 @@ export function SessionHeader({
                 session.status === 'formalized' ? 'success' :
                   session.status === 'waiting' ? 'warning' : 'primary'
             }
+          />
+          <Chip
+            label={Date.now() - session.lastActivity < 30000 ? 'Active' : 'Inactive'}
+            size="small"
+            color={Date.now() - session.lastActivity < 30000 ? 'success' : 'default'}
+            variant={Date.now() - session.lastActivity < 30000 ? 'filled' : 'outlined'}
           />
         </Box>
       </Box>
@@ -196,9 +203,9 @@ export function SessionHeader({
             size="small"
             startIcon={<DeleteIcon />}
             onClick={() => onDelete(session.id)}
-            title="Permanently delete session from records - User unaffected, automatically gets new session"
+            title="Permanently delete session from records - User connection unaffected, no new session created"
           >
-            Delete
+            Force Delete
           </Button>
         </Box>
       </Box>

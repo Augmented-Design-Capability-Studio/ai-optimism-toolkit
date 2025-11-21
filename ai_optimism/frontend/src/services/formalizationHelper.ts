@@ -4,7 +4,7 @@
 
 import { streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { sessionManager, Message } from './sessionManager';
+import { Message } from './sessionManager';
 import { getFormalizationPrompt, isIncompleteFormalization } from '../config/prompts';
 
 export interface FormalizationConfig {
@@ -12,6 +12,7 @@ export interface FormalizationConfig {
   apiKey: string;
   model: string;
   messages: Message[];
+  sessionManager: any; // Will be typed properly
 }
 
 /**
@@ -54,7 +55,7 @@ export async function executeFormalization(config: FormalizationConfig): Promise
 
     if (incomplete) {
       // Add incomplete formalization message
-      sessionManager.addMessage(sessionId, 'ai', formalizedText, {
+      config.sessionManager.addMessage(sessionId, 'ai', formalizedText, {
         type: 'formalization',
         incomplete: true,
       });
@@ -62,12 +63,12 @@ export async function executeFormalization(config: FormalizationConfig): Promise
     }
 
     // Add complete formalization message
-    sessionManager.addMessage(sessionId, 'ai', formalizedText, {
+    config.sessionManager.addMessage(sessionId, 'ai', formalizedText, {
       type: 'formalization',
     });
 
     // Update session status
-    sessionManager.updateSession(sessionId, { status: 'formalized' });
+    config.sessionManager.updateSession(sessionId, { status: 'formalized' });
 
     return true;
   } catch (error) {

@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Box, TextField, IconButton } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-import { sessionManager } from '../../services/sessionManager';
+import { useSessionManager } from '../../services/sessionManager';
 
 interface MessageInputProps {
   sessionId: string;
@@ -16,35 +16,40 @@ interface MessageInputProps {
 export function MessageInput({ sessionId, onSendMessage, disabled }: MessageInputProps) {
   const [input, setInput] = useState('');
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionManager = useSessionManager();
 
   // Handle typing indicator
   useEffect(() => {
-    if (disabled) return;
+    const updateTyping = async () => {
+      if (disabled) return;
 
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
 
-    if (input.trim().length > 0) {
-      // Set typing to true
-      sessionManager.setResearcherTyping(sessionId, true);
+      if (input.trim().length > 0) {
+        // Set typing to true
+        await sessionManager.setResearcherTyping(sessionId, true);
 
-      // Set timeout to clear typing indicator after 2 seconds of inactivity
-      typingTimeoutRef.current = setTimeout(() => {
-        sessionManager.setResearcherTyping(sessionId, false);
-      }, 2000);
-    } else {
-      // Clear typing indicator if input is empty
-      sessionManager.setResearcherTyping(sessionId, false);
-    }
+        // Set timeout to clear typing indicator after 2 seconds of inactivity
+        typingTimeoutRef.current = setTimeout(async () => {
+          await sessionManager.setResearcherTyping(sessionId, false);
+        }, 2000);
+      } else {
+        // Clear typing indicator if input is empty
+        await sessionManager.setResearcherTyping(sessionId, false);
+      }
+    };
+
+    updateTyping();
 
     return () => {
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
     };
-  }, [input, sessionId, disabled]);
+  }, [input, sessionId, disabled, sessionManager]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

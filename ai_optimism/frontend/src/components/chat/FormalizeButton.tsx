@@ -21,15 +21,14 @@ export function FormalizeButton({
   isFormalizing,
   onFormalize,
 }: FormalizeButtonProps) {
-  // Count actual user messages to determine if there's real conversation
-  const userMessageCount = currentSession?.messages.filter(m => m.sender === 'user').length || 0;
+  // Count actual user messages to determine if there's real conversation (excluding initialization)
+  const userMessageCount = currentSession?.messages.filter(m => 
+    m.sender === 'user' && m.content !== 'Initialize'
+  ).length || 0;
   
-  if (mode === 'ai' && !apiKey) {
-    return null;
-  }
-
   // Check if AI has explicitly indicated readiness (status: 'waiting')
-  const aiIsReady = currentSession?.status === 'waiting';
+  // In experimental mode or when no AI is connected, AI never indicates readiness
+  const aiIsReady = currentSession?.status === 'waiting' && mode === 'ai' && !!apiKey;
 
   // Show formalize button only if there are real user messages (not just AI greeting)
   if (userMessageCount < 1) {

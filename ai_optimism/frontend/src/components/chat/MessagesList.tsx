@@ -1,6 +1,7 @@
 'use client';
 
 import { Box, Paper, CircularProgress, Typography, Avatar } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { SessionMode } from '../../services/sessionManager';
 import { MessageBubble } from './MessageBubble';
 import { WelcomeMessage } from './WelcomeMessage';
@@ -11,6 +12,7 @@ interface MessagesListProps {
   apiKey: string | null;
   isLoading: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   isResearcherTyping?: boolean;
   isWaitingForResearcher?: boolean;
   onGenerateControls?: (formalizationText: string) => void;
@@ -22,10 +24,39 @@ export function MessagesList({
   apiKey, 
   isLoading, 
   messagesEndRef,
+  messagesContainerRef,
   isResearcherTyping = false,
   isWaitingForResearcher = false,
   onGenerateControls,
 }: MessagesListProps) {
+  const [isNearBottom, setIsNearBottom] = useState(true);
+
+  // Auto-scroll to bottom when new messages arrive (only if user is near bottom)
+  useEffect(() => {
+    if (isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isNearBottom]);
+
+  // Track if user is scrolled to bottom
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const checkScrollPosition = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      setIsNearBottom(distanceFromBottom < 100); // Consider "near bottom" if within 100px
+    };
+
+    container.addEventListener('scroll', checkScrollPosition);
+    
+    // Initial check
+    checkScrollPosition();
+
+    return () => container.removeEventListener('scroll', checkScrollPosition);
+  }, []);
+
   // Only show welcome message in experimental mode or when missing API key
   // In AI mode, let the AI's initialization message be the greeting
   const shouldShowWelcome = 
@@ -34,6 +65,7 @@ export function MessagesList({
 
   return (
     <Box
+      ref={messagesContainerRef}
       sx={{
         flex: 1,
         overflowY: 'auto',

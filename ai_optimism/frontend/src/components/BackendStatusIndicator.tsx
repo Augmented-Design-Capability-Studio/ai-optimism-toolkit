@@ -7,15 +7,17 @@ import {
   HourglassEmpty as HourglassEmptyIcon,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
-import { BACKEND_API } from '../config/backend';
+import { useBackend } from '../contexts/BackendContext';
 
 interface BackendStatusIndicatorProps {
   className?: string;
+  onClick?: () => void;
 }
 
-export function BackendStatusIndicator({ className }: BackendStatusIndicatorProps) {
+export function BackendStatusIndicator({ className, onClick }: BackendStatusIndicatorProps) {
   const [isBackendAvailable, setIsBackendAvailable] = useState<boolean>(true);
   const [isChecking, setIsChecking] = useState<boolean>(true);
+  const { backendApi } = useBackend();
 
   useEffect(() => {
     let isMounted = true;
@@ -25,7 +27,7 @@ export function BackendStatusIndicator({ className }: BackendStatusIndicatorProp
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
 
-        const response = await fetch(BACKEND_API.evaluate, {
+        const response = await fetch(backendApi.evaluate, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -92,18 +94,19 @@ export function BackendStatusIndicator({ className }: BackendStatusIndicatorProp
   };
 
   return (
-    <Tooltip title={getTooltipText()} arrow>
+    <Tooltip title={onClick ? `${getTooltipText()} (Click to configure)` : getTooltipText()} arrow>
       <Chip
         label={getStatusLabel()}
         icon={getStatusIcon()}
         size="small"
         className={className}
+        onClick={onClick}
         sx={{
           fontSize: '0.75rem', // Slightly smaller to fit better when stacked
           height: '24px',      // Explicit height for better stacking
           fontWeight: 500,
           color: '#ffffff',
-          cursor: 'default',   // Explicitly show it's not clickable
+          cursor: onClick ? 'pointer' : 'default',
           '& .MuiChip-label': {
             px: 1.5,
           },
@@ -112,9 +115,8 @@ export function BackendStatusIndicator({ className }: BackendStatusIndicatorProp
             fontSize: '1rem',
           },
           backgroundColor: getBackgroundColor(),
-          // No hover effect to indicate non-interactivity
           '&:hover': {
-            backgroundColor: getBackgroundColor(),
+            backgroundColor: onClick ? 'rgba(255, 255, 255, 0.1)' : getBackgroundColor(),
           },
         }}
       />
