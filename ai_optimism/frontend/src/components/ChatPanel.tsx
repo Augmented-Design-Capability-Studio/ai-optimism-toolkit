@@ -8,7 +8,6 @@ import {
   MessagesList,
   FormalizeButton,
   ChatInput,
-  ConnectionWarning,
 } from './chat';
 import { sessionManager } from '../services/sessionManager';
 import type { Message } from '../services/sessionManager';
@@ -44,48 +43,6 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayMessages]);
-
-  // Show warning if no API key
-  if (!apiKey) {
-    return (
-      <Paper
-        elevation={2}
-        sx={{
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
-      >
-        <Box
-          sx={{
-            p: 2,
-            borderBottom: 1,
-            borderColor: 'divider',
-            bgcolor: 'warning.main',
-            color: 'warning.contrastText',
-          }}
-        >
-          <Typography variant="h6" fontWeight="bold">
-            🤖 AI Chat
-          </Typography>
-          <Typography variant="caption">
-            Connect to AI for assistance
-          </Typography>
-        </Box>
-        <Box sx={{ p: 2, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Alert severity="warning" sx={{ maxWidth: 400 }}>
-            <Typography variant="body2">
-              <strong>No AI API key configured.</strong>
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Click the AI connection status chip to set up your API key and enable chat functionality.
-            </Typography>
-          </Alert>
-        </Box>
-      </Paper>
-    );
-  }
 
   // Handle formalization
   const handleFormalize = async () => {
@@ -275,7 +232,26 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         apiKey={apiKey}
       />
 
-      <ConnectionWarning apiKey={apiKey} mode={mode} />
+      {!apiKey && (
+        <Box
+          sx={{
+            p: 1,
+            bgcolor: 'warning.main',
+            color: 'warning.contrastText',
+            textAlign: 'center',
+            animation: 'blink 1s infinite',
+            '@keyframes blink': {
+              '0%': { opacity: 1 },
+              '50%': { opacity: 0.5 },
+              '100%': { opacity: 1 },
+            },
+          }}
+        >
+          <Typography variant="body2" fontWeight="bold">
+            ⚠️ No AI API key configured. Click the AI connection status chip to set it up.
+          </Typography>
+        </Box>
+      )}
     </Paper>
   );
 }

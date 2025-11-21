@@ -45,7 +45,7 @@ export function WelcomeMessage({ mode, apiKey }: WelcomeMessageProps) {
           >
             {`Please connect to an AI provider first!
 
-Click the "AI Connection" button in the top-right corner to configure your API key.`}
+Click the "AI Connection" button in the top-left corner to configure your API key.`}
           </Typography>
         </Paper>
       </Box>
