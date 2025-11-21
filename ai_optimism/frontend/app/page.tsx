@@ -8,11 +8,14 @@ import { OptimizationPanel } from '../src/components/OptimizationPanel';
 import { AIConnectionStatus } from '../src/components/AIConnectionStatus';
 import { BackendStatusIndicator } from '../src/components/BackendStatusIndicator';
 import { useState, useEffect } from 'react';
+import { useAIProvider } from '../src/contexts/AIProviderContext';
 
 export default function HomePage() {
   const [generatedControls, setGeneratedControls] = useState<unknown>(null);
   const [variableValues, setVariableValues] = useState<Record<string, number>>({});
   const [optimizationData, setOptimizationData] = useState<unknown>(null);
+  const { state } = useAIProvider();
+  const { apiKey } = state;
 
   const handleControlsGenerated = (controls: unknown) => {
     console.log('[HomePage] Controls generated:', controls);
@@ -136,7 +139,7 @@ export default function HomePage() {
           >
             {/* Panel 1: Chat */}
             <Box sx={{ height: '100%', overflow: 'hidden' }}>
-              <ChatPanel onControlsGenerated={handleControlsGenerated} />
+              <ChatPanel key={apiKey} onControlsGenerated={handleControlsGenerated} />
             </Box>
 
             {/* Panel 2: Controls */}
