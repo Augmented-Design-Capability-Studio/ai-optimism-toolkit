@@ -4,6 +4,7 @@
 
 import { Box, Avatar, Paper, Typography, Chip, Accordion, AccordionSummary, AccordionDetails, CircularProgress } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useEffect, useRef } from 'react';
 import { Message } from '../../services/sessionManager';
 
 interface MessageListProps {
@@ -12,8 +13,20 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages, isFormalizingSession }: MessageListProps) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMessageCountRef = useRef(messages.length);
+  
   console.log('[MessageList] Rendering with messages:', messages.length);
   console.log('[MessageList] Messages:', messages);
+
+  // Auto-scroll to bottom only when new messages are added
+  useEffect(() => {
+    const currentMessageCount = messages.length;
+    if (currentMessageCount > prevMessageCountRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevMessageCountRef.current = currentMessageCount;
+  }, [messages]);
   
   return (
     <Box sx={{ flex: 1, overflow: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -211,6 +224,9 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
           </Paper>
         </Box>
       )}
+      
+      {/* Invisible element to scroll to */}
+      <div ref={messagesEndRef} />
     </Box>
   );
 }
