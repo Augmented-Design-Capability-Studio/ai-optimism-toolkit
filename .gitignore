@@ -130,3 +130,6 @@ dmypy.json
 
 # VS Code settings
 .vscode/
+
+ai_optimism/frontend/.next/
+
