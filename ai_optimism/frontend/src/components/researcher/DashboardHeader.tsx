@@ -4,13 +4,15 @@
 
 import { Box, Typography, Button } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { BackendStatusIndicator } from '../BackendStatusIndicator';
 
 interface DashboardHeaderProps {
   onRefresh: () => void;
+  onLogout?: () => void;
 }
 
-export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
+export function DashboardHeader({ onRefresh, onLogout }: DashboardHeaderProps) {
   return (
     <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <Box>
@@ -30,6 +32,16 @@ export function DashboardHeader({ onRefresh }: DashboardHeaderProps) {
         >
           Refresh
         </Button>
+        {onLogout && (
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<LogoutIcon />}
+            onClick={onLogout}
+          >
+            Logout
+          </Button>
+        )}
       </Box>
     </Box>
   );

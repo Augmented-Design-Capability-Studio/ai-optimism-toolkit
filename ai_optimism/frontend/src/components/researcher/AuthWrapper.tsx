@@ -18,7 +18,7 @@ import {
 import LockIcon from '@mui/icons-material/Lock';
 
 interface AuthWrapperProps {
-    children: React.ReactNode;
+    children: React.ReactNode | ((logout: () => void) => React.ReactNode);
 }
 
 const STORAGE_KEY = 'researcher_auth_token';
@@ -134,7 +134,7 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
     // Render children with logout option
     return (
         <>
-            {children}
+            {typeof children === 'function' ? children(handleLogout) : children}
             {/* Hidden logout button - can be accessed via keyboard shortcut or added to UI */}
             <Box
                 sx={{

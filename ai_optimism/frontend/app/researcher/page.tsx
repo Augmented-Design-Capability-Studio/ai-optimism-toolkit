@@ -34,36 +34,38 @@ export default function ResearcherDashboard() {
 
   return (
     <AuthWrapper>
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        <DashboardHeader onRefresh={loadSessions} />
+      {(handleLogout) => (
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+          <DashboardHeader onRefresh={loadSessions} onLogout={handleLogout} />
 
-        <NewSessionAlert show={newSessionIds.size > 0} />
+          <NewSessionAlert show={newSessionIds.size > 0} />
 
-        {waitingCount > 0 && (
-          <Alert severity="info" sx={{ mb: 3 }}>
-            {waitingCount} session{waitingCount > 1 ? 's' : ''} waiting for your response
-          </Alert>
-        )}
+          {waitingCount > 0 && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              {waitingCount} session{waitingCount > 1 ? 's' : ''} waiting for your response
+            </Alert>
+          )}
 
-        <Box sx={{ display: 'flex', gap: 2, height: 'calc(100vh - 200px)' }}>
-          <SessionList
-            sessions={sessions}
-            selectedSession={selectedSession}
-            onSelectSession={setSelectedSession}
-            newSessionIds={newSessionIds}
-          />
+          <Box sx={{ display: 'flex', gap: 2, height: 'calc(100vh - 200px)' }}>
+            <SessionList
+              sessions={sessions}
+              selectedSession={selectedSession}
+              onSelectSession={setSelectedSession}
+              newSessionIds={newSessionIds}
+            />
 
-          <SessionDetail
-            session={selectedSession}
-            isFormalizingId={isFormalizingId}
-            onModeToggle={handleModeToggle}
-            onFormalize={handleFormalizeProblem}
-            onTerminate={handleTerminateSession}
-            onDelete={handleDeleteSession}
-            onSendMessage={handleSendMessage}
-          />
-        </Box>
-      </Container>
+            <SessionDetail
+              session={selectedSession}
+              isFormalizingId={isFormalizingId}
+              onModeToggle={handleModeToggle}
+              onFormalize={handleFormalizeProblem}
+              onTerminate={handleTerminateSession}
+              onDelete={handleDeleteSession}
+              onSendMessage={handleSendMessage}
+            />
+          </Box>
+        </Container>
+      )}
     </AuthWrapper>
   );
 }
