@@ -3,7 +3,6 @@
 import { ReactNode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CacheProvider } from '@emotion/react';
-import { AIProviderProvider } from '../src/contexts/AIProviderContext';
 import { BackendProvider } from '../src/contexts/BackendContext';
 import createEmotionCache from '../src/lib/emotionCache';
 
@@ -17,9 +16,7 @@ export default function Providers({ children }: { children: ReactNode }) {
     <CacheProvider value={clientSideEmotionCache}>
       <QueryClientProvider client={queryClient}>
         <BackendProvider>
-          <AIProviderProvider>
-            {children}
-          </AIProviderProvider>
+          {children}
         </BackendProvider>
       </QueryClientProvider>
     </CacheProvider>
