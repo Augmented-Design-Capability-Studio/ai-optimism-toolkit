@@ -64,7 +64,7 @@ export function SessionList({
                 <ListItemText
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                      {session.status === 'active' && (
+                      {Date.now() - session.lastActivity < 25000 && (
                         <FiberManualRecordIcon 
                           sx={{ 
                             fontSize: 12, 
@@ -75,6 +75,7 @@ export function SessionList({
                               '50%': { opacity: 0.5 },
                             },
                           }} 
+                          title="Client is connected (window/tab is open)"
                         />
                       )}
                       <Typography variant="body2">

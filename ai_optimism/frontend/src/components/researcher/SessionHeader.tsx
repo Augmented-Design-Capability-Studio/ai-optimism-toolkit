@@ -115,10 +115,13 @@ export function SessionHeader({
             }
           />
           <Chip
-            label={Date.now() - session.lastActivity < 30000 ? 'Active' : 'Inactive'}
+            label={Date.now() - session.lastActivity < 25000 ? 'Connected' : 'Disconnected'}
             size="small"
-            color={Date.now() - session.lastActivity < 30000 ? 'success' : 'default'}
-            variant={Date.now() - session.lastActivity < 30000 ? 'filled' : 'outlined'}
+            color={Date.now() - session.lastActivity < 25000 ? 'success' : 'default'}
+            variant={Date.now() - session.lastActivity < 25000 ? 'filled' : 'outlined'}
+            title={Date.now() - session.lastActivity < 25000 
+              ? 'Client window/tab is open and connected' 
+              : 'Client window/tab appears to be closed (no heartbeat received)'}
           />
         </Box>
       </Box>

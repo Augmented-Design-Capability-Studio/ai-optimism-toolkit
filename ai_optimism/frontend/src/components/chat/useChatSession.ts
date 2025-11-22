@@ -225,12 +225,20 @@ export function useChatSession() {
   }, [error, apiKey]);
 
   // Send periodic heartbeats to indicate client is active
+  // Heartbeats stop when window/tab is closed, allowing proper detection of disconnected clients
   useEffect(() => {
     if (!currentSession) return;
 
+    let heartbeatInterval: NodeJS.Timeout | null = null;
+    let isTabVisible = !document.hidden;
+
     const sendHeartbeat = async () => {
+      // Only send heartbeat if tab is visible (user is actually using the app)
+      // This ensures we properly detect when window/tab is closed
+      if (!isTabVisible) return;
+
       try {
-        await sessionManager.sendHeartbeat(currentSession.id);
+        await sessionManager.sendHeartbeat(currentSession!.id);
       } catch (error) {
         console.warn('[useChatSession] Heartbeat failed, session may be deleted:', error);
         // Try to create a new session
@@ -248,13 +256,41 @@ export function useChatSession() {
       }
     };
 
+    // Handle page visibility changes
+    const handleVisibilityChange = () => {
+      isTabVisible = !document.hidden;
+      // Send immediate heartbeat when tab becomes visible again
+      if (isTabVisible) {
+        sendHeartbeat();
+      }
+    };
+
     // Send initial heartbeat
     sendHeartbeat();
 
-    // Send heartbeat every 10 seconds
-    const heartbeatInterval = setInterval(sendHeartbeat, 10000);
+    // Send heartbeat every 10 seconds (only when tab is visible)
+    heartbeatInterval = setInterval(sendHeartbeat, 10000);
 
-    return () => clearInterval(heartbeatInterval);
+    // Listen for page visibility changes
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Send final heartbeat on page unload (best effort, not guaranteed)
+    const handleBeforeUnload = () => {
+      // Try to send one last heartbeat, but don't wait for it
+      // Note: This is best-effort only, as page unload handlers are not guaranteed to execute
+      sendHeartbeat().catch(() => {
+        // Ignore errors on unload
+      });
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, [currentSession, sessionManager]);
 
   // Save AI responses to session when they complete
