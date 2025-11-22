@@ -1,6 +1,7 @@
 'use client';
 
 import { Alert, Container, Box } from '@mui/material';
+import { useState } from 'react';
 import { useSessionManager } from '../../src/services/sessionManager';
 import {
   useResearcherSessions,
@@ -10,8 +11,10 @@ import {
   SessionDetail,
 } from '../../src/components/researcher';
 import { ResearcherAuthWrapper } from '../../src/components/researcher/ResearcherAuthWrapper';
+import { BackendSettings } from '../../src/components/BackendSettings';
 
 export default function ResearcherDashboard() {
+  const [backendSettingsOpen, setBackendSettingsOpen] = useState(false);
   const sessionManager = useSessionManager();
   const {
     sessions,
@@ -59,6 +62,7 @@ export default function ResearcherDashboard() {
             onRefresh={loadSessions} 
             onLogout={handleLogout}
             onClearAll={handleClearAll}
+            onBackendSettings={() => setBackendSettingsOpen(true)}
           />
 
           <NewSessionAlert show={newSessionIds.size > 0} />
@@ -87,6 +91,11 @@ export default function ResearcherDashboard() {
               onSendMessage={handleSendMessage}
             />
           </Box>
+          
+          <BackendSettings 
+            open={backendSettingsOpen} 
+            onClose={() => setBackendSettingsOpen(false)} 
+          />
         </Container>
       )}
     </ResearcherAuthWrapper>

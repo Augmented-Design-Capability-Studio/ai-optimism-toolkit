@@ -12,9 +12,10 @@ interface DashboardHeaderProps {
   onRefresh: () => void;
   onLogout?: () => void;
   onClearAll?: () => void;
+  onBackendSettings?: () => void;
 }
 
-export function DashboardHeader({ onRefresh, onLogout, onClearAll }: DashboardHeaderProps) {
+export function DashboardHeader({ onRefresh, onLogout, onClearAll, onBackendSettings }: DashboardHeaderProps) {
   return (
     <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <Box>
@@ -26,7 +27,7 @@ export function DashboardHeader({ onRefresh, onLogout, onClearAll }: DashboardHe
         </Typography>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <BackendStatusIndicator />
+        <BackendStatusIndicator onClick={onBackendSettings} />
         <Button
           variant="outlined"
           startIcon={<RefreshIcon />}
