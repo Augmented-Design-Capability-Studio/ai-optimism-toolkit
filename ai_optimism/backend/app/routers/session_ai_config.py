@@ -119,6 +119,36 @@ async def set_ai_config(
     )
 
 
+@router.get("/key")
+async def get_ai_config_key(session_id: str, db: DBSession = Depends(get_session)):
+    """Get decrypted API key for a session (for client-side AI connection)"""
+    session = db.get(Session, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    ai_config = db.exec(
+        select(AISessionConfig).where(AISessionConfig.sessionId == session_id)
+    ).first()
+    
+    if not ai_config:
+        raise HTTPException(status_code=404, detail="AI config not found for this session")
+    
+    # Decrypt the API key
+    try:
+        api_key = decrypt_api_key(ai_config.api_key_encrypted)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to decrypt API key: {str(e)}")
+    
+    # Return decrypted API key with provider and model info
+    return {
+        "apiKey": api_key,
+        "provider": ai_config.provider,
+        "model": ai_config.model,
+        "endpoint": ai_config.endpoint,
+        "status": ai_config.status,
+    }
+
+
 @router.post("/validate")
 async def validate_ai_config(session_id: str, db: DBSession = Depends(get_session)):
     """Validate the stored API key for a session"""

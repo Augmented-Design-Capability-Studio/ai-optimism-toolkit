@@ -4,15 +4,18 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useSessionManager, Session, SessionMode, Message } from '../../services/sessionManager';
-import { useAIProvider } from '../../contexts/AIProviderContext';
 import { useBackend } from '../../contexts/BackendContext';
 import { executeFormalization, detectFormalizationReadiness } from '../../services/formalizationHelper';
+import { getAIConfigKey } from '../../services/sessionAIConfig';
 
 export function useChatSession() {
-  const { state } = useAIProvider();
-  const { apiKey, provider, model } = state;
   const { state: backendState } = useBackend();
   const sessionManager = useSessionManager();
+  
+  // Session-specific AI config (loaded from backend)
+  const [sessionApiKey, setSessionApiKey] = useState<string>('');
+  const [sessionProvider, setSessionProvider] = useState<string>('google');
+  const [sessionModel, setSessionModel] = useState<string>('gemini-2.0-flash');
 
   const [input, setInput] = useState('');
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
@@ -27,13 +30,13 @@ export function useChatSession() {
 
   // Clear any stale chat state from previous sessions when no API key is present
   useEffect(() => {
-    if (!apiKey && typeof window !== 'undefined') {
+    if (!sessionApiKey && typeof window !== 'undefined') {
       const keysToRemove = Object.keys(localStorage).filter(key =>
         key.startsWith('chat-') || key.includes('optimization-chat')
       );
       keysToRemove.forEach(key => localStorage.removeItem(key));
     }
-  }, [apiKey]);
+  }, [sessionApiKey]);
 
   // Helper to show termination notification
   const showTerminationNotification = () => {
@@ -115,12 +118,48 @@ export function useChatSession() {
 
         // If no session from URL or session not found, get current session
         if (!session) {
-          try {
-            session = await sessionManager.getCurrentSession();
-          } catch (error: any) {
-            // Network error getting session - will create new one below
-            console.warn('[useChatSession] Error getting current session, will create new one:', error);
-            session = null;
+          // First, check localStorage synchronously (works better on mobile)
+          const localStorageSessionId = typeof window !== 'undefined' 
+            ? localStorage.getItem('wizard_current_session') 
+            : null;
+          
+          if (localStorageSessionId) {
+            console.log('[useChatSession] Found session ID in localStorage:', localStorageSessionId);
+            try {
+              // Try to load the session from backend
+              session = await sessionManager.getSession(localStorageSessionId);
+              if (session && session.status !== 'completed') {
+                console.log('[useChatSession] Successfully restored session from localStorage:', session.id);
+                // Ensure it's set as current session
+                sessionManager.setCurrentSession(session.id);
+              } else if (session?.status === 'completed') {
+                console.log('[useChatSession] Session in localStorage is completed, will create new one');
+                session = null;
+                // Clear the completed session ID
+                sessionManager.setCurrentSession(null);
+              } else {
+                console.warn('[useChatSession] Session from localStorage not found on backend:', localStorageSessionId);
+                session = null;
+              }
+            } catch (error: any) {
+              // Network error - keep the session ID and try again later
+              console.warn('[useChatSession] Network error loading session from localStorage, will retry:', error);
+              // Don't clear localStorage - keep the session ID for retry
+              session = null;
+            }
+          }
+          
+          // If still no session, try getCurrentSession (fallback)
+          if (!session) {
+            try {
+              session = await sessionManager.getCurrentSession();
+              if (session) {
+                console.log('[useChatSession] Loaded session via getCurrentSession:', session.id);
+              }
+            } catch (error: any) {
+              console.warn('[useChatSession] Error getting current session:', error);
+              session = null;
+            }
           }
         }
 
@@ -128,24 +167,13 @@ export function useChatSession() {
         if (!session || session.status === 'completed') {
           if (session?.status === 'completed') {
             showTerminationNotification();
+            // Clear completed session from localStorage
+            sessionManager.setCurrentSession(null);
           }
           
-          // Final check before creating: check localStorage synchronously one more time
-          // This catches cases where another instance just created a session
-          const localStorageCheck = typeof window !== 'undefined' 
-            ? localStorage.getItem('wizard_current_session') 
-            : null;
-          
-          if (localStorageCheck) {
-            const existingSession = await sessionManager.getSession(localStorageCheck);
-            if (existingSession && existingSession.status !== 'completed') {
-              console.log('[useChatSession] Found existing session in localStorage (prevented duplicate):', existingSession.id);
-              session = existingSession;
-            }
-          }
-          
-          // Only create if we still don't have a valid session
+          // Only create new session if we truly don't have one
           if (!session || session.status === 'completed') {
+            console.log('[useChatSession] No valid session found, creating new one');
             // Create session in experimental mode so researchers can always see it
             session = await sessionManager.createSession('experimental');
             // Explicitly ensure new session starts fresh
@@ -185,17 +213,54 @@ export function useChatSession() {
     };
   }, []);
 
-  // Create transport with body containing API key, provider, and model
+  // Reload session AI config when session changes and poll for updates
+  useEffect(() => {
+    if (!currentSession?.id) {
+      setSessionApiKey('');
+      setSessionProvider('google');
+      setSessionModel('gemini-2.0-flash');
+      return;
+    }
+
+    const loadSessionAIConfig = async () => {
+      try {
+        const aiConfig = await getAIConfigKey(currentSession.id);
+        if (aiConfig) {
+          setSessionApiKey(aiConfig.apiKey);
+          setSessionProvider(aiConfig.provider);
+          setSessionModel(aiConfig.model);
+          console.log('[useChatSession] Loaded session AI config:', aiConfig.provider, aiConfig.model);
+        } else {
+          setSessionApiKey('');
+          setSessionProvider('google');
+          setSessionModel('gemini-2.0-flash');
+        }
+      } catch (error) {
+        console.warn('[useChatSession] Failed to load session AI config:', error);
+        setSessionApiKey('');
+      }
+    };
+
+    // Load immediately
+    loadSessionAIConfig();
+
+    // Poll for updates every 5 seconds (in case researcher pushes new API key)
+    const interval = setInterval(loadSessionAIConfig, 5000);
+
+    return () => clearInterval(interval);
+  }, [currentSession?.id]);
+
+  // Create transport with body containing API key, provider, and model from session config
   const transport = useMemo(() => {
     return new DefaultChatTransport({
       api: '/api/chat',
       body: {
-        apiKey: apiKey || '',
-        provider: provider || 'google',
-        model: model || 'gemini-2.0-flash',
+        apiKey: sessionApiKey || '',
+        provider: sessionProvider || 'google',
+        model: sessionModel || 'gemini-2.0-flash',
       },
     });
-  }, [apiKey, provider, model]);
+  }, [sessionApiKey, sessionProvider, sessionModel]);
 
   // Use session ID as chat ID, but include mode to force reset when mode changes
   const chatId = currentSession ? `chat-${currentSession.id}-${mode}` : 'chat-disconnected';
@@ -209,7 +274,7 @@ export function useChatSession() {
 
   // Initialize AI greeting for new AI-mode sessions
   useEffect(() => {
-    if (!currentSession || !apiKey || isResearcherControlled) return;
+    if (!currentSession || !sessionApiKey || isResearcherControlled) return;
 
     // Check if session has no messages and useChat has no messages (new session)
     const sessionMessages = Array.isArray(currentSession.messages) ? currentSession.messages : [];
@@ -233,14 +298,14 @@ export function useChatSession() {
         });
       }
     }
-  }, [currentSession?.id, currentSession?.mode, apiKey, isResearcherControlled, messages.length, isLoading]);
+  }, [currentSession?.id, currentSession?.mode, sessionApiKey, isResearcherControlled, messages.length, isLoading]);
 
   // Log errors (but suppress API key errors when not connected)
   useEffect(() => {
-    if (error && apiKey) {
+    if (error && sessionApiKey) {
       console.error('[ChatPanel] Chat error:', error);
     }
-  }, [error, apiKey]);
+  }, [error, sessionApiKey]);
 
   // Send periodic heartbeats to indicate client is active
   // Heartbeats stop when window/tab is closed, allowing proper detection of disconnected clients
@@ -457,7 +522,7 @@ export function useChatSession() {
       }
 
       // If in AI mode (not researcher-controlled), also send to AI
-      if (!isResearcherControlled && apiKey) {
+      if (!isResearcherControlled && sessionApiKey) {
         const userMessage = input;
         setInput('');
 
@@ -518,13 +583,13 @@ export function useChatSession() {
 
   // Formalize problem from user side
   const formalizeProblem = async () => {
-    if (!currentSession || !apiKey) return;
+    if (!currentSession || !sessionApiKey) return;
 
     try {
       await executeFormalization({
         sessionId: currentSession.id,
-        apiKey,
-        model: model || 'gemini-2.0-flash',
+        apiKey: sessionApiKey,
+        model: sessionModel || 'gemini-2.0-flash',
         messages: currentSession.messages,
         sessionManager,
       });
@@ -555,9 +620,9 @@ export function useChatSession() {
     isLoading: isAILoading,
     isWaitingForResearcher,
     sessionTerminated,
-    apiKey,
-    provider,
-    model,
+    apiKey: sessionApiKey,
+    provider: sessionProvider,
+    model: sessionModel,
 
     // Actions
     handleSubmit,

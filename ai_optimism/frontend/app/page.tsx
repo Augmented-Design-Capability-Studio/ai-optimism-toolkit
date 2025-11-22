@@ -5,12 +5,11 @@ import { ChatPanel } from '../src/components/ChatPanel';
 import { ControlsPanel } from '../src/components/ControlsPanel';
 import { VisualizationPanel } from '../src/components/VisualizationPanel';
 import { OptimizationPanel } from '../src/components/OptimizationPanel';
-import { AIConnectionStatus } from '../src/components/AIConnectionStatus';
+import { SessionAIConnectionStatus } from '../src/components/SessionAIConnectionStatus';
 import { BackendStatusIndicator } from '../src/components/BackendStatusIndicator';
 import { BackendSettings } from '../src/components/BackendSettings';
 import { ClientAuthWrapper } from '../src/components/ClientAuthWrapper';
 import { useState, useEffect } from 'react';
-import { useAIProvider } from '../src/contexts/AIProviderContext';
 import { useSessionManager, Session } from '../src/services/sessionManager';
 
 export default function HomePage() {
@@ -19,8 +18,6 @@ export default function HomePage() {
   const [optimizationData, setOptimizationData] = useState<unknown>(null);
   const [backendSettingsOpen, setBackendSettingsOpen] = useState(false);
 
-  const { state } = useAIProvider();
-  const { apiKey } = state;
   const sessionManager = useSessionManager();
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
 
@@ -76,7 +73,9 @@ export default function HomePage() {
             <Toolbar>
 
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5, py: 1 }}>
-                <AIConnectionStatus />
+                {currentSession && (
+                  <SessionAIConnectionStatus sessionId={currentSession.id} />
+                )}
                 <BackendStatusIndicator onClick={() => setBackendSettingsOpen(true)} />
               </Box>
               <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
@@ -177,7 +176,7 @@ export default function HomePage() {
               >
                 {/* Panel 1: Chat */}
                 <Box sx={{ height: '100%', overflow: 'hidden' }}>
-                  <ChatPanel key={apiKey} onControlsGenerated={handleControlsGenerated} />
+                  <ChatPanel key={currentSession?.id || 'no-session'} onControlsGenerated={handleControlsGenerated} />
                 </Box>
 
                 {/* Panel 2: Controls */}
