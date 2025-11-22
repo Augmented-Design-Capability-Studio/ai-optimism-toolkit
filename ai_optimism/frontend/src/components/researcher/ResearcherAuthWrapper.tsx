@@ -135,25 +135,6 @@ export function ResearcherAuthWrapper({ children }: AuthWrapperProps) {
     return (
         <>
             {typeof children === 'function' ? children(handleLogout) : children}
-            {/* Hidden logout button - can be accessed via keyboard shortcut or added to UI */}
-            <Box
-                sx={{
-                    position: 'fixed',
-                    bottom: 16,
-                    right: 16,
-                    opacity: 0.3,
-                    '&:hover': { opacity: 1 },
-                }}
-            >
-                <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={handleLogout}
-                    sx={{ fontSize: '0.7rem' }}
-                >
-                    Logout
-                </Button>
-            </Box>
         </>
     );
 }
