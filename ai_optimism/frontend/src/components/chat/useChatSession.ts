@@ -5,11 +5,13 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useSessionManager, Session, SessionMode, Message } from '../../services/sessionManager';
 import { useAIProvider } from '../../contexts/AIProviderContext';
+import { useBackend } from '../../contexts/BackendContext';
 import { executeFormalization, detectFormalizationReadiness } from '../../services/formalizationHelper';
 
 export function useChatSession() {
   const { state } = useAIProvider();
   const { apiKey, provider, model } = state;
+  const { state: backendState } = useBackend();
   const sessionManager = useSessionManager();
 
   const [input, setInput] = useState('');
@@ -90,6 +92,7 @@ export function useChatSession() {
       
       isInitializingRef.current = true;
       console.log('[useChatSession] initializeSession called');
+      console.log('[useChatSession] Backend URL:', backendState.backendUrl);
 
       try {
         // Check for session parameter in URL
@@ -112,7 +115,13 @@ export function useChatSession() {
 
         // If no session from URL or session not found, get current session
         if (!session) {
-          session = await sessionManager.getCurrentSession();
+          try {
+            session = await sessionManager.getCurrentSession();
+          } catch (error: any) {
+            // Network error getting session - will create new one below
+            console.warn('[useChatSession] Error getting current session, will create new one:', error);
+            session = null;
+          }
         }
 
         // Always ensure there's a session
@@ -143,6 +152,15 @@ export function useChatSession() {
             await sessionManager.updateSession(session.id, { status: 'active' });
             console.log('[useChatSession] Created new experimental session:', session.id);
           }
+        }
+
+        // Validate session has an id before setting it
+        if (!session || !session.id) {
+          console.error('[useChatSession] Invalid session object (missing id):', session);
+          // Create a new session as fallback
+          session = await sessionManager.createSession('experimental');
+          await sessionManager.updateSession(session.id, { status: 'active' });
+          console.log('[useChatSession] Created fallback session:', session.id);
         }
 
         setCurrentSession(session);
@@ -395,7 +413,23 @@ export function useChatSession() {
   // Handle message submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !currentSession) return;
+    if (!input.trim() || !currentSession || !currentSession.id) {
+      if (!currentSession) {
+        console.warn('[useChatSession] Cannot submit: no current session');
+      } else if (!currentSession.id) {
+        console.error('[useChatSession] Cannot submit: currentSession exists but has no id:', currentSession);
+        // Try to reinitialize the session
+        const newSession = await sessionManager.createSession('experimental');
+        await sessionManager.updateSession(newSession.id, { status: 'active' });
+        setCurrentSession(newSession);
+        subscribeToCurrentSession(newSession.id);
+        // Retry with new session
+        await sessionManager.addMessage(newSession.id, 'user', input);
+        setInput('');
+        return;
+      }
+      return;
+    }
 
     try {
       // Always save user message to session

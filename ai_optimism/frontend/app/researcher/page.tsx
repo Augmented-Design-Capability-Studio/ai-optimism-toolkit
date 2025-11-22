@@ -35,11 +35,31 @@ export default function ResearcherDashboard() {
     await loadSessions();
   };
 
+  // Handle clear all sessions
+  const handleClearAll = async () => {
+    if (!confirm('Are you sure you want to delete ALL sessions? This cannot be undone.')) {
+      return;
+    }
+    
+    const success = await sessionManager.clearAllSessions();
+    if (success) {
+      setSelectedSession(null);
+      await loadSessions();
+      alert('All sessions have been cleared.');
+    } else {
+      alert('Failed to clear sessions. Please check the console for details.');
+    }
+  };
+
   return (
     <ResearcherAuthWrapper>
       {(handleLogout) => (
         <Container maxWidth="xl" sx={{ py: 4 }}>
-          <DashboardHeader onRefresh={loadSessions} onLogout={handleLogout} />
+          <DashboardHeader 
+            onRefresh={loadSessions} 
+            onLogout={handleLogout}
+            onClearAll={handleClearAll}
+          />
 
           <NewSessionAlert show={newSessionIds.size > 0} />
 

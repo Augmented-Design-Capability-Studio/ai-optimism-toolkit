@@ -5,14 +5,16 @@
 import { Box, Typography, Button } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import LogoutIcon from '@mui/icons-material/Logout';
+import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import { BackendStatusIndicator } from '../BackendStatusIndicator';
 
 interface DashboardHeaderProps {
   onRefresh: () => void;
   onLogout?: () => void;
+  onClearAll?: () => void;
 }
 
-export function DashboardHeader({ onRefresh, onLogout }: DashboardHeaderProps) {
+export function DashboardHeader({ onRefresh, onLogout, onClearAll }: DashboardHeaderProps) {
   return (
     <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <Box>
@@ -32,6 +34,16 @@ export function DashboardHeader({ onRefresh, onLogout }: DashboardHeaderProps) {
         >
           Refresh
         </Button>
+        {onClearAll && (
+          <Button
+            variant="outlined"
+            color="warning"
+            startIcon={<DeleteSweepIcon />}
+            onClick={onClearAll}
+          >
+            Clear All
+          </Button>
+        )}
         {onLogout && (
           <Button
             variant="outlined"

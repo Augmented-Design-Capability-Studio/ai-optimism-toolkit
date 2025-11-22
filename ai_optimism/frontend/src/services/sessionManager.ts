@@ -50,6 +50,8 @@ class SessionManager {
       baseURL: `${backendUrl}/api`,
       headers: {
         'Content-Type': 'application/json',
+        // Bypass ngrok warning page for free domains
+        'ngrok-skip-browser-warning': 'true',
       },
     });
   }
@@ -69,9 +71,52 @@ class SessionManager {
   async getSession(sessionId: string): Promise<Session | null> {
     try {
       const response = await this.client.get(`/sessions/${sessionId}`);
-      return response.data;
+      
+      // Check if response is HTML (ngrok warning page)
+      const contentType = response.headers['content-type'] || '';
+      const data = response.data;
+      
+      if (typeof data === 'string' && data.includes('<!DOCTYPE html>')) {
+        const backendUrl = this.client.defaults.baseURL?.replace('/api', '') || 'unknown';
+        console.error('[SessionManager] Received HTML instead of JSON - ngrok warning page detected');
+        console.error('[SessionManager] Please visit the backend URL in your browser first to accept the warning:');
+        console.error('[SessionManager]', backendUrl);
+        throw new Error(`ngrok_warning_page: Please visit ${backendUrl} in your browser to accept the ngrok warning page first`);
+      }
+      
+      const session = data;
+      if (!session || !session.id) {
+        console.error('[SessionManager] Session response missing id:', session);
+        return null;
+      }
+      return session;
     } catch (error: any) {
-      if (error.response?.status === 404) return null;
+      if (error.message?.includes('ngrok_warning_page')) {
+        throw error; // Re-throw ngrok warning page errors
+      }
+      
+      if (error.response?.status === 404) {
+        console.log('[SessionManager] Session not found (404):', sessionId);
+        return null;
+      }
+      
+      // Check if response data is HTML
+      if (error.response?.data && typeof error.response.data === 'string' && error.response.data.includes('<!DOCTYPE html>')) {
+        const backendUrl = this.client.defaults.baseURL?.replace('/api', '') || 'unknown';
+        console.error('[SessionManager] ngrok warning page detected in error response');
+        console.error('[SessionManager] Please visit the backend URL in your browser first:', backendUrl);
+        throw new Error(`ngrok_warning_page: Please visit ${backendUrl} in your browser to accept the ngrok warning page first`);
+      }
+      
+      // Network errors - provide helpful message
+      if (error.code === 'ERR_NETWORK' || error.message === 'Network Error' || !error.response) {
+        const backendUrl = this.client.defaults.baseURL?.replace('/api', '') || 'unknown';
+        console.error('[SessionManager] Network error getting session:', sessionId);
+        console.error('[SessionManager] Backend URL:', backendUrl);
+        console.error('[SessionManager] Error:', error.message || error.code);
+        throw error; // Re-throw so caller can handle it
+      }
+      
       console.error('[SessionManager] Failed to get session:', error);
       return null;
     }
@@ -81,7 +126,21 @@ class SessionManager {
   async createSession(mode: SessionMode, userId: string = 'default-user', researcherId?: string): Promise<Session> {
     try {
       const response = await this.client.post('/sessions/', { mode, userId, researcherId });
-      const session = response.data;
+      
+      // Check if response is HTML (ngrok warning page)
+      const data = response.data;
+      if (typeof data === 'string' && data.includes('<!DOCTYPE html>')) {
+        const backendUrl = this.client.defaults.baseURL?.replace('/api', '') || 'unknown';
+        console.error('[SessionManager] Received HTML instead of JSON - ngrok warning page detected');
+        console.error('[SessionManager] Please visit the backend URL in your browser first:', backendUrl);
+        throw new Error(`ngrok_warning_page: Please visit ${backendUrl} in your browser to accept the ngrok warning page first`);
+      }
+      
+      const session = data;
+      if (!session || !session.id) {
+        console.error('[SessionManager] Created session missing id:', session);
+        throw new Error('Session creation failed: response missing id');
+      }
 
       // Set as current session
       this.setCurrentSession(session.id);
@@ -167,10 +226,19 @@ class SessionManager {
     metadata?: Message['metadata']
   ): Promise<Message | null> {
     try {
-      const response = await this.client.post(`/sessions/${sessionId}/messages`, { sender, content, metadata });
+      const url = `/sessions/${sessionId}/messages`;
+      const fullUrl = `${this.client.defaults.baseURL}${url}`;
+      console.log('[SessionManager] Adding message to:', fullUrl);
+      const response = await this.client.post(url, { sender, content, metadata });
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
+      const fullUrl = `${this.client.defaults.baseURL}/sessions/${sessionId}/messages`;
       console.error('[SessionManager] Failed to add message:', error);
+      console.error('[SessionManager] Request URL was:', fullUrl);
+      if (error.response) {
+        console.error('[SessionManager] Response status:', error.response.status);
+        console.error('[SessionManager] Response data:', error.response.data);
+      }
       return null;
     }
   }
@@ -210,8 +278,22 @@ class SessionManager {
     if (typeof window === 'undefined') return null;
     const sessionId = localStorage.getItem(this.CURRENT_SESSION_KEY);
     if (sessionId) {
-      const session = await this.getSession(sessionId);
-      return session;
+      try {
+        const session = await this.getSession(sessionId);
+        // If session not found or network error, clear the stale sessionId
+        if (!session) {
+          console.warn('[SessionManager] Stale sessionId in localStorage, clearing:', sessionId);
+          this.setCurrentSession(null);
+        }
+        return session;
+      } catch (error: any) {
+        // Network error or other issue - clear stale sessionId
+        if (error.code === 'ERR_NETWORK' || error.message === 'Network Error' || !error.response) {
+          console.warn('[SessionManager] Network error getting session, clearing stale sessionId:', sessionId);
+          this.setCurrentSession(null);
+        }
+        return null;
+      }
     }
     return null;
   }
@@ -250,13 +332,19 @@ class SessionManager {
     }
   }
 
-  // Clear all sessions (for testing)
-  async clearAllSessions(): Promise<void> {
+  // Clear all sessions (for testing/cleanup)
+  async clearAllSessions(): Promise<boolean> {
     try {
-      await this.client.delete('/sessions/clear/');
+      const response = await this.client.delete('/sessions/clear/');
       this.setCurrentSession(null);
-    } catch (error) {
+      console.log('[SessionManager] All sessions cleared:', response.data);
+      return true;
+    } catch (error: any) {
       console.error('[SessionManager] Failed to clear sessions:', error);
+      if (error.response?.data) {
+        console.error('[SessionManager] Error details:', error.response.data);
+      }
+      return false;
     }
   }
 
