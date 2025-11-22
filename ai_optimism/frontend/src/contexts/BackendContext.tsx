@@ -60,12 +60,21 @@ const getBackendApi = (url: string) => ({
 });
 
 export const BackendProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [backendUrl, setBackendUrlState] = useState<string>('http://localhost:8000');
+    // Get initial URL from env var, with fallback to localhost
+    const getInitialBackendUrl = () => {
+        // Check environment variable first (available in Next.js client)
+        if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_BACKEND_URL) {
+            return process.env.NEXT_PUBLIC_BACKEND_URL;
+        }
+        return 'http://localhost:8000';
+    };
+
+    const [backendUrl, setBackendUrlState] = useState<string>(getInitialBackendUrl());
 
     // Load saved configuration from localStorage and URL params on mount
     useEffect(() => {
         const loadConfig = () => {
-            // Check URL params first
+            // Priority 1: Check URL params (highest priority for runtime override)
             const urlParams = new URLSearchParams(window.location.search);
             const backendParam = urlParams.get('backend');
 
@@ -76,12 +85,25 @@ export const BackendProvider: React.FC<{ children: ReactNode }> = ({ children })
                 return;
             }
 
-            // Fall back to localStorage
+            // Priority 2: Check environment variable
+            const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+            if (envUrl) {
+                setBackendUrlState(envUrl);
+                localStorage.setItem(STORAGE_KEY, envUrl);
+                console.log('[Backend] Set URL from environment variable:', envUrl);
+                return;
+            }
+
+            // Priority 3: Fall back to localStorage
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 setBackendUrlState(saved);
                 console.log('[Backend] Restored URL from localStorage:', saved);
+                return;
             }
+
+            // Priority 4: Use default (already set in initial state)
+            console.log('[Backend] Using default URL:', getInitialBackendUrl());
         };
 
         loadConfig();

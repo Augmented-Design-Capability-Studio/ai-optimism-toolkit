@@ -7,12 +7,26 @@ import type { AIProvider } from './ai';
 
 // Create API client function that uses backend URL
 const getApiClient = () => {
-  // Get backend URL from context or use default
-  // Note: This is a workaround - ideally we'd use a hook, but services can't use hooks
-  // So we'll get the backend URL from localStorage or use default
-  const backendUrl = typeof window !== 'undefined' 
-    ? (localStorage.getItem('backend_config') || 'http://localhost:8000')
-    : 'http://localhost:8000';
+  // Priority order:
+  // 1. Environment variable (NEXT_PUBLIC_BACKEND_URL)
+  // 2. localStorage (user-configured)
+  // 3. Default localhost
+  
+  let backendUrl = 'http://localhost:8000';
+  
+  if (typeof window !== 'undefined') {
+    // Check environment variable first
+    if (process.env.NEXT_PUBLIC_BACKEND_URL) {
+      backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+    } 
+    // Fall back to localStorage
+    else {
+      const saved = localStorage.getItem('backend_config');
+      if (saved) {
+        backendUrl = saved;
+      }
+    }
+  }
   
   return axios.create({
     baseURL: `${backendUrl}/api`,
