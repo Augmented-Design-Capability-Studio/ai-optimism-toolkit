@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useSessionManager, Session, SessionMode, Message } from '../../services/sessionManager';
@@ -15,6 +15,9 @@ export function useChatSession() {
   const [input, setInput] = useState('');
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const [sessionTerminated, setSessionTerminated] = useState(false);
+  
+  // Ref to track if initialization is in progress to prevent duplicate session creation
+  const isInitializingRef = useRef(false);
 
   // Determine current mode from session
   const mode: SessionMode = currentSession?.mode || 'ai';
@@ -79,54 +82,79 @@ export function useChatSession() {
   // Initialize or load session on mount
   useEffect(() => {
     const initializeSession = async () => {
+      // Prevent duplicate initialization (React StrictMode runs effects twice)
+      if (isInitializingRef.current) {
+        console.log('[useChatSession] Initialization already in progress, skipping...');
+        return;
+      }
+      
+      isInitializingRef.current = true;
       console.log('[useChatSession] initializeSession called');
 
-      // Check for session parameter in URL
-      const urlParams = new URLSearchParams(window.location.search);
-      const sessionParam = urlParams.get('session');
+      try {
+        // Check for session parameter in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionParam = urlParams.get('session');
 
-      let session;
+        let session;
 
-      if (sessionParam) {
-        // Try to load the specified session
-        session = await sessionManager.getSession(sessionParam);
-        if (session) {
-          console.log('[useChatSession] Loaded session from URL parameter:', session.id);
-          // Set as current session
-          sessionManager.setCurrentSession(session.id);
-        } else {
-          console.warn('[useChatSession] Session from URL parameter not found:', sessionParam);
+        if (sessionParam) {
+          // Try to load the specified session
+          session = await sessionManager.getSession(sessionParam);
+          if (session) {
+            console.log('[useChatSession] Loaded session from URL parameter:', session.id);
+            // Set as current session
+            sessionManager.setCurrentSession(session.id);
+          } else {
+            console.warn('[useChatSession] Session from URL parameter not found:', sessionParam);
+          }
         }
-      }
 
-      // If no session from URL or session not found, get current session
-      if (!session) {
-        session = await sessionManager.getCurrentSession();
-      }
-
-      // Always ensure there's a session
-      if (!session || session.status === 'completed') {
-        if (session?.status === 'completed') {
-          showTerminationNotification();
+        // If no session from URL or session not found, get current session
+        if (!session) {
+          session = await sessionManager.getCurrentSession();
         }
-        // Create session in experimental mode so researchers can always see it
-        session = await sessionManager.createSession('experimental');
-        // Explicitly ensure new session starts fresh
-        await sessionManager.updateSession(session.id, { status: 'active' });
-        console.log('[useChatSession] Created new experimental session:', session.id);
-      }
 
-      setCurrentSession(session);
-
-      // Subscribe to session updates
-      subscribeToCurrentSession(session.id);
-
-      // Return cleanup function
-      return () => {
-        if (currentUnsubscribe) {
-          currentUnsubscribe();
+        // Always ensure there's a session
+        if (!session || session.status === 'completed') {
+          if (session?.status === 'completed') {
+            showTerminationNotification();
+          }
+          
+          // Final check before creating: check localStorage synchronously one more time
+          // This catches cases where another instance just created a session
+          const localStorageCheck = typeof window !== 'undefined' 
+            ? localStorage.getItem('wizard_current_session') 
+            : null;
+          
+          if (localStorageCheck) {
+            const existingSession = await sessionManager.getSession(localStorageCheck);
+            if (existingSession && existingSession.status !== 'completed') {
+              console.log('[useChatSession] Found existing session in localStorage (prevented duplicate):', existingSession.id);
+              session = existingSession;
+            }
+          }
+          
+          // Only create if we still don't have a valid session
+          if (!session || session.status === 'completed') {
+            // Create session in experimental mode so researchers can always see it
+            session = await sessionManager.createSession('experimental');
+            // Explicitly ensure new session starts fresh
+            await sessionManager.updateSession(session.id, { status: 'active' });
+            console.log('[useChatSession] Created new experimental session:', session.id);
+          }
         }
-      };
+
+        setCurrentSession(session);
+
+        // Subscribe to session updates
+        subscribeToCurrentSession(session.id);
+      } finally {
+        // Reset the flag after initialization completes
+        setTimeout(() => {
+          isInitializingRef.current = false;
+        }, 100);
+      }
     };
 
     initializeSession();
