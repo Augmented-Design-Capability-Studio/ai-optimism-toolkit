@@ -11,6 +11,7 @@ import {
   ListItemButton,
   ListItemText,
   Chip,
+  Tooltip,
 } from '@mui/material';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import { Session } from '../../services/sessionManager';
@@ -65,18 +66,19 @@ export function SessionList({
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                       {Date.now() - session.lastActivity < 25000 && (
-                        <FiberManualRecordIcon 
-                          sx={{ 
-                            fontSize: 12, 
-                            color: 'success.main',
-                            animation: 'pulse 2s infinite',
-                            '@keyframes pulse': {
-                              '0%, 100%': { opacity: 1 },
-                              '50%': { opacity: 0.5 },
-                            },
-                          }} 
-                          title="Client is connected (window/tab is open)"
-                        />
+                        <Tooltip title="Client is connected (window/tab is open)" arrow>
+                          <FiberManualRecordIcon 
+                            sx={{ 
+                              fontSize: 12, 
+                              color: 'success.main',
+                              animation: 'pulse 2s infinite',
+                              '@keyframes pulse': {
+                                '0%, 100%': { opacity: 1 },
+                                '50%': { opacity: 0.5 },
+                              },
+                            }} 
+                          />
+                        </Tooltip>
                       )}
                       <Typography variant="body2">
                         Session {session.id.slice(-8)}
