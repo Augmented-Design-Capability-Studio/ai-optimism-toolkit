@@ -135,3 +135,12 @@ ai_optimism/frontend/.next/
 
 # Allow frontend lib directory
 !ai_optimism/frontend/src/lib/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Encryption keys (sensitive)
+.encryption_key
+**/.encryption_key
