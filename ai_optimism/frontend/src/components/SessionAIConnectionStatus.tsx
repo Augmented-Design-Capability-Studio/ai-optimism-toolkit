@@ -246,8 +246,9 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
                                 value={provider}
                                 label="Provider"
                                 onChange={(e) => {
-                                    setProvider(e.target.value as AIProvider);
-                                    const providerInfo = staticProviders[e.target.value as AIProvider];
+                                    const newProvider = e.target.value as AIProvider;
+                                    setProvider(newProvider);
+                                    const providerInfo = staticProviders[newProvider as keyof typeof staticProviders];
                                     if (providerInfo?.models.length > 0) {
                                         setModel(providerInfo.models[0]);
                                     }
@@ -266,7 +267,7 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
                                 label="Model"
                                 onChange={(e) => setModel(e.target.value)}
                             >
-                                {staticProviders[provider]?.models.map((m: string) => (
+                                {staticProviders[provider as keyof typeof staticProviders]?.models.map((m: string) => (
                                     <MenuItem key={m} value={m}>{m}</MenuItem>
                                 ))}
                             </Select>
@@ -278,7 +279,7 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
                             type={showApiKey ? 'text' : 'password'}
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
-                            placeholder={`Enter your ${staticProviders[provider]?.name || 'API'} key`}
+                            placeholder={`Enter your ${staticProviders[provider as keyof typeof staticProviders]?.name || 'API'} key`}
                             InputProps={{
                                 endAdornment: (
                                     <InputAdornment position="end">
