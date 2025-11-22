@@ -78,6 +78,15 @@ class CreateSessionRequest(SQLModel):
     userId: Optional[str] = "default-user"
     researcherId: Optional[str] = None
 
+class MessageUpdateItem(BaseModel):
+    """Simplified message model for updates (avoids SQLModel MetaData class issues)"""
+    id: str
+    sessionId: str
+    sender: str
+    content: str
+    timestamp: int
+    metadata: Optional[Dict[str, Any]] = None
+
 class UpdateSessionRequest(SQLModel):
     mode: Optional[str] = None
     status: Optional[str] = None
@@ -85,7 +94,7 @@ class UpdateSessionRequest(SQLModel):
     isResearcherTyping: Optional[bool] = None
     isAIResponding: Optional[bool] = None
     readyToFormalize: Optional[bool] = None
-    messages: Optional[List[Message]] = None
+    messages: Optional[List[MessageUpdateItem]] = None
 
 class AddMessageRequest(SQLModel):
     sender: str

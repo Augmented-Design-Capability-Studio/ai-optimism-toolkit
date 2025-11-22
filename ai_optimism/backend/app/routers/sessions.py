@@ -5,10 +5,15 @@ import time
 import httpx
 from sqlmodel import Session as DBSession, select
 from sqlalchemy.orm import selectinload
+# Import to check against MetaData class (not to use the class)
+try:
+    from sqlalchemy import MetaData as SQLAMetaData
+except ImportError:
+    SQLAMetaData = None
 from ..models.session import (
     Session, Message, CreateSessionRequest, UpdateSessionRequest, AddMessageRequest,
     SessionResponse, MessageResponse, AISessionConfig, AISessionConfigResponse,
-    SetAISessionConfigRequest
+    SetAISessionConfigRequest, MessageUpdateItem
 )
 from ..utils.common import generate_id, detect_formalization_readiness
 from ..utils.encryption import encrypt_api_key, decrypt_api_key
@@ -71,76 +76,158 @@ async def get_session_by_id(session_id: str, db: DBSession = Depends(get_session
 @router.put("/{session_id}", response_model=SessionResponse)
 async def update_session(session_id: str, request: UpdateSessionRequest, db: DBSession = Depends(get_session)):
     """Update a session"""
-    # Load session with messages relationship
-    session = db.exec(select(Session).where(Session.id == session_id).options(selectinload(Session.messages))).first()
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    # Update fields if provided (excluding messages which we handle separately)
-    session_data = request.model_dump(exclude_unset=True)
-    messages_to_update = session_data.pop("messages", None)
-    
-    for key, value in session_data.items():
-        setattr(session, key, value)
-
-    # Handle message updates if provided
-    if request.messages is not None:
-        print(f"[update_session] Updating {len(request.messages)} messages")
-        # Create a dictionary of message IDs to the updated Message objects for quick lookup
-        updated_messages_dict = {msg.id: msg for msg in request.messages if msg.id}
-        
-        # Update existing messages in the database
-        for existing_message in session.messages:
-            if existing_message.id in updated_messages_dict:
-                updated_message = updated_messages_dict[existing_message.id]
-                
-                # Update content if changed
-                if updated_message.content != existing_message.content:
-                    existing_message.content = updated_message.content
-                
-                # Update metadata if changed (handle alias 'metadata' -> 'metadata_')
-                # Try multiple ways to access metadata to ensure we get it
-                new_metadata = None
-                
-                # Method 1: Try direct attribute access (after FastAPI deserialization, both might work)
-                if hasattr(updated_message, 'metadata_'):
-                    new_metadata = getattr(updated_message, 'metadata_', None)
-                if new_metadata is None and hasattr(updated_message, 'metadata'):
-                    new_metadata = getattr(updated_message, 'metadata', None)
-                
-                # Method 2: Try model_dump to get via alias
-                if new_metadata is None:
+    try:
+        print(f"[update_session] Received update request for session {session_id}")
+        print(f"[update_session] Has messages: {request.messages is not None}")
+        if request.messages:
+            print(f"[update_session] Number of messages: {len(request.messages)}")
+            # Log first message to see structure
+            if request.messages:
+                first_msg = request.messages[0]
+                print(f"[update_session] First message type: {type(first_msg)}")
+                print(f"[update_session] First message id: {getattr(first_msg, 'id', None) if not isinstance(first_msg, dict) else first_msg.get('id')}")
+                if isinstance(first_msg, dict):
+                    print(f"[update_session] First message keys: {list(first_msg.keys())}")
+                    print(f"[update_session] First message metadata: {first_msg.get('metadata')}")
+                    print(f"[update_session] First message metadata type: {type(first_msg.get('metadata'))}")
+                elif hasattr(first_msg, 'model_dump'):
                     try:
-                        msg_dict = updated_message.model_dump(by_alias=True, exclude_unset=False)
-                        new_metadata = msg_dict.get('metadata')
+                        first_msg_dict = first_msg.model_dump(by_alias=True)
+                        print(f"[update_session] First message (model_dump) keys: {list(first_msg_dict.keys())}")
+                        print(f"[update_session] First message (model_dump) metadata: {first_msg_dict.get('metadata')}")
+                        print(f"[update_session] First message (model_dump) metadata type: {type(first_msg_dict.get('metadata'))}")
                     except Exception as e:
-                        print(f"[update_session] Error in model_dump for message {existing_message.id}: {e}")
-                
-                # Update metadata if we found it
-                if new_metadata is not None:
-                    existing_message.metadata_ = new_metadata
-                    print(f"[update_session] Updated message {existing_message.id} metadata: {new_metadata}")
-                else:
-                    print(f"[update_session] No metadata found for message {existing_message.id}")
-                
-                # Update sender if changed (shouldn't happen but handle it)
-                if updated_message.sender != existing_message.sender:
-                    existing_message.sender = updated_message.sender
-                
-                # Update timestamp if changed (shouldn't happen but handle it)
-                if updated_message.timestamp != existing_message.timestamp:
-                    existing_message.timestamp = updated_message.timestamp
-                
-                db.add(existing_message)
+                        print(f"[update_session] Error in model_dump for first message: {e}")
+                elif hasattr(first_msg, '__dict__'):
+                    print(f"[update_session] First message attributes: {list(first_msg.__dict__.keys())}")
+                    if 'metadata' in first_msg.__dict__:
+                        print(f"[update_session] First message __dict__ metadata: {first_msg.__dict__['metadata']} (type: {type(first_msg.__dict__['metadata'])})")
+                    elif 'metadata_' in first_msg.__dict__:
+                        print(f"[update_session] First message __dict__ metadata_: {first_msg.__dict__['metadata_']} (type: {type(first_msg.__dict__['metadata_'])})")
+        
+        # Load session with messages relationship
+        session = db.exec(select(Session).where(Session.id == session_id).options(selectinload(Session.messages))).first()
+        if not session:
+            print(f"[update_session] Session {session_id} not found")
+            raise HTTPException(status_code=404, detail="Session not found")
+        
+        print(f"[update_session] Session found with {len(session.messages)} existing messages")
 
-    session.updatedAt = int(time.time() * 1000)
-    db.add(session)
-    db.commit()
-    db.refresh(session)
-    
-    # Reload with messages to ensure we have the latest data
-    session = db.exec(select(Session).where(Session.id == session_id).options(selectinload(Session.messages))).first()
-    return session_to_response(session)
+        # Update fields if provided (excluding messages which we handle separately)
+        session_data = request.model_dump(exclude_unset=True)
+        messages_to_update = session_data.pop("messages", None)
+        
+        for key, value in session_data.items():
+            setattr(session, key, value)
+
+        # Helper to get attribute from message (handles dict or object)
+        def get_msg_attr(msg, attr, default=None):
+            if isinstance(msg, dict):
+                return msg.get(attr, default)
+            return getattr(msg, attr, default)
+        
+        # Helper to validate metadata is not SQLAlchemy MetaData class
+        def is_valid_metadata(metadata_value):
+            """Check if metadata_value is a valid dict (not SQLAlchemy MetaData class)"""
+            if metadata_value is None:
+                return False
+            if SQLAMetaData is not None and isinstance(metadata_value, SQLAMetaData):
+                return False
+            return isinstance(metadata_value, dict)
+
+        # Handle message updates if provided
+        if request.messages is not None:
+            print(f"[update_session] Updating {len(request.messages)} messages")
+            # Create a dictionary of message IDs to the updated message objects for quick lookup
+            # MessageUpdateItem is a Pydantic model, so accessing .id should work directly
+            updated_messages_dict = {}
+            for msg in request.messages:
+                msg_id = getattr(msg, 'id', None) if not isinstance(msg, dict) else msg.get('id')
+                if msg_id:
+                    updated_messages_dict[msg_id] = msg
+            
+            # Update existing messages in the database
+            for existing_message in session.messages:
+                if existing_message.id in updated_messages_dict:
+                    updated_message = updated_messages_dict[existing_message.id]
+                    
+                    # Update content if changed
+                    new_content = get_msg_attr(updated_message, 'content')
+                    if new_content is not None and new_content != existing_message.content:
+                        existing_message.content = new_content
+                    
+                    # Update metadata if changed
+                    # MessageUpdateItem has a simple 'metadata' field (Pydantic BaseModel)
+                    # So we can access it directly via attribute or model_dump
+                    new_metadata = None
+                    
+                    # Method 1: Try attribute access directly (MessageUpdateItem is a Pydantic model)
+                    if hasattr(updated_message, 'metadata'):
+                        metadata_val = getattr(updated_message, 'metadata', None)
+                        if is_valid_metadata(metadata_val):
+                            new_metadata = metadata_val
+                            print(f"[update_session] Got metadata via attribute access for message {existing_message.id}")
+                    
+                    # Method 2: Try model_dump (Pydantic models support this)
+                    if new_metadata is None:
+                        try:
+                            if hasattr(updated_message, 'model_dump'):
+                                msg_dict = updated_message.model_dump(exclude_unset=False)
+                                metadata_val = msg_dict.get('metadata')
+                                if is_valid_metadata(metadata_val):
+                                    new_metadata = metadata_val
+                                    print(f"[update_session] Got metadata via model_dump for message {existing_message.id}")
+                        except Exception as e:
+                            print(f"[update_session] Error in model_dump for message {existing_message.id}: {e}")
+                    
+                    # Method 3: Try as dictionary (fallback)
+                    if new_metadata is None and isinstance(updated_message, dict):
+                        metadata_val = updated_message.get('metadata')
+                        if is_valid_metadata(metadata_val):
+                            new_metadata = metadata_val
+                            print(f"[update_session] Got metadata via dict access for message {existing_message.id}")
+                    
+                    # Update metadata if we found valid metadata
+                    if new_metadata is not None and isinstance(new_metadata, dict):
+                        existing_message.metadata_ = new_metadata
+                        print(f"[update_session] Updated message {existing_message.id} metadata: {new_metadata}")
+                    else:
+                        print(f"[update_session] No valid metadata found for message {existing_message.id}")
+                        print(f"[update_session] Message type: {type(updated_message)}")
+                        if hasattr(updated_message, 'metadata'):
+                            print(f"[update_session] Message.metadata attribute: {getattr(updated_message, 'metadata', None)} (type: {type(getattr(updated_message, 'metadata', None))})")
+                        if isinstance(updated_message, dict):
+                            print(f"[update_session] Message dict keys: {list(updated_message.keys())}")
+                            print(f"[update_session] Message dict metadata value: {updated_message.get('metadata')} (type: {type(updated_message.get('metadata'))})")
+                    
+                    # Update sender if changed (shouldn't happen but handle it)
+                    new_sender = get_msg_attr(updated_message, 'sender')
+                    if new_sender is not None and new_sender != existing_message.sender:
+                        existing_message.sender = new_sender
+                    
+                    # Update timestamp if changed (shouldn't happen but handle it)
+                    new_timestamp = get_msg_attr(updated_message, 'timestamp')
+                    if new_timestamp is not None and new_timestamp != existing_message.timestamp:
+                        existing_message.timestamp = new_timestamp
+                    
+                    db.add(existing_message)
+
+        session.updatedAt = int(time.time() * 1000)
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+        
+        # Reload with messages to ensure we have the latest data
+        session = db.exec(select(Session).where(Session.id == session_id).options(selectinload(Session.messages))).first()
+        print(f"[update_session] Session updated successfully, returning response")
+        return session_to_response(session)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[update_session] ERROR updating session {session_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/{session_id}/heartbeat")
 async def session_heartbeat(session_id: str, db: DBSession = Depends(get_session)):

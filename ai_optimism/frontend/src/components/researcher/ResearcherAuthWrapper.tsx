@@ -28,7 +28,6 @@ export function ResearcherAuthWrapper({ children }: AuthWrapperProps) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
 
     // Check for existing auth on mount
     useEffect(() => {
@@ -36,7 +35,6 @@ export function ResearcherAuthWrapper({ children }: AuthWrapperProps) {
         if (token === AUTH_PASSWORD) {
             setIsAuthenticated(true);
         }
-        setIsLoading(false);
     }, []);
 
     const handleLogin = (e: React.FormEvent) => {
@@ -57,14 +55,6 @@ export function ResearcherAuthWrapper({ children }: AuthWrapperProps) {
         setIsAuthenticated(false);
         setPassword('');
     };
-
-    if (isLoading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-                <Typography>Loading...</Typography>
-            </Box>
-        );
-    }
 
     if (!isAuthenticated) {
         return (

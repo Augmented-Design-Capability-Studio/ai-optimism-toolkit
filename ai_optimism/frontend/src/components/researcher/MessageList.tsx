@@ -31,7 +31,15 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
   return (
     <Box sx={{ flex: 1, overflow: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
       {messages.map((message) => {
-        console.log('[MessageList] Rendering message:', message.id, 'sender:', message.sender, 'metadata:', message.metadata, 'content length:', message.content?.length);
+        // Log controls generation messages for debugging
+        if (message.metadata?.type === 'controls-generation') {
+          console.log('[MessageList] Controls generation message:', {
+            id: message.id,
+            controlsGenerated: message.metadata?.controlsGenerated,
+            controlsError: message.metadata?.controlsError,
+            metadata: message.metadata,
+          });
+        }
         
         return (
         <Box
@@ -50,12 +58,24 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                   ? 'primary.main'
                   : message.sender === 'researcher'
                   ? 'info.main'
+                  : message.metadata?.type === 'controls-generation' && message.metadata?.controlsGenerated
+                  ? 'secondary.main' // Purple for successful controls generation
+                  : message.metadata?.type === 'formalization'
+                  ? 'success.main' // Green for formalization
                   : 'secondary.main',
               width: 32,
               height: 32,
             }}
           >
-            {message.sender === 'user' ? '👤' : message.sender === 'researcher' ? '🧙' : '🤖'}
+            {message.sender === 'user' 
+              ? '👤' 
+              : message.sender === 'researcher' 
+              ? '🧙' 
+              : message.metadata?.type === 'controls-generation'
+              ? '🎛️' // Controls emoji for controls generation
+              : message.metadata?.type === 'formalization'
+              ? '✨' // Sparkles for formalization
+              : '🤖'}
           </Avatar>
           <Paper
             elevation={1}
@@ -97,6 +117,8 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                 ? 'You (Researcher)'
                 : message.metadata?.type === 'formalization'
                 ? 'AI Formalization'
+                : message.metadata?.type === 'controls-generation'
+                ? 'Controls Generation'
                 : 'AI Assistant'}
             </Typography>
             

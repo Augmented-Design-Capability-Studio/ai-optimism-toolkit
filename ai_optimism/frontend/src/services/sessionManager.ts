@@ -109,8 +109,47 @@ class SessionManager {
       const response = await this.client.put(`/sessions/${sessionId}`, updates);
       return response.data;
     } catch (error: any) {
-      if (error.response?.status === 404) return null;
-      console.error('[SessionManager] Failed to update session:', error);
+      // Handle 404 (session not found)
+      if (error.response?.status === 404) {
+        console.warn('[SessionManager] Session not found (404):', sessionId);
+        return null;
+      }
+      
+      // Handle network errors (backend unreachable)
+      const isNetworkError = error.code === 'ECONNREFUSED' || 
+                            error.code === 'ERR_NETWORK' ||
+                            error.message === 'Network Error' ||
+                            !error.response;
+      
+      if (isNetworkError) {
+        const backendUrl = this.client.defaults.baseURL?.replace('/api', '') || 'unknown';
+        // Use warn instead of error for network issues - these are often transient
+        // and the UI should handle them gracefully
+        console.warn(
+          `[SessionManager] Backend unreachable at ${backendUrl}. ` +
+          `Session update failed but operation may continue with local state. ` +
+          `Network error: ${error.message || error.code || 'Unknown'}`
+        );
+        return null;
+      }
+      
+      // Handle other errors (HTTP errors like 500, etc.)
+      const status = error.response?.status || 'Unknown status';
+      const errorData = error.response?.data || error.message;
+      const errorDetail = typeof errorData === 'object' ? JSON.stringify(errorData) : errorData;
+      
+      console.error('[SessionManager] Failed to update session:');
+      console.error('  Status:', status);
+      console.error('  Error:', errorDetail);
+      console.error('  Full error:', error);
+      
+      // Log the request that failed for debugging
+      if (error.config) {
+        console.error('  Request URL:', error.config.url);
+        console.error('  Request method:', error.config.method);
+        console.error('  Request data:', error.config.data);
+      }
+      
       return null;
     }
   }
