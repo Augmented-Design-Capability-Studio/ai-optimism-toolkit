@@ -22,10 +22,11 @@ export function FormalizeButton({
   onFormalize,
 }: FormalizeButtonProps) {
   // Count actual user messages to determine if there's real conversation (excluding initialization)
-  const userMessageCount = currentSession?.messages.filter(m => 
+  const messages = Array.isArray(currentSession?.messages) ? currentSession.messages : [];
+  const userMessageCount = messages.filter(m =>
     m.sender === 'user' && m.content !== 'Initialize'
-  ).length || 0;
-  
+  ).length;
+
   // Check if AI or researcher has indicated readiness to formalize
   const aiIsReady = currentSession?.readyToFormalize === true;
 
@@ -33,14 +34,14 @@ export function FormalizeButton({
   if (userMessageCount < 1) {
     return null;
   }
-  
+
   // Button is discouraged (grey/inherit) if AI hasn't indicated readiness
   const isPremature = !aiIsReady;
 
   const buttonDisabled = isLoading || isFormalizing;
-  
-  const buttonText = isFormalizing ? 'Formalizing Problem...' : 
-                     isPremature ? '⚡ Formalize Early' : '📝 Formalize Problem';
+
+  const buttonText = isFormalizing ? 'Formalizing Problem...' :
+    isPremature ? '⚡ Formalize Early' : '📝 Formalize Problem';
   const buttonColor: 'primary' | 'inherit' = isPremature ? 'inherit' : 'primary';
 
   return (

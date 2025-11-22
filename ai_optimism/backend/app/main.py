@@ -1,8 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from .routers import optimization, evaluate, sessions
+from .database import create_db_and_tables
 
-app = FastAPI(title="AI Optimism Toolkit API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
+
+app = FastAPI(title="AI Optimism Toolkit API", lifespan=lifespan)
 
 # Configure CORS for frontend integration - MUST be before routers
 app.add_middleware(

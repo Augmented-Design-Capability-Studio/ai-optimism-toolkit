@@ -87,8 +87,18 @@ class SessionManager {
       this.setCurrentSession(session.id);
 
       return session;
-    } catch (error) {
+    } catch (error: any) {
       console.error('[SessionManager] Failed to create session:', error);
+      
+      // Provide more helpful error messages
+      if (error.code === 'ECONNREFUSED' || error.message === 'Network Error' || !error.response) {
+        const backendUrl = this.client.defaults.baseURL?.replace('/api', '') || 'unknown';
+        const errorMessage = `Cannot connect to backend server at ${backendUrl}. Please ensure the backend server is running.`;
+        console.error('[SessionManager]', errorMessage);
+        throw new Error(errorMessage);
+      }
+      
+      // Re-throw with original error for other cases
       throw error;
     }
   }
