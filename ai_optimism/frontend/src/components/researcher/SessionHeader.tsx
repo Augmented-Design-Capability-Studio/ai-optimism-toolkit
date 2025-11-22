@@ -67,6 +67,7 @@ export function SessionHeader({
 
   const handleResetFormalization = async () => {
     if (window.confirm('Reset formalization status to allow re-formalization?')) {
+      // Backend-routed: Updates session status through backend API
       await sessionManager.updateSession(session.id, { 
         status: 'active',
         readyToFormalize: false 
@@ -81,6 +82,8 @@ export function SessionHeader({
 
   const handleToggleReadyToFormalize = async () => {
     const newValue = !session.readyToFormalize;
+    // Backend-routed: Updates readyToFormalize flag through backend API
+    // This ensures the flag is synced across all devices accessing the researcher dashboard
     await sessionManager.updateSession(session.id, { readyToFormalize: newValue });
   };
 
@@ -132,6 +135,8 @@ export function SessionHeader({
             exclusive
             onChange={(_, newMode) => {
               if (newMode !== null) {
+                // Backend-routed: Mode toggle updates session through backend API
+                // This ensures mode changes are synced across all devices
                 onModeToggle(session.id, newMode);
               }
             }}
@@ -194,7 +199,12 @@ export function SessionHeader({
             isFormalizingId === session.id ? undefined :
               session.status === 'formalized' ? <RefreshIcon /> : <AutoFixHighIcon />
           }
-          onClick={session.status === 'formalized' ? handleResetFormalization : () => onFormalize(session.id)}
+          onClick={session.status === 'formalized' ? handleResetFormalization : () => {
+            // Frontend-triggered: Formalization uses frontend AI (as requested)
+            // The formalization result and status update are then saved through backend API
+            // This works the same way as when a user clicks the formalize button
+            onFormalize(session.id);
+          }}
           disabled={
             isFormalizingId === session.id ||
             session.messages.length < 2
@@ -226,7 +236,11 @@ export function SessionHeader({
             color="warning"
             size="small"
             startIcon={<StopIcon />}
-            onClick={() => onTerminate(session.id)}
+            onClick={() => {
+              // Backend-routed: Terminate updates session status through backend API
+              // This ensures termination is synced across all devices
+              onTerminate(session.id);
+            }}
             disabled={session.status === 'completed'}
             title="End session gracefully - User sees 'session has ended' notification and gets a fresh start"
           >
@@ -237,7 +251,11 @@ export function SessionHeader({
             color="error"
             size="small"
             startIcon={<DeleteIcon />}
-            onClick={() => onDelete(session.id)}
+            onClick={() => {
+              // Backend-routed: Delete removes session through backend API
+              // This ensures deletion is synced across all devices
+              onDelete(session.id);
+            }}
             title="Permanently delete session from records - User connection unaffected, no new session created"
           >
             Force Delete

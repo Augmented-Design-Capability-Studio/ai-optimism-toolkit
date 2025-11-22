@@ -70,6 +70,8 @@ export const useResearcherSessions = () => {
   }, []); // Empty dependency array - loadSessions uses functional updates
 
   // Handle terminate session
+  // Backend-routed: Updates session status through backend API (PUT /sessions/{id})
+  // This ensures termination is synced across all devices accessing the researcher dashboard
   const handleTerminateSession = async (sessionId: string) => {
     if (!confirm('End this session gracefully? The user will see a notification and start fresh.')) {
       return;
@@ -79,6 +81,8 @@ export const useResearcherSessions = () => {
   };
 
   // Handle delete session (force delete - no new session created)
+  // Backend-routed: Deletes session through backend API (DELETE /sessions/{id})
+  // This ensures deletion is synced across all devices accessing the researcher dashboard
   const handleDeleteSession = async (sessionId: string) => {
     if (!confirm('Permanently delete this session from records? This will immediately terminate the session without creating a replacement.')) {
       return;
@@ -95,6 +99,9 @@ export const useResearcherSessions = () => {
   };
 
   // Handle formalize problem
+  // Frontend-triggered: Uses frontend AI (as requested - no AI services in backend)
+  // The formalization result and status update are then saved through backend API
+  // This works the same way as when a user clicks the formalize button in the chat panel
   const handleFormalizeProblem = async (sessionId: string) => {
     const session = await sessionManager.getSession(sessionId);
     if (!session) return;
@@ -124,6 +131,8 @@ export const useResearcherSessions = () => {
   };
 
   // Handle mode toggle
+  // Backend-routed: Updates session mode through backend API (PUT /sessions/{id})
+  // This ensures mode changes are synced across all devices accessing the researcher dashboard
   const handleModeToggle = async (sessionId: string, newMode: 'ai' | 'experimental') => {
     // Optimistically update the local state first for immediate UI feedback
     setSessions(currentSessions => 
