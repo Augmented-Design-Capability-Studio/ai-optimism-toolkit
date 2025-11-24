@@ -167,6 +167,18 @@ export async function validateAIConfig(sessionId: string): Promise<ValidateAICon
 }
 
 /**
+ * Delete AI provider configuration for a session
+ */
+export async function deleteAIConfig(sessionId: string): Promise<void> {
+  if (!sessionId) {
+    throw new Error('Session ID is required to delete AI config');
+  }
+
+  const apiClient = getApiClient();
+  await apiClient.delete(`/sessions/${sessionId}/ai-config`);
+}
+
+/**
  * Get decrypted API key for making AI requests (not for display)
  * This should only be called when needed for API requests, never for UI display
  * Returns null if no config exists (404)

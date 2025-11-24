@@ -25,8 +25,9 @@ import {
     Send as SendIcon,
     Visibility,
     VisibilityOff,
+    Close as CloseIcon,
 } from '@mui/icons-material';
-import { getAIConfig, setAIConfig, type AISessionConfigStatus } from '../services/sessionAIConfig';
+import { getAIConfig, setAIConfig, deleteAIConfig, type AISessionConfigStatus } from '../services/sessionAIConfig';
 import type { AIProvider } from '../services/ai';
 
 interface SessionAIConnectionStatusProps {
@@ -54,6 +55,7 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
     const [loading, setLoading] = useState(true);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [pushing, setPushing] = useState(false);
+    const [disconnecting, setDisconnecting] = useState(false);
     
     // Form state
     const [provider, setProvider] = useState<AIProvider>('google');
@@ -89,6 +91,36 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
             if (showLoading) {
                 setLoading(false);
             }
+        }
+    };
+
+    const handleDisconnect = async () => {
+        if (!config || disconnecting) {
+            return;
+        }
+        
+        const confirmed = typeof window === 'undefined'
+            ? true
+            : window.confirm('Disconnect AI provider from this session? This will remove the stored API key.');
+        if (!confirmed) {
+            return;
+        }
+
+        setDisconnecting(true);
+        setError(null);
+        setSuccess(false);
+
+        try {
+            await deleteAIConfig(sessionId);
+            setConfig(null);
+            setApiKey('');
+            await loadConfig(true);
+        } catch (error: any) {
+            const errorMessage = error.message || 'Failed to disconnect AI provider';
+            setError(errorMessage);
+            console.error('[SessionAIConnectionStatus] Failed to disconnect AI config:', error);
+        } finally {
+            setDisconnecting(false);
         }
     };
 
@@ -199,6 +231,20 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
                     size="medium"
                     icon={getStatusIcon() || undefined}
                     onClick={() => setSettingsOpen(true)}
+                    onDelete={config ? handleDisconnect : undefined}
+                    deleteIcon={
+                        config ? (
+                            <Tooltip title={disconnecting ? 'Disconnecting…' : 'Disconnect'}>
+                                <Box component="span" sx={{ display: 'flex' }}>
+                                    {disconnecting ? (
+                                        <CircularProgress size={16} color="inherit" />
+                                    ) : (
+                                        <CloseIcon sx={{ color: '#ffffff' }} fontSize="small" />
+                                    )}
+                                </Box>
+                            </Tooltip>
+                        ) : undefined
+                    }
                     sx={{ 
                         cursor: 'pointer',
                         fontSize: '0.95rem',

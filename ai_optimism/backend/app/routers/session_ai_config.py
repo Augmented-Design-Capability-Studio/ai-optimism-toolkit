@@ -119,6 +119,26 @@ async def set_ai_config(
     )
 
 
+@router.delete("")
+async def delete_ai_config(session_id: str, db: DBSession = Depends(get_session)):
+    """Remove AI provider configuration for a session"""
+    session = db.get(Session, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    ai_config = db.exec(
+        select(AISessionConfig).where(AISessionConfig.sessionId == session_id)
+    ).first()
+    
+    if not ai_config:
+        raise HTTPException(status_code=404, detail="AI config not found for this session")
+    
+    db.delete(ai_config)
+    db.commit()
+    
+    return {"message": "AI config removed"}
+
+
 @router.get("/key")
 async def get_ai_config_key(session_id: str, db: DBSession = Depends(get_session)):
     """Get decrypted API key for a session (for client-side AI connection)"""
