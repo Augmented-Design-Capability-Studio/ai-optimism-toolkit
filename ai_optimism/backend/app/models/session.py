@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional, Dict, Any
 from sqlmodel import SQLModel, Field, Relationship, JSON
+from sqlalchemy.orm import relationship
 from pydantic import BaseModel
 import time
 
@@ -12,8 +13,11 @@ class Message(SQLModel, table=True):
     content: str
     timestamp: int
     metadata_: Optional[Dict[str, Any]] = Field(default=None, sa_type=JSON, alias="metadata")
-    
-    session: Optional["Session"] = Relationship(back_populates="messages")
+
+    session: Session = Relationship(
+        back_populates="messages",
+        sa_relationship=relationship("Session", back_populates="messages"),
+    )
 
     class Config:
         populate_by_name = True
@@ -30,7 +34,14 @@ class Session(SQLModel, table=True):
     isAIResponding: Optional[bool] = False
     readyToFormalize: Optional[bool] = False
     
-    messages: List[Message] = Relationship(back_populates="session", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    messages: List[Message] = Relationship(
+        back_populates="session",
+        sa_relationship=relationship(
+            "Message",
+            back_populates="session",
+            cascade="all, delete-orphan",
+        ),
+    )
 
 # Response models to ensure proper serialization
 class MessageResponse(BaseModel):
