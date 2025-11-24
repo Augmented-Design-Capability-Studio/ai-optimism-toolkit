@@ -502,7 +502,8 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         isLoading={isLoading}
       />
 
-      {!apiKey && (
+      {/* Temporarily hide the API warning banner per request */}
+      {/* {!apiKey && (
         <Box
           sx={{
             p: 1,
@@ -521,7 +522,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
             ⚠️ No AI API key configured. Click the AI connection status chip to set it up.
           </Typography>
         </Box>
-      )}
+      )} */}
     </Paper>
   );
 }

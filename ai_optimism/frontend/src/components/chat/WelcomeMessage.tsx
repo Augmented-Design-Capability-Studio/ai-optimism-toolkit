@@ -9,48 +9,50 @@ interface WelcomeMessageProps {
 }
 
 export function WelcomeMessage({ mode, apiKey }: WelcomeMessageProps) {
-  // Show connection prompt if no API key
-  if (!apiKey) {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 1,
-          alignItems: 'flex-start',
-        }}
-      >
-        <Avatar
-          sx={{
-            bgcolor: 'warning.main',
-            width: 32,
-            height: 32,
-          }}
-        >
-          ⚠️
-        </Avatar>
-        <Paper
-          elevation={1}
-          sx={{
-            p: 2,
-            maxWidth: '80%',
-            bgcolor: 'warning.light',
-          }}
-        >
-          <Typography
-            variant="body2"
-            sx={{
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}
-          >
-            {`Please connect to an AI provider first!
-
-Click the "AI Connection" button in the top-left corner to configure your API key.`}
-          </Typography>
-        </Paper>
-      </Box>
-    );
-  }
+  // Reference apiKey to avoid unused warnings while warning bubble is disabled
+  void apiKey;
+  // Temporarily hide the API key warning bubble per request
+  // if (!apiKey) {
+  //   return (
+  //     <Box
+  //       sx={{
+  //         display: 'flex',
+  //         gap: 1,
+  //         alignItems: 'flex-start',
+  //       }}
+  //     >
+  //       <Avatar
+  //         sx={{
+  //           bgcolor: 'warning.main',
+  //           width: 32,
+  //           height: 32,
+  //         }}
+  //       >
+  //         ⚠️
+  //       </Avatar>
+  //       <Paper
+  //         elevation={1}
+  //         sx={{
+  //           p: 2,
+  //           maxWidth: '80%',
+  //           bgcolor: 'warning.light',
+  //         }}
+  //       >
+  //         <Typography
+  //           variant="body2"
+  //           sx={{
+  //             whiteSpace: 'pre-wrap',
+  //             wordBreak: 'break-word',
+  //           }}
+  //         >
+  //           {`Please connect to an AI provider first!
+  //
+  // Click the "AI Connection" button in the top-left corner to configure your API key.`}
+  //         </Typography>
+  //       </Paper>
+  //     </Box>
+  //   );
+  // }
 
   // Standard welcome message
   return (
