@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import List, Optional, Dict, Any
 from sqlmodel import SQLModel, Field, Relationship, JSON
 from pydantic import BaseModel
