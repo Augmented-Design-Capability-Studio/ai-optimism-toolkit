@@ -2,10 +2,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 import time
-from sqlmodel import Session as DBSession, select
+from sqlmodel import Session as DBSession, select, delete
 from sqlalchemy.orm import selectinload
 from ..models.session import (
-    Session, CreateSessionRequest, UpdateSessionRequest,
+    Session, Message, AISessionConfig,
+    CreateSessionRequest, UpdateSessionRequest,
     SessionResponse, MessageUpdateItem
 )
 from ..utils.common import generate_id
@@ -182,8 +183,9 @@ async def get_waiting_sessions(db: DBSession = Depends(get_session)):
 @router.delete("/clear/")
 async def clear_all_sessions(db: DBSession = Depends(get_session)):
     """Clear all sessions (for testing/development)"""
-    sessions = db.exec(select(Session)).all()
-    for session in sessions:
-        db.delete(session)
+    # Remove dependent data first to avoid FK violations
+    db.exec(delete(AISessionConfig))
+    db.exec(delete(Message))
+    db.exec(delete(Session))
     db.commit()
     return {"message": "All sessions cleared"}
