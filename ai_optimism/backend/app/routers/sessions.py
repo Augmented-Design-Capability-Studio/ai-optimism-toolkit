@@ -168,8 +168,15 @@ async def delete_session(session_id: str, db: DBSession = Depends(get_session)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    db.delete(session)
-    db.commit()
+    try:
+        # Delete dependent messages first to avoid FK issues
+        db.exec(delete(Message).where(Message.sessionId == session_id))
+        db.delete(session)
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete session: {exc}") from exc
+    
     return {"message": "Session deleted"}
 
 
@@ -183,9 +190,13 @@ async def get_waiting_sessions(db: DBSession = Depends(get_session)):
 @router.delete("/clear/")
 async def clear_all_sessions(db: DBSession = Depends(get_session)):
     """Clear all sessions (for testing/development)"""
-    # Remove dependent data first to avoid FK violations
-    db.exec(delete(AISessionConfig))
-    db.exec(delete(Message))
-    db.exec(delete(Session))
-    db.commit()
+    try:
+        # Remove dependent data first to avoid FK violations
+        db.exec(delete(AISessionConfig))
+        db.exec(delete(Message))
+        db.exec(delete(Session))
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to clear sessions: {exc}") from exc
     return {"message": "All sessions cleared"}
