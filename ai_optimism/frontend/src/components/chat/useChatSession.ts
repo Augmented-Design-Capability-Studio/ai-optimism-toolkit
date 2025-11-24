@@ -244,8 +244,8 @@ export function useChatSession() {
     // Load immediately
     loadSessionAIConfig();
 
-    // Poll for updates every 5 seconds (in case researcher pushes new API key)
-    const interval = setInterval(loadSessionAIConfig, 5000);
+    // Poll for updates every 20 seconds (in case researcher pushes new API key)
+    const interval = setInterval(loadSessionAIConfig, 20000);
 
     return () => clearInterval(interval);
   }, [currentSession?.id]);

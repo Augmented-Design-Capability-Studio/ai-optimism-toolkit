@@ -479,7 +479,6 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         isLoading={isLoading}
         messagesEndRef={messagesEndRef}
         messagesContainerRef={messagesContainerRef}
-        isResearcherTyping={currentSession?.isResearcherTyping}
         isWaitingForResearcher={isWaitingForResearcher}
         onGenerateControls={handleGenerateControls}
       />

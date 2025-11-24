@@ -25,7 +25,6 @@ def session_to_response(session: Session) -> SessionResponse:
         createdAt=session.createdAt,
         updatedAt=session.updatedAt,
         lastActivity=session.lastActivity,
-        isResearcherTyping=session.isResearcherTyping,
         isAIResponding=session.isAIResponding,
         readyToFormalize=session.readyToFormalize,
         messages=[MessageResponse.from_orm_message(m) for m in session.messages]

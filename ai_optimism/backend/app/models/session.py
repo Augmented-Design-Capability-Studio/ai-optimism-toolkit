@@ -27,7 +27,6 @@ class Session(SQLModel, table=True):
     createdAt: int
     updatedAt: int
     lastActivity: int
-    isResearcherTyping: Optional[bool] = False
     isAIResponding: Optional[bool] = False
     readyToFormalize: Optional[bool] = False
     
@@ -67,7 +66,6 @@ class SessionResponse(BaseModel):
     createdAt: int
     updatedAt: int
     lastActivity: int
-    isResearcherTyping: Optional[bool] = False
     isAIResponding: Optional[bool] = False
     readyToFormalize: Optional[bool] = False
     messages: List[MessageResponse] = []
@@ -93,7 +91,6 @@ class UpdateSessionRequest(SQLModel):
     mode: Optional[str] = None
     status: Optional[str] = None
     researcherId: Optional[str] = None
-    isResearcherTyping: Optional[bool] = None
     isAIResponding: Optional[bool] = None
     readyToFormalize: Optional[bool] = None
     messages: Optional[List[MessageUpdateItem]] = None

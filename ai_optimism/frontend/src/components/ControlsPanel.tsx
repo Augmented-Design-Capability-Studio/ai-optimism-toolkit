@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Paper, Typography } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { Controls, Variable } from './controls/types';
 import { VariableWidget } from './controls/VariableWidget';
 import { VariableEditDialog } from './controls/VariableEditDialog';
@@ -31,6 +31,7 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [evaluatedExpressions, setEvaluatedExpressions] = useState<Record<string, number>>({});
   const [advancedMode, setAdvancedMode] = useState(false);
+  const evaluationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Detect important variables based on:
   // 1. Used in objectives/constraints expressions
@@ -248,9 +249,14 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
     }
   };
 
-  // Evaluate all expressions server-side when values change
+  // Evaluate all expressions server-side when values change (debounced to reduce API calls)
   useEffect(() => {
     if (!parsedControls || Object.keys(values).length === 0) return;
+
+    // Clear any existing timeout
+    if (evaluationTimeoutRef.current) {
+      clearTimeout(evaluationTimeoutRef.current);
+    }
 
     const evaluateServerSide = async () => {
       try {
@@ -305,7 +311,15 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
       }
     };
 
-    evaluateServerSide();
+    // Debounce API calls: wait 400ms after user stops interacting before evaluating
+    evaluationTimeoutRef.current = setTimeout(evaluateServerSide, 400);
+
+    // Cleanup function to clear timeout on unmount or when dependencies change
+    return () => {
+      if (evaluationTimeoutRef.current) {
+        clearTimeout(evaluationTimeoutRef.current);
+      }
+    };
   }, [values, parsedControls]);
 
   return (

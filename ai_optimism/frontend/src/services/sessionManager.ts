@@ -36,7 +36,6 @@ export interface Session {
   updatedAt: number;
   lastActivity: number;  // Timestamp of last client activity
   messages: Message[];
-  isResearcherTyping?: boolean;
   isAIResponding?: boolean;
   readyToFormalize?: boolean;
 }
@@ -211,11 +210,6 @@ class SessionManager {
       
       return null;
     }
-  }
-
-  // Set researcher typing indicator
-  async setResearcherTyping(sessionId: string, isTyping: boolean): Promise<void> {
-    await this.updateSession(sessionId, { isResearcherTyping: isTyping });
   }
 
   // Add message to session

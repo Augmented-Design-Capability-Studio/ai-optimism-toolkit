@@ -13,7 +13,6 @@ interface MessagesListProps {
   isLoading: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
-  isResearcherTyping?: boolean;
   isWaitingForResearcher?: boolean;
   onGenerateControls?: (formalizationText: string) => void;
 }
@@ -25,7 +24,6 @@ export function MessagesList({
   isLoading, 
   messagesEndRef,
   messagesContainerRef,
-  isResearcherTyping = false,
   isWaitingForResearcher = false,
   onGenerateControls,
 }: MessagesListProps) {
@@ -105,61 +103,6 @@ export function MessagesList({
             <Typography variant="body2" color="text.secondary">
               Thinking...
             </Typography>
-          </Paper>
-        </Box>
-      )}
-      
-      {/* Typing indicator when researcher is typing */}
-      {isResearcherTyping && (
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          <Avatar sx={{ bgcolor: 'secondary.main', width: 32, height: 32 }}>
-            🤖
-          </Avatar>
-          <Paper elevation={1} sx={{ p: 2, bgcolor: 'grey.100', minWidth: 80 }}>
-            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', justifyContent: 'center' }}>
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  bgcolor: 'text.secondary',
-                  animation: 'typing 1.4s infinite',
-                  animationDelay: '0s',
-                  '@keyframes typing': {
-                    '0%, 60%, 100%': { opacity: 0.3 },
-                    '30%': { opacity: 1 },
-                  },
-                }}
-              />
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  bgcolor: 'text.secondary',
-                  animation: 'typing 1.4s infinite',
-                  animationDelay: '0.2s',
-                  '@keyframes typing': {
-                    '0%, 60%, 100%': { opacity: 0.3 },
-                    '30%': { opacity: 1 },
-                  },
-                }}
-              />
-              <Box
-                sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  bgcolor: 'text.secondary',
-                  animation: 'typing 1.4s infinite',
-                  animationDelay: '0.4s',
-                  '@keyframes typing': {
-                    '0%, 60%, 100%': { opacity: 0.3 },
-                    '30%': { opacity: 1 },
-                  },
-                }}
-              />
-            </Box>
           </Paper>
         </Box>
       )}
