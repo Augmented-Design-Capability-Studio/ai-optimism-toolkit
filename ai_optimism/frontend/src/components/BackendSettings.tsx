@@ -64,7 +64,7 @@ export const BackendSettings: React.FC<BackendSettingsProps> = ({ open, onClose 
                     variant="outlined"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
-                    helperText="URL of the backend server (e.g., http://localhost:8000 or ngrok URL)"
+                    helperText="URL of the backend server (e.g., http://localhost:8000 or https://your-domain.com)"
                     error={!!error}
                 />
                 {error && (

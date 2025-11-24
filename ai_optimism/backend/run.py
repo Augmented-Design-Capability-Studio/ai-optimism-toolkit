@@ -6,6 +6,7 @@ import signal
 import sys
 import time
 import requests
+import threading
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -13,142 +14,259 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent / '.env'
 load_dotenv(env_path)
 
-ngrok_process = None
+cloudflared_process = None
+cloudflared_monitor_thread = None
+cloudflared_tunnel_name = None
+monitor_running = False
 
-def cleanup_ngrok():
-    """Stop ngrok process on exit"""
-    global ngrok_process
-    if ngrok_process:
-        print("\n[ngrok] Stopping ngrok tunnel...")
-        ngrok_process.terminate()
+def cleanup_cloudflared_tunnel():
+    """Stop Cloudflare tunnel process on exit"""
+    global cloudflared_process, monitor_running, cloudflared_monitor_thread
+    monitor_running = False
+    
+    # Wait for monitor thread to stop (with timeout)
+    if cloudflared_monitor_thread and cloudflared_monitor_thread.is_alive():
+        print("[cloudflared] Stopping health monitor...")
+        cloudflared_monitor_thread.join(timeout=2)
+    
+    if cloudflared_process:
+        print("\n[cloudflared] Stopping Cloudflare tunnel...")
+        cloudflared_process.terminate()
         try:
-            ngrok_process.wait(timeout=5)
+            cloudflared_process.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            ngrok_process.kill()
-        print("[ngrok] Tunnel stopped")
+            cloudflared_process.kill()
+        print("[cloudflared] Tunnel stopped")
 
-def check_ngrok_authtoken():
-    """Check if ngrok authtoken is configured"""
+def monitor_cloudflared_health(tunnel_name: str, tunnel_domain: str = None, check_interval=30):
+    """Background thread to monitor Cloudflare tunnel health and restart if needed"""
+    global cloudflared_process, monitor_running, cloudflared_tunnel_name
+    
+    print(f"[cloudflared] Health monitor started (checking every {check_interval}s)")
+    
+    consecutive_failures = 0
+    max_failures = 2  # Restart after 2 consecutive failures
+    
+    while monitor_running:
+        try:
+            time.sleep(check_interval)
+            
+            if not monitor_running:
+                break
+            
+            # Check if process is still running
+            if cloudflared_process and cloudflared_process.poll() is not None:
+                print("[cloudflared] ⚠ Process terminated, restarting...")
+                cloudflared_process = None
+                start_cloudflared_tunnel(tunnel_name, tunnel_domain, force_restart=True)
+                consecutive_failures = 0
+                continue
+            
+            # Check if tunnel is responding (if domain is provided)
+            if tunnel_domain:
+                if check_cloudflared_tunnel_health(tunnel_domain, max_retries=1, retry_delay=0.2):
+                    consecutive_failures = 0
+                    # Only log success occasionally to avoid spam
+                    if time.time() % 300 < check_interval:  # Every ~5 minutes
+                        print("[cloudflared] ✓ Tunnel health check passed")
+                else:
+                    consecutive_failures += 1
+                    print(f"[cloudflared] ⚠ Health check failed ({consecutive_failures}/{max_failures})")
+                    
+                    if consecutive_failures >= max_failures:
+                        print("[cloudflared] 🔄 Restarting tunnel due to repeated health check failures...")
+                        cleanup_cloudflared_tunnel()
+                        time.sleep(1)
+                        start_cloudflared_tunnel(tunnel_name, tunnel_domain, force_restart=True)
+                        consecutive_failures = 0
+            else:
+                # Without domain, just check if process is alive
+                if cloudflared_process and cloudflared_process.poll() is None:
+                    consecutive_failures = 0
+                else:
+                    consecutive_failures += 1
+                    if consecutive_failures >= max_failures:
+                        print("[cloudflared] 🔄 Restarting tunnel...")
+                        cleanup_cloudflared_tunnel()
+                        time.sleep(1)
+                        start_cloudflared_tunnel(tunnel_name, tunnel_domain, force_restart=True)
+                        consecutive_failures = 0
+                    
+        except Exception as e:
+            print(f"[cloudflared] Error in health monitor: {e}")
+            time.sleep(check_interval)
+    
+    print("[cloudflared] Health monitor stopped")
+
+def check_cloudflared_installed():
+    """Check if cloudflared is installed and available"""
     try:
-        # Run ngrok config check to verify authtoken is set
         result = subprocess.run(
-            ['ngrok', 'config', 'check'],
+            ['cloudflared', '--version'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             timeout=5
         )
-        # If command succeeds, authtoken is configured
-        if result.returncode == 0:
-            return True
-        return False
+        return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired, Exception):
-        # If ngrok isn't installed or command fails, assume not configured
         return False
 
-def get_ngrok_url(max_retries=5, retry_delay=0.2):
-    """Get the public ngrok URL from the local API"""
+def check_cloudflared_tunnel_health(domain: str, max_retries=3, retry_delay=0.5):
+    """Check if Cloudflare tunnel is actually responding"""
+    if not domain:
+        return False
+    
     for _ in range(max_retries):
         try:
-            response = requests.get('http://127.0.0.1:4040/api/tunnels', timeout=1)
+            # Try to hit the health endpoint through the tunnel
+            health_url = f"https://{domain}/health"
+            response = requests.get(health_url, timeout=2)
             if response.status_code == 200:
-                data = response.json()
-                tunnels = data.get('tunnels', [])
-                if tunnels:
-                    # Get the first HTTPS tunnel (preferred) or first tunnel
-                    https_tunnel = next((t for t in tunnels if t.get('proto') == 'https'), None)
-                    tunnel = https_tunnel or tunnels[0]
-                    return tunnel.get('public_url')
-        except (requests.RequestException, KeyError, IndexError):
-            if _ < max_retries - 1:  # Don't sleep on last iteration
+                return True
+        except requests.RequestException:
+            if _ < max_retries - 1:
                 time.sleep(retry_delay)
-    return None
+    
+    return False
 
-def print_ngrok_info(domain: str, public_url: str = None):
-    """Print ngrok information in a prominent, visible format"""
+def print_cloudflared_info(tunnel_name: str, tunnel_domain: str = None):
+    """Print Cloudflare tunnel information in a prominent, visible format"""
     print("\n" + "=" * 70)
-    print(" " * 20 + "🌐 NGROK TUNNEL ACTIVE")
+    print(" " * 18 + "🌐 CLOUDFLARE TUNNEL ACTIVE")
     print("=" * 70)
-    print(f"  Domain:     {domain}")
-    if public_url:
-        print(f"  Public URL: {public_url}")
+    print(f"  Tunnel Name: {tunnel_name}")
+    if tunnel_domain:
+        print(f"  Domain:      {tunnel_domain}")
+        print(f"  Public URL:  https://{tunnel_domain}")
     else:
-        print(f"  Public URL: https://{domain}")
+        print(f"  Public URL:  (configure domain in .env for custom domain)")
     print("=" * 70 + "\n")
 
-def start_ngrok(domain: str):
-    """Start ngrok tunnel in background"""
-    global ngrok_process
-    if not domain:
+def start_cloudflared_tunnel(tunnel_name: str, tunnel_domain: str = None, force_restart=False):
+    """Start Cloudflare tunnel in background"""
+    global cloudflared_process
+    
+    # If there's an existing process and we're not forcing restart, check if it's still alive
+    if cloudflared_process and not force_restart:
+        if cloudflared_process.poll() is None:  # Process is still running
+            # Check if tunnel is actually working (if domain is provided)
+            if tunnel_domain and check_cloudflared_tunnel_health(tunnel_domain, max_retries=1):
+                print(f"[cloudflared] Tunnel already running and healthy: https://{tunnel_domain}")
+                return cloudflared_process
+            elif not tunnel_domain:
+                # Without domain, just check if process is alive
+                print("[cloudflared] Tunnel already running")
+                return cloudflared_process
+            else:
+                print("[cloudflared] Existing tunnel appears closed, restarting...")
+                cleanup_cloudflared_tunnel()
+        else:
+            print("[cloudflared] Previous tunnel process terminated, restarting...")
+            cloudflared_process = None
+    
+    if not tunnel_name:
         return None
     
-    # Check if authtoken is configured
-    if not check_ngrok_authtoken():
-        print("\n[ngrok] WARNING: ngrok authtoken not configured!")
-        print("[ngrok] Please run: ngrok config add-authtoken YOUR_AUTHTOKEN")
-        print("[ngrok] Get your authtoken from: https://dashboard.ngrok.com/get-started/your-authtoken")
-        print("[ngrok] Skipping automatic ngrok startup...\n")
+    # Check if cloudflared is installed
+    if not check_cloudflared_installed():
+        print("\n[cloudflared] WARNING: cloudflared not found!")
+        print("[cloudflared] Please install cloudflared:")
+        print("[cloudflared]   macOS: brew install cloudflare/cloudflare/cloudflared")
+        print("[cloudflared]   Linux: Download from https://github.com/cloudflare/cloudflared/releases")
+        print("[cloudflared]   Windows: Download from https://github.com/cloudflare/cloudflared/releases")
+        print("[cloudflared] Skipping automatic tunnel startup...\n")
         return None
     
-    print(f"[ngrok] Starting tunnel with domain: {domain}")
+    print(f"[cloudflared] Starting tunnel: {tunnel_name}")
+    if tunnel_domain:
+        print(f"[cloudflared] Domain: {tunnel_domain}")
+    
     try:
-        # Start ngrok as a subprocess
-        ngrok_process = subprocess.Popen(
-            ['ngrok', 'http', '8000', '--domain', domain],
+        # Start cloudflared tunnel as a subprocess
+        # Use tunnel run command which reads from default config location
+        cloudflared_process = subprocess.Popen(
+            ['cloudflared', 'tunnel', 'run', tunnel_name],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
         )
         
-        # Brief wait for ngrok to initialize (reduced from 1.5s)
-        time.sleep(0.3)
+        # Wait for tunnel to initialize
+        time.sleep(1.0)
         
-        # Try to get the actual public URL from ngrok API (with quick retries)
-        public_url = get_ngrok_url(max_retries=3, retry_delay=0.2)
+        # Verify tunnel is actually working (if domain is provided)
+        if tunnel_domain:
+            print("[cloudflared] Verifying tunnel health...")
+            if check_cloudflared_tunnel_health(tunnel_domain, max_retries=2, retry_delay=0.5):
+                print("[cloudflared] ✓ Tunnel is healthy and responding")
+            else:
+                print("[cloudflared] ⚠ WARNING: Tunnel started but initial health check failed")
+                print("[cloudflared] Background monitor will retry. If issues persist, verify DNS is configured.")
+        else:
+            print("[cloudflared] ✓ Tunnel process started (no domain configured for health check)")
         
-        # Print prominent info (use domain if URL not ready yet)
-        print_ngrok_info(domain, public_url)
-        print(f"[ngrok] Process ID: {ngrok_process.pid}\n")
-        return ngrok_process
+        # Print prominent info
+        print_cloudflared_info(tunnel_name, tunnel_domain)
+        print(f"[cloudflared] Process ID: {cloudflared_process.pid}\n")
+        return cloudflared_process
     except FileNotFoundError:
-        print("[ngrok] ERROR: ngrok not found. Make sure ngrok is installed and in your PATH.")
-        print("[ngrok] Install with: winget install ngrok.ngrok\n")
+        print("[cloudflared] ERROR: cloudflared not found. Make sure cloudflared is installed and in your PATH.")
+        print("[cloudflared] Install instructions: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/\n")
         return None
     except Exception as e:
-        print(f"[ngrok] ERROR: Failed to start tunnel: {e}\n")
+        print(f"[cloudflared] ERROR: Failed to start tunnel: {e}\n")
         return None
 
 if __name__ == "__main__":
     # Register cleanup function
-    atexit.register(cleanup_ngrok)
+    atexit.register(cleanup_cloudflared_tunnel)
     
     # Handle Ctrl+C gracefully
     def signal_handler(sig, frame):
-        cleanup_ngrok()
+        cleanup_cloudflared_tunnel()
         sys.exit(0)
     
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    # Check for ngrok domain in environment
-    ngrok_domain = os.getenv('NGROK_DOMAIN', '').strip()
-    ngrok_url = None
+    # Check for Cloudflare tunnel configuration in environment
+    tunnel_name = os.getenv('CLOUDFLARE_TUNNEL_NAME', '').strip()
+    tunnel_domain = os.getenv('CLOUDFLARE_TUNNEL_DOMAIN', '').strip()
+    tunnel_url = None
     
-    if ngrok_domain:
-        process = start_ngrok(ngrok_domain)
+    if tunnel_name:
+        cloudflared_tunnel_name = tunnel_name
+        # Force restart to ensure a fresh connection
+        process = start_cloudflared_tunnel(tunnel_name, tunnel_domain if tunnel_domain else None, force_restart=True)
         if process:
-            # Try to get the URL one more time (quick, non-blocking)
-            ngrok_url = get_ngrok_url(max_retries=2, retry_delay=0.1) or f"https://{ngrok_domain}"
+            # Construct URL if domain is provided
+            if tunnel_domain:
+                tunnel_url = f"https://{tunnel_domain}"
+                print(f"[cloudflared] Tunnel URL confirmed: {tunnel_url}")
+            
+            # Start health monitor in background thread
+            monitor_running = True
+            cloudflared_monitor_thread = threading.Thread(
+                target=monitor_cloudflared_health,
+                args=(tunnel_name, tunnel_domain if tunnel_domain else None),
+                daemon=True,
+                name="cloudflared-health-monitor"
+            )
+            cloudflared_monitor_thread.start()
+        else:
+            print("[cloudflared] WARNING: Failed to start Cloudflare tunnel")
     else:
-        print("[ngrok] No NGROK_DOMAIN set in .env - skipping automatic ngrok startup")
-        print("[ngrok] To enable: Set NGROK_DOMAIN=your-domain.ngrok-free.app in ai_optimism/backend/.env\n")
+        print("[cloudflared] No CLOUDFLARE_TUNNEL_NAME set in .env - skipping automatic tunnel startup")
+        print("[cloudflared] To enable: Set CLOUDFLARE_TUNNEL_NAME=aiopt in ai_optimism/backend/.env")
+        print("[cloudflared] Optional: Set CLOUDFLARE_TUNNEL_DOMAIN=your-domain.com for custom domain\n")
     
-    # Print ngrok info again right before server starts (so it's visible above uvicorn output)
-    if ngrok_url:
+    # Print tunnel info again right before server starts (so it's visible above uvicorn output)
+    if tunnel_url:
         print("\n" + "=" * 70)
-        print(" " * 15 + "🚀 BACKEND STARTING - NGROK URL:")
+        print(" " * 12 + "🚀 BACKEND STARTING - CLOUDFLARE TUNNEL URL:")
         print("=" * 70)
-        print(f"  {ngrok_url}")
+        print(f"  {tunnel_url}")
         print("=" * 70 + "\n")
     
     # Start the FastAPI server

@@ -2,7 +2,7 @@
  * Custom hook for managing researcher sessions
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSessionManager, Session } from '../../services/sessionManager';
 import { executeFormalization } from '../../services/formalizationHelper';
 import { getAIConfigKey } from '../../services/sessionAIConfig';
@@ -14,9 +14,17 @@ export const useResearcherSessions = () => {
   const [previousSessionIds, setPreviousSessionIds] = useState<Set<string>>(new Set());
   const [newSessionIds, setNewSessionIds] = useState<Set<string>>(new Set());
   const sessionManager = useSessionManager();
+  const isLoadingRef = useRef(false); // Prevent overlapping requests
 
   // Load sessions
   const loadSessions = async () => {
+    // Skip if already loading to prevent overlapping requests
+    if (isLoadingRef.current) {
+      return;
+    }
+    
+    isLoadingRef.current = true;
+    try {
     const activeSessions = await sessionManager.getActiveSessions();
     const currentSessionIds = new Set(activeSessions.map(s => s.id));
     
@@ -50,6 +58,9 @@ export const useResearcherSessions = () => {
       }
       return current;
     });
+    } finally {
+      isLoadingRef.current = false;
+    }
   };
 
   // Initial load and polling

@@ -74,7 +74,7 @@ export default function HomePage() {
 
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5, py: 1 }}>
                 {currentSession && (
-                  <SessionAIConnectionStatus sessionId={currentSession.id} />
+                  <SessionAIConnectionStatus sessionId={currentSession.id} mode={currentSession.mode} />
                 )}
                 <BackendStatusIndicator onClick={() => setBackendSettingsOpen(true)} />
               </Box>

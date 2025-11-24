@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
     Box,
     Chip,
-    IconButton,
     Tooltip,
     Dialog,
     DialogTitle,
@@ -17,9 +16,9 @@ import {
     InputAdornment,
     Alert,
     CircularProgress,
+    IconButton,
 } from '@mui/material';
 import {
-    Settings as SettingsIcon,
     CheckCircle as CheckCircleIcon,
     Error as ErrorIcon,
     Send as SendIcon,
@@ -29,9 +28,11 @@ import {
 } from '@mui/icons-material';
 import { getAIConfig, setAIConfig, deleteAIConfig, type AISessionConfigStatus } from '../services/sessionAIConfig';
 import type { AIProvider } from '../services/ai';
+import type { SessionMode } from '../services/sessionManager';
 
 interface SessionAIConnectionStatusProps {
     sessionId: string;
+    mode?: SessionMode;
 }
 
 // Static provider configuration
@@ -50,7 +51,7 @@ const staticProviders = {
     },
 };
 
-export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps> = ({ sessionId }) => {
+export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps> = ({ sessionId, mode }) => {
     const [config, setConfig] = useState<AISessionConfigStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -185,6 +186,10 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
     };
 
     const getStatusColor = () => {
+        // In experimental mode, always show purple regardless of AI config
+        if (mode === 'experimental') {
+            return 'default'; // We'll override with custom purple color in sx
+        }
         if (loading) return 'default';
         if (!config) return 'default';
         switch (config.status) {
@@ -211,6 +216,10 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
     };
 
     const getStatusLabel = () => {
+        // In experimental mode, always show "Experimental Mode" regardless of AI config
+        if (mode === 'experimental') {
+            return 'Experimental Mode';
+        }
         if (loading) return 'Loading...';
         if (!config) return 'No AI Config';
         if (config.status === 'connected') {
@@ -256,26 +265,18 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
                         '& .MuiChip-icon': {
                             color: '#ffffff',
                         },
-                        backgroundColor: config?.status === 'connected' ? 'rgba(76, 175, 80, 0.9)' : 
+                        backgroundColor: mode === 'experimental' ? 'rgba(156, 39, 176, 0.9)' : // Purple for experimental mode
+                                       config?.status === 'connected' ? 'rgba(76, 175, 80, 0.9)' : 
                                        config?.status === 'error' ? 'rgba(244, 67, 54, 0.9)' : 
                                        'rgba(158, 158, 158, 0.7)',
                         '&:hover': {
-                            backgroundColor: config?.status === 'connected' ? 'rgba(76, 175, 80, 1)' : 
+                            backgroundColor: mode === 'experimental' ? 'rgba(156, 39, 176, 1)' : // Purple hover for experimental mode
+                                           config?.status === 'connected' ? 'rgba(76, 175, 80, 1)' : 
                                            config?.status === 'error' ? 'rgba(244, 67, 54, 1)' : 
                                            'rgba(158, 158, 158, 0.9)',
                         }
                     }}
                 />
-                
-                <Tooltip title="Push API Key to Session">
-                    <IconButton
-                        size="small"
-                        onClick={() => setSettingsOpen(true)}
-                        color="primary"
-                    >
-                        <SettingsIcon fontSize="small" />
-                    </IconButton>
-                </Tooltip>
             </Box>
 
             <Dialog open={settingsOpen} onClose={() => setSettingsOpen(false)} maxWidth="sm" fullWidth>
@@ -358,6 +359,19 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
                     </Box>
                 </DialogContent>
                 <DialogActions>
+                    {config && (
+                        <Button
+                            onClick={async () => {
+                                await handleDisconnect();
+                                setSettingsOpen(false);
+                            }}
+                            color="error"
+                            disabled={disconnecting}
+                            startIcon={disconnecting ? <CircularProgress size={20} /> : <CloseIcon />}
+                        >
+                            {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+                        </Button>
+                    )}
                     <Button onClick={() => setSettingsOpen(false)}>Cancel</Button>
                     <Button
                         onClick={handlePushApiKey}

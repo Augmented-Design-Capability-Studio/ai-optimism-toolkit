@@ -49,8 +49,6 @@ class SessionManager {
       baseURL: `${backendUrl}/api`,
       headers: {
         'Content-Type': 'application/json',
-        // Bypass ngrok warning page for free domains
-        'ngrok-skip-browser-warning': 'true',
       },
     });
   }
@@ -71,16 +69,15 @@ class SessionManager {
     try {
       const response = await this.client.get(`/sessions/${sessionId}`);
       
-      // Check if response is HTML (ngrok warning page)
+      // Check if response is HTML (unexpected HTML response)
       const contentType = response.headers['content-type'] || '';
       const data = response.data;
       
       if (typeof data === 'string' && data.includes('<!DOCTYPE html>')) {
         const backendUrl = this.client.defaults.baseURL?.replace('/api', '') || 'unknown';
-        console.error('[SessionManager] Received HTML instead of JSON - ngrok warning page detected');
-        console.error('[SessionManager] Please visit the backend URL in your browser first to accept the warning:');
-        console.error('[SessionManager]', backendUrl);
-        throw new Error(`ngrok_warning_page: Please visit ${backendUrl} in your browser to accept the ngrok warning page first`);
+        console.error('[SessionManager] Received HTML instead of JSON - unexpected response');
+        console.error('[SessionManager] Backend URL:', backendUrl);
+        throw new Error(`unexpected_html_response: Backend returned HTML instead of JSON. Please verify the backend URL is correct: ${backendUrl}`);
       }
       
       const session = data;
@@ -90,8 +87,8 @@ class SessionManager {
       }
       return session;
     } catch (error: any) {
-      if (error.message?.includes('ngrok_warning_page')) {
-        throw error; // Re-throw ngrok warning page errors
+      if (error.message?.includes('unexpected_html_response')) {
+        throw error; // Re-throw HTML response errors
       }
       
       if (error.response?.status === 404) {
@@ -102,9 +99,9 @@ class SessionManager {
       // Check if response data is HTML
       if (error.response?.data && typeof error.response.data === 'string' && error.response.data.includes('<!DOCTYPE html>')) {
         const backendUrl = this.client.defaults.baseURL?.replace('/api', '') || 'unknown';
-        console.error('[SessionManager] ngrok warning page detected in error response');
-        console.error('[SessionManager] Please visit the backend URL in your browser first:', backendUrl);
-        throw new Error(`ngrok_warning_page: Please visit ${backendUrl} in your browser to accept the ngrok warning page first`);
+        console.error('[SessionManager] Unexpected HTML response detected in error');
+        console.error('[SessionManager] Backend URL:', backendUrl);
+        throw new Error(`unexpected_html_response: Backend returned HTML instead of JSON. Please verify the backend URL is correct: ${backendUrl}`);
       }
       
       // Network errors - provide helpful message
@@ -126,13 +123,13 @@ class SessionManager {
     try {
       const response = await this.client.post('/sessions/', { mode, userId, researcherId });
       
-      // Check if response is HTML (ngrok warning page)
+      // Check if response is HTML (unexpected HTML response)
       const data = response.data;
       if (typeof data === 'string' && data.includes('<!DOCTYPE html>')) {
         const backendUrl = this.client.defaults.baseURL?.replace('/api', '') || 'unknown';
-        console.error('[SessionManager] Received HTML instead of JSON - ngrok warning page detected');
-        console.error('[SessionManager] Please visit the backend URL in your browser first:', backendUrl);
-        throw new Error(`ngrok_warning_page: Please visit ${backendUrl} in your browser to accept the ngrok warning page first`);
+        console.error('[SessionManager] Received HTML instead of JSON - unexpected response');
+        console.error('[SessionManager] Backend URL:', backendUrl);
+        throw new Error(`unexpected_html_response: Backend returned HTML instead of JSON. Please verify the backend URL is correct: ${backendUrl}`);
       }
       
       const session = data;
@@ -346,12 +343,19 @@ class SessionManager {
   subscribeToSession(
     sessionId: string,
     callback: (session: Session | null) => void,
-    intervalMs: number = 1000
+    intervalMs: number = 2500
   ): () => void {
     let lastUpdate = 0;
     let sessionWasDeleted = false;
+    let isChecking = false; // Prevent overlapping requests
 
     const checkUpdates = async () => {
+      // Skip if already checking to prevent overlapping requests
+      if (isChecking) {
+        return;
+      }
+      
+      isChecking = true;
       try {
         const session = await this.getSession(sessionId);
 
@@ -376,6 +380,8 @@ class SessionManager {
         }
       } catch (error) {
         console.error('[SessionManager] Error checking session updates:', error);
+      } finally {
+        isChecking = false;
       }
     };
 

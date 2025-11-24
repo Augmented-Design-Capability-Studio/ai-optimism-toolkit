@@ -30,3 +30,8 @@ app.include_router(sessions.router, prefix="/api/sessions", tags=["sessions"])
 @app.get("/")
 async def root():
     return {"message": "Welcome to AI Optimism Toolkit API"}
+
+@app.get("/health")
+async def health():
+    """Health check endpoint for ngrok and monitoring"""
+    return {"status": "healthy", "service": "ai-optimism-toolkit-api"}

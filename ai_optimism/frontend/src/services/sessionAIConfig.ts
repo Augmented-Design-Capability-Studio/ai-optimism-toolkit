@@ -32,8 +32,6 @@ const getApiClient = () => {
     baseURL: `${backendUrl}/api`,
     headers: {
       'Content-Type': 'application/json',
-      // Bypass ngrok warning page for free domains
-      'ngrok-skip-browser-warning': 'true',
     },
   });
 };

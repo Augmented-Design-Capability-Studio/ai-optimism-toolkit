@@ -123,7 +123,7 @@ export function ClientAuthWrapper({ children }: ClientAuthWrapperProps) {
                         </form>
 
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2, textAlign: 'center' }}>
-                            Set NEXT_PUBLIC_CLIENT_ACCESS_PASSWORD in .env.local
+                            Set NEXT_PUBLIC_CLIENT_ACCESS_PASSWORD in .env
                         </Typography>
                     </Paper>
                 </Box>

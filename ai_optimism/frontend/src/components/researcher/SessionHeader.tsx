@@ -95,7 +95,7 @@ export function SessionHeader({
           <Typography variant="h6">
             Session {session.id.slice(-8)}
           </Typography>
-          <SessionAIConnectionStatus sessionId={session.id} />
+          <SessionAIConnectionStatus sessionId={session.id} mode={session.mode} />
         </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
           <Typography variant="caption" color="text.secondary">

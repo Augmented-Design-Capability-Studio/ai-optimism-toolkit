@@ -113,7 +113,7 @@ export function ResearcherAuthWrapper({ children }: AuthWrapperProps) {
                         </form>
 
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2, textAlign: 'center' }}>
-                            Tip: Set NEXT_PUBLIC_RESEARCHER_PASSWORD in .env.local
+                            Tip: Set NEXT_PUBLIC_RESEARCHER_PASSWORD in .env
                         </Typography>
                     </Paper>
                 </Box>
