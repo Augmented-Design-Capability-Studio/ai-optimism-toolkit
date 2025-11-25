@@ -38,6 +38,47 @@ export default function ResearcherDashboard() {
     await loadSessions();
   };
 
+  // Handle requesting AI response on client's behalf
+  const handleRequestAIResponse = async (sessionId: string) => {
+    try {
+      // Call the API endpoint to generate AI response
+      const response = await fetch(`/api/sessions/${sessionId}/ai-response`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate AI response');
+      }
+
+      const data = await response.json();
+      const aiResponseText = data.response;
+
+      if (!aiResponseText) {
+        throw new Error('No response received from AI');
+      }
+
+      // Save the AI response to backend as an 'ai' sender message
+      await sessionManager.addMessage(sessionId, 'ai', aiResponseText);
+      
+      // Update session status to active if it was waiting
+      const currentSession = sessions.find(s => s.id === sessionId);
+      if (currentSession?.status === 'waiting') {
+        await sessionManager.updateSession(sessionId, { status: 'active' });
+      }
+
+      // Refresh sessions to show the new message
+      await loadSessions();
+    } catch (error: any) {
+      console.error('[ResearcherDashboard] Error requesting AI response:', error);
+      alert(`Failed to generate AI response: ${error.message || 'Unknown error'}`);
+      throw error;
+    }
+  };
+
   // Handle clear all sessions
   const handleClearAll = async () => {
     if (!confirm('Are you sure you want to delete ALL sessions? This cannot be undone.')) {
@@ -114,6 +155,7 @@ export default function ResearcherDashboard() {
               onTerminate={handleTerminateSession}
               onDelete={handleDeleteSession}
               onSendMessage={handleSendMessage}
+              onRequestAIResponse={handleRequestAIResponse}
             />
           </Box>
           

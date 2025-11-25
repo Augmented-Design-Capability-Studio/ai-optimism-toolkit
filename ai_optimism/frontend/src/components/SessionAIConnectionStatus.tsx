@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Box,
     Chip,
@@ -65,6 +65,9 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
     const [showApiKey, setShowApiKey] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    
+    // Use ref to track config state for polling logic (avoid closure issues)
+    const configRef = useRef<AISessionConfigStatus | null>(null);
 
     const loadConfig = async (showLoading = false) => {
         if (showLoading) {
@@ -74,17 +77,20 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
         try {
             const sessionConfig = await getAIConfig(sessionId);
             setConfig(sessionConfig);
+            configRef.current = sessionConfig; // Update ref for polling logic
             if (sessionConfig) {
                 setProvider(sessionConfig.provider as AIProvider);
                 setModel(sessionConfig.model);
                 console.log('[SessionAIConnectionStatus] Config loaded:', sessionConfig.status, sessionConfig.provider, sessionConfig.model);
             } else {
                 setConfig(null);
+                configRef.current = null;
             }
         } catch (error: any) {
             // 404 means no config exists yet - this is expected
             if (error.response?.status === 404) {
                 setConfig(null);
+                configRef.current = null;
             } else {
                 console.error('[SessionAIConnectionStatus] Failed to load config:', error);
             }
@@ -94,6 +100,26 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
             }
         }
     };
+
+    // Load config on mount and when sessionId changes
+    // Poll for config updates if no config exists yet (to detect when researcher pushes API key)
+    // Once config exists, we stop polling (it will refresh on user actions)
+    useEffect(() => {
+        if (!sessionId) return;
+        
+        // Load immediately
+        loadConfig(true);
+        
+        // Poll every 3 seconds to detect when researcher pushes API key
+        // Only poll if we don't have a config yet (using ref to avoid closure issues)
+        const pollInterval = setInterval(() => {
+            if (!configRef.current) {
+                loadConfig(false);
+            }
+        }, 3000);
+        
+        return () => clearInterval(pollInterval);
+    }, [sessionId]);
 
     const handleDisconnect = async () => {
         if (!config || disconnecting) {
@@ -125,17 +151,12 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
         }
     };
 
-    // Load session AI config and poll for updates
+    // Load session AI config on mount and when sessionId changes
+    // Note: We don't poll here - useChatSession already polls for the API key every 3 seconds
+    // This component only needs to show status, so we load once and refresh after user actions
     useEffect(() => {
         if (!sessionId) return;
-
-        // Load immediately with loading indicator
         loadConfig(true);
-
-        // Poll for updates every 3 seconds (in case config changes, no loading indicator)
-        const interval = setInterval(() => loadConfig(false), 3000);
-
-        return () => clearInterval(interval);
     }, [sessionId]);
 
     const handlePushApiKey = async () => {
@@ -166,6 +187,8 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
             for (let attempt = 0; attempt < 5; attempt++) {
                 await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)));
                 try {
+                    // Reload config after successful push
+                    await loadConfig(false);
                     const verifyConfig = await getAIConfig(sessionId);
                     if (verifyConfig && verifyConfig.status === 'connected') {
                         console.log('[SessionAIConnectionStatus] Verified API key was saved (attempt', attempt + 1, ')');

@@ -218,13 +218,24 @@ export function useChatSession() {
       }
     };
 
+    // Load immediately
     loadConfig();
-    const interval = setInterval(loadConfig, 3000);
+    
+    // Poll every 10 seconds (reduced from 3 seconds to reduce API calls)
+    // This is sufficient to detect when researcher pushes API key
+    // and check for config changes/disconnects
+    const interval = setInterval(loadConfig, 10000);
     return () => clearInterval(interval);
   }, [currentSession?.id]);
 
   // Create transport for AI chat
   const transport = useMemo(() => {
+    console.log('[useChatSession] Creating transport:', {
+      hasApiKey: !!sessionApiKey,
+      apiKeyLength: sessionApiKey?.length || 0,
+      provider: sessionProvider,
+      model: sessionModel,
+    });
     return new DefaultChatTransport({
       api: '/api/chat',
       body: {
@@ -235,7 +246,22 @@ export function useChatSession() {
     });
   }, [sessionApiKey, sessionProvider, sessionModel]);
 
-  const chatId = currentSession ? `chat-${currentSession.id}-${mode}` : 'chat-disconnected';
+  // Track last backend AI message ID to detect when researcher adds AI responses via button
+  // This helps us sync useChat with backend messages
+  const lastBackendAIMessageId = useMemo(() => {
+    if (!currentSession || isResearcherControlled) return '';
+    const sessionMessages = Array.isArray(currentSession.messages) ? currentSession.messages : [];
+    const lastAIMessage = [...sessionMessages].reverse().find((m: Message) => m.sender === 'ai');
+    return lastAIMessage?.id || '';
+  }, [currentSession?.messages, isResearcherControlled]);
+
+  // Use stable chatId based only on session ID (not mode) to preserve messages when switching modes
+  // Include last backend AI message ID to force re-initialization when researcher adds AI responses
+  // This ensures useChat gets the full conversation context including AI responses from button
+  const chatId = currentSession 
+    ? `chat-${currentSession.id}${lastBackendAIMessageId ? `-ai-${lastBackendAIMessageId}` : ''}` 
+    : 'chat-disconnected';
+  
   const { messages, sendMessage, status, error } = useChat({
     id: chatId,
     transport,
@@ -435,6 +461,11 @@ export function useChatSession() {
 
       if (!isResearcherControlled) {
         if (!sessionApiKey?.trim()) {
+          console.warn('[useChatSession] Cannot send message: API key not loaded yet', {
+            sessionId: currentSession.id,
+            mode,
+            hasApiKey: !!sessionApiKey,
+          });
           setOptimisticMessages(prev => {
             const newMap = new Map(prev);
             newMap.delete(optimisticId);
@@ -444,6 +475,12 @@ export function useChatSession() {
           return;
         }
 
+        console.log('[useChatSession] Sending message in AI mode:', {
+          sessionId: currentSession.id,
+          hasApiKey: !!sessionApiKey,
+          provider: sessionProvider,
+          model: sessionModel,
+        });
         sendMessage({
           role: 'user',
           parts: [{ type: 'text', text: userMessageText }],
@@ -472,13 +509,50 @@ export function useChatSession() {
   };
 
   // Build display messages with optimistic updates
+  // Always use backend messages as source of truth for seamless mode switching
+  // In AI mode, merge in streaming messages from useChat during active streaming
   const sessionMessages = Array.isArray(currentSession?.messages) ? currentSession.messages : [];
-  const sessionDisplayMessages = sessionMessages.map(m => ({
-    id: m.id,
-    role: m.sender === 'researcher' ? 'assistant' : m.sender === 'ai' ? 'assistant' : m.sender,
-    content: m.content,
-    metadata: m.metadata,
-  }));
+  
+  // Convert session messages to display format (always used as base)
+  const sessionDisplayMessages = useMemo(() => {
+    return sessionMessages.map(m => ({
+      id: m.id,
+      role: m.sender === 'researcher' ? 'assistant' : m.sender === 'ai' ? 'assistant' : m.sender,
+      content: m.content,
+      metadata: m.metadata,
+    }));
+  }, [sessionMessages]);
+
+  // In AI mode, merge streaming messages from useChat during active streaming
+  // This provides real-time streaming UX while backend remains source of truth
+  const streamingMessages = useMemo(() => {
+    if (isResearcherControlled || !status || status !== 'streaming') return [];
+    
+    return messages
+      .filter((msg: any) => msg.role === 'assistant')
+      .map((msg: any) => {
+        // Extract text content from AI SDK message format
+        let content = '';
+        if (msg.parts && Array.isArray(msg.parts)) {
+          content = msg.parts
+            .filter((p: any) => p.type === 'text')
+            .map((p: any) => p.text)
+            .join('');
+        } else if (typeof msg.content === 'string') {
+          content = msg.content;
+        } else if (msg.text) {
+          content = msg.text;
+        }
+        
+        return {
+          id: msg.id || `streaming-${Date.now()}`,
+          role: 'assistant' as const,
+          content,
+          parts: msg.parts,
+          metadata: { ...msg.metadata, streaming: true } as any,
+        };
+      });
+  }, [messages, status, isResearcherControlled]);
 
   const confirmedUserMessages = useMemo(() => new Set(
     sessionDisplayMessages
@@ -498,7 +572,22 @@ export function useChatSession() {
   }, [optimisticMessages, confirmedUserMessages]);
 
   const displayMessages = useMemo(() => {
-    const all = [...sessionDisplayMessages, ...optimisticDisplayMessages];
+    // Always use backend messages as base
+    // In AI mode, merge in streaming messages if actively streaming
+    // Remove any streaming messages that already exist in backend (to avoid duplicates)
+    const backendMessageIds = new Set(sessionDisplayMessages.map(m => m.id));
+    const uniqueStreamingMessages = streamingMessages.filter(
+      (streamMsg) => {
+        // Check if this streaming message content already exists in backend
+        const existsInBackend = sessionDisplayMessages.some(
+          (backendMsg) => backendMsg.role === 'assistant' && 
+                         backendMsg.content.trim() === streamMsg.content.trim()
+        );
+        return !existsInBackend;
+      }
+    );
+    
+    const all = [...sessionDisplayMessages, ...uniqueStreamingMessages, ...optimisticDisplayMessages];
     return all.sort((a, b) => {
       const aMeta = a.metadata as any;
       const bMeta = b.metadata as any;
@@ -506,7 +595,7 @@ export function useChatSession() {
       const bTime = bMeta?.timestamp || (sessionMessages.find(m => m.id === b.id)?.timestamp || 0);
       return aTime - bTime;
     });
-  }, [sessionDisplayMessages, optimisticDisplayMessages, sessionMessages]);
+  }, [sessionDisplayMessages, streamingMessages, optimisticDisplayMessages, sessionMessages]);
 
   // Clean up optimistic messages
   useEffect(() => {

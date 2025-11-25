@@ -3,17 +3,29 @@
  */
 
 import { useState } from 'react';
-import { Box, TextField, IconButton } from '@mui/material';
+import { Box, TextField, IconButton, Tooltip } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 interface MessageInputProps {
   sessionId: string;
   onSendMessage: (sessionId: string, message: string) => void;
+  onRequestAIResponse?: (sessionId: string) => void;
   disabled?: boolean;
+  sessionStatus?: 'active' | 'waiting' | 'formalized' | 'completed';
+  hasAIConfig?: boolean;
 }
 
-export function MessageInput({ sessionId, onSendMessage, disabled }: MessageInputProps) {
+export function MessageInput({ 
+  sessionId, 
+  onSendMessage, 
+  onRequestAIResponse,
+  disabled,
+  sessionStatus,
+  hasAIConfig = false,
+}: MessageInputProps) {
   const [input, setInput] = useState('');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +43,27 @@ export function MessageInput({ sessionId, onSendMessage, disabled }: MessageInpu
     }
     // Shift+Enter adds new line (default behavior)
   };
+
+  const handleRequestAI = async () => {
+    if (!onRequestAIResponse || isGeneratingAI) return;
+    
+    setIsGeneratingAI(true);
+    try {
+      await onRequestAIResponse(sessionId);
+    } catch (error) {
+      console.error('[MessageInput] Error requesting AI response:', error);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const isAIButtonDisabled = 
+    !onRequestAIResponse ||
+    !hasAIConfig ||
+    isGeneratingAI ||
+    disabled ||
+    sessionStatus === 'completed' ||
+    sessionStatus === 'formalized';
 
   return (
     <Box
@@ -57,6 +90,31 @@ export function MessageInput({ sessionId, onSendMessage, disabled }: MessageInpu
         onKeyDown={handleKeyDown}
         disabled={disabled}
       />
+      {onRequestAIResponse && (
+        <Tooltip 
+          title={
+            !hasAIConfig 
+              ? "AI provider not configured for this session"
+              : isGeneratingAI
+              ? "Generating AI response..."
+              : "Request AI response on client's behalf"
+          }
+          arrow
+        >
+          <span>
+            <IconButton
+              color="secondary"
+              onClick={handleRequestAI}
+              disabled={isAIButtonDisabled}
+              sx={{
+                opacity: isGeneratingAI ? 0.6 : 1,
+              }}
+            >
+              <AutoAwesomeIcon />
+            </IconButton>
+          </span>
+        </Tooltip>
+      )}
       <IconButton 
         type="submit" 
         color="primary" 

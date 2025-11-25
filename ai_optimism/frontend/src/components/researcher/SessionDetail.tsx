@@ -3,10 +3,12 @@
  */
 
 import { Paper, Box, Typography } from '@mui/material';
+import { useState, useEffect } from 'react';
 import { Session } from '../../services/sessionManager';
 import { SessionHeader } from './SessionHeader';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
+import { getAIConfig } from '../../services/sessionAIConfig';
 
 interface SessionDetailProps {
   session: Session | null;
@@ -16,6 +18,7 @@ interface SessionDetailProps {
   onTerminate: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
   onSendMessage: (sessionId: string, message: string) => void;
+  onRequestAIResponse?: (sessionId: string) => void;
 }
 
 export function SessionDetail({
@@ -26,7 +29,34 @@ export function SessionDetail({
   onTerminate,
   onDelete,
   onSendMessage,
+  onRequestAIResponse,
 }: SessionDetailProps) {
+  const [hasAIConfig, setHasAIConfig] = useState(false);
+
+  // Check if session has AI config
+  useEffect(() => {
+    if (!session?.id) {
+      setHasAIConfig(false);
+      return;
+    }
+
+    const checkAIConfig = async () => {
+      try {
+        const config = await getAIConfig(session.id);
+        // Enable button if config exists (regardless of validation status)
+        // The API endpoint will handle validation when making the request
+        setHasAIConfig(config !== null);
+      } catch (error) {
+        setHasAIConfig(false);
+      }
+    };
+
+    checkAIConfig();
+    // Poll every 3 seconds to detect when AI config is added
+    const interval = setInterval(checkAIConfig, 3000);
+    return () => clearInterval(interval);
+  }, [session?.id]);
+
   if (!session) {
     return (
       <Paper sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -62,7 +92,10 @@ export function SessionDetail({
         <MessageInput
           sessionId={session.id}
           onSendMessage={onSendMessage}
+          onRequestAIResponse={onRequestAIResponse}
           disabled={session.status === 'completed'}
+          sessionStatus={session.status}
+          hasAIConfig={hasAIConfig}
         />
       )}
     </Paper>
