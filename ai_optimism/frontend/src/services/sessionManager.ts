@@ -377,6 +377,7 @@ class SessionManager {
     let lastUpdate = 0;
     let sessionWasDeleted = false;
     let isChecking = false; // Prevent overlapping requests
+    let intervalId: NodeJS.Timeout | null = null;
 
     const checkUpdates = async () => {
       // Skip if already checking to prevent overlapping requests
@@ -392,8 +393,13 @@ class SessionManager {
         if (!session) {
           if (!sessionWasDeleted) {
             sessionWasDeleted = true;
-            console.log('[SessionManager] Session', sessionId, 'was deleted - notifying callback');
+            console.log('[SessionManager] Session', sessionId, 'was deleted - stopping subscription');
             callback(null); // Notify callback that session was deleted
+            // Stop the interval to prevent further polling
+            if (intervalId) {
+              clearInterval(intervalId);
+              intervalId = null;
+            }
           }
           // Stop checking - session is gone
           return;
@@ -408,6 +414,20 @@ class SessionManager {
           callback(session);
         }
       } catch (error) {
+        // If we get a 404 error, treat it as deleted session
+        if ((error as any)?.response?.status === 404) {
+          if (!sessionWasDeleted) {
+            sessionWasDeleted = true;
+            console.log('[SessionManager] Session', sessionId, 'not found (404) - stopping subscription');
+            callback(null);
+            // Stop the interval to prevent further polling
+            if (intervalId) {
+              clearInterval(intervalId);
+              intervalId = null;
+            }
+          }
+          return;
+        }
         console.error('[SessionManager] Error checking session updates:', error);
       } finally {
         isChecking = false;
@@ -417,10 +437,15 @@ class SessionManager {
     // Run initial check immediately
     checkUpdates();
 
-    const intervalId = setInterval(checkUpdates, intervalMs);
+    intervalId = setInterval(checkUpdates, intervalMs);
 
     // Return cleanup function
-    return () => clearInterval(intervalId);
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
   }
 }
 
