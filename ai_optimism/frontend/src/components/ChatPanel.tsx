@@ -1,6 +1,6 @@
 'use client';
 
-import { Paper, Alert, Box, Typography } from '@mui/material';
+import { Paper, Alert, Box, Typography, Button } from '@mui/material';
 import { useRef, useState, useEffect } from 'react';
 import {
   useChatSession,
@@ -36,6 +36,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     isLoading,
     isWaitingForResearcher,
     sessionTerminated,
+    sessionDeleted,
     apiKey,
     provider,
     model,
@@ -43,6 +44,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     getConversationText,
     formalizeProblem,
     resetFormalization,
+    createNewSession,
   } = useChatSession();
 
   // Restore locally completed messages from localStorage on mount or session change
@@ -453,9 +455,33 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     >
       <ChatHeader session={currentSession} />
 
-      {sessionTerminated && (
+      {sessionTerminated && !sessionDeleted && (
         <Alert severity="info" sx={{ m: 2 }}>
           Your session was ended by a researcher. Starting a fresh conversation.
+        </Alert>
+      )}
+
+      {sessionDeleted && (
+        <Alert 
+          severity="warning" 
+          sx={{ m: 2 }}
+          action={
+            <Button 
+              color="inherit" 
+              size="small" 
+              onClick={async () => {
+                try {
+                  await createNewSession();
+                } catch (error) {
+                  alert('Failed to create new session. Please try again.');
+                }
+              }}
+            >
+              Create New Session
+            </Button>
+          }
+        >
+          Your session has been deleted or terminated. Click the button to start a new session.
         </Alert>
       )}
 
@@ -500,6 +526,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         onInputChange={setInput}
         onSubmit={handleSubmit}
         isLoading={isLoading}
+        disabled={sessionDeleted}
       />
 
       {/* Temporarily hide the API warning banner per request */}

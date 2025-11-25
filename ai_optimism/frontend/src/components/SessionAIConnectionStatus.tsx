@@ -157,10 +157,29 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
             });
             
             console.log('[SessionAIConnectionStatus] API key pushed successfully:', result);
+            console.log('[SessionAIConnectionStatus] Pushed to session:', sessionId);
             setSuccess(true);
             
-            // Small delay to ensure backend has processed
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Verify the push succeeded by immediately checking if we can retrieve it
+            // Retry a few times in case of database commit delay
+            let verified = false;
+            for (let attempt = 0; attempt < 5; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)));
+                try {
+                    const verifyConfig = await getAIConfig(sessionId);
+                    if (verifyConfig && verifyConfig.status === 'connected') {
+                        console.log('[SessionAIConnectionStatus] Verified API key was saved (attempt', attempt + 1, ')');
+                        verified = true;
+                        break;
+                    }
+                } catch (verifyError) {
+                    console.log('[SessionAIConnectionStatus] Verification attempt', attempt + 1, 'failed:', verifyError);
+                }
+            }
+            
+            if (!verified) {
+                console.warn('[SessionAIConnectionStatus] Could not verify API key was saved after push');
+            }
             
             // Reload config immediately to show updated status (with loading indicator)
             await loadConfig(true);

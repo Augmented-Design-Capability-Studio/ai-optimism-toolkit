@@ -18,7 +18,7 @@ export interface Message {
   content: string;
   timestamp: number;
   metadata?: {
-    type?: 'formalization' | 'controls-generation' | 'ai-request';
+    type?: 'formalization' | 'controls-generation';
     incomplete?: boolean;
     controlsGenerated?: boolean;
     controlsError?: string;
@@ -328,6 +328,14 @@ class SessionManager {
     try {
       const response = await this.client.delete('/sessions/clear/');
       this.setCurrentSession(null);
+      // Set a flag to prevent clients from auto-creating sessions after clear
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('sessions_cleared_flag', Date.now().toString());
+        // Clear the flag after 1 minute (gives time for all clients to detect deletion)
+        setTimeout(() => {
+          localStorage.removeItem('sessions_cleared_flag');
+        }, 60000);
+      }
       console.log('[SessionManager] All sessions cleared:', response.data);
       return true;
     } catch (error: any) {

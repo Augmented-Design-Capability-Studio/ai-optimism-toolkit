@@ -38,14 +38,6 @@ export default function ResearcherDashboard() {
     await loadSessions();
   };
 
-  // Handle requesting AI response (sends command to user's side)
-  const handleRequestAIResponse = async (sessionId: string) => {
-    await sessionManager.addMessage(sessionId, 'researcher', 'Researcher requested AI response', {
-      type: 'ai-request'
-    });
-    await loadSessions();
-  };
-
   // Handle clear all sessions
   const handleClearAll = async () => {
     if (!confirm('Are you sure you want to delete ALL sessions? This cannot be undone.')) {
@@ -97,7 +89,6 @@ export default function ResearcherDashboard() {
               onTerminate={handleTerminateSession}
               onDelete={handleDeleteSession}
               onSendMessage={handleSendMessage}
-              onRequestAIResponse={handleRequestAIResponse}
             />
           </Box>
           

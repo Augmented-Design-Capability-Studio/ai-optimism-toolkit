@@ -47,7 +47,7 @@ export async function POST(
 
     // Generate formalization
     const { text } = await generateText({
-      model: google('gemini-2.0-flash-exp'),
+      model: google('gemini-2.5-flash'),
       messages: [{ role: 'user', content: formalizationPrompt }],
       temperature: 0.3, // Lower temperature for more structured output
     });

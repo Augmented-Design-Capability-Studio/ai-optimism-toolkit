@@ -188,14 +188,48 @@ export async function getAIConfigKey(sessionId: string): Promise<{
   endpoint: string | null;
 } | null> {
   const apiClient = getApiClient();
+  const url = `/sessions/${sessionId}/ai-config/key`;
+  console.log('[getAIConfigKey] Fetching API key for session:', sessionId, 'URL:', url, 'BaseURL:', apiClient.defaults.baseURL);
+  
   try {
-    const response = await apiClient.get(`/sessions/${sessionId}/ai-config/key`);
-    return response.data;
+    const response = await apiClient.get(url);
+    const data = response.data;
+    console.log('[getAIConfigKey] Successfully retrieved AI config:', {
+      hasApiKey: !!data?.apiKey,
+      apiKeyLength: data?.apiKey?.length || 0,
+      provider: data?.provider,
+      model: data?.model,
+    });
+    
+    // Validate response structure
+    if (!data || typeof data !== 'object') {
+      console.error('[getAIConfigKey] Invalid response data:', data);
+      return null;
+    }
+    
+    // Check if API key is present
+    if (!data.apiKey) {
+      console.warn('[getAIConfigKey] Response missing API key:', data);
+      return null;
+    }
+    
+    return data;
   } catch (error: any) {
     // 404 means no config exists yet - this is expected and not an error
     if (error.response?.status === 404) {
+      console.log('[getAIConfigKey] No AI config found (404) for session:', sessionId);
       return null;
     }
+    
+    // Log other errors for debugging
+    console.error('[getAIConfigKey] Error fetching AI config:', {
+      message: error?.message,
+      status: error?.response?.status,
+      statusText: error?.response?.statusText,
+      data: error?.response?.data,
+      url: `${apiClient.defaults.baseURL}${url}`,
+    });
+    
     throw error;
   }
 }

@@ -16,17 +16,46 @@ export async function POST(req: Request) {
       messageCount: messages?.length 
     });
     
-    if (!apiKey) {
+    if (!apiKey || apiKey.trim() === '') {
       // Don't log error for initial empty requests (common on page load)
       if (!messages || messages.length === 0) {
-        console.log('[Chat API] No API key provided (initial load - ignoring)');
+        console.log('[Chat API] No API key provided (initial load - returning empty response)');
+        // Return empty response that won't trigger errors
+        // Create an empty stream that matches the expected format
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            // Send empty completion in the expected format
+            controller.enqueue(encoder.encode('0:""\n'));
+            controller.close();
+          }
+        });
+        return new Response(stream, {
+          headers: { 
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache',
+          },
+        });
       } else {
         console.error('[Chat API] No API key provided for', messages.length, 'messages');
+        // For requests with messages, return error but in a format that won't crash
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            // Send error message in the expected streaming format
+            const errorMsg = 'API key required. Please configure your AI provider settings.';
+            controller.enqueue(encoder.encode(`0:"${errorMsg.replace(/"/g, '\\"')}"\n`));
+            controller.close();
+          }
+        });
+        return new Response(stream, {
+          status: 200, // Return 200 to prevent error handling in useChat
+          headers: { 
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Cache-Control': 'no-cache',
+          },
+        });
       }
-      return new Response(JSON.stringify({ error: 'API key required. Please configure your AI provider settings.' }), { 
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
     }
 
     // Create Google provider with user-provided API key

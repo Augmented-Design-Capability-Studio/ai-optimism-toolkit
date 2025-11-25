@@ -3,25 +3,16 @@
  */
 
 import { useState } from 'react';
-import { Box, TextField, IconButton, Tooltip } from '@mui/material';
+import { Box, TextField, IconButton } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 interface MessageInputProps {
   sessionId: string;
   onSendMessage: (sessionId: string, message: string) => void;
-  onRequestAIResponse?: (sessionId: string) => void;
-  hasAIConfig?: boolean;
   disabled?: boolean;
 }
 
-export function MessageInput({ 
-  sessionId, 
-  onSendMessage, 
-  onRequestAIResponse,
-  hasAIConfig = false,
-  disabled 
-}: MessageInputProps) {
+export function MessageInput({ sessionId, onSendMessage, disabled }: MessageInputProps) {
   const [input, setInput] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -66,22 +57,6 @@ export function MessageInput({
         onKeyDown={handleKeyDown}
         disabled={disabled}
       />
-      {hasAIConfig && onRequestAIResponse && (
-        <Tooltip title="Request AI to respond (uses user's API key)">
-          <IconButton
-            onClick={() => onRequestAIResponse(sessionId)}
-            color="secondary"
-            disabled={disabled}
-            sx={{ 
-              '&:hover': {
-                bgcolor: 'secondary.light',
-              }
-            }}
-          >
-            <AutoAwesomeIcon />
-          </IconButton>
-        </Tooltip>
-      )}
       <IconButton 
         type="submit" 
         color="primary" 

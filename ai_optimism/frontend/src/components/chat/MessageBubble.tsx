@@ -45,16 +45,10 @@ export function MessageBubble({ message, mode, onGenerateControls }: MessageBubb
   // Check if this is a formalization message
   const isFormalization = message.metadata?.type === 'formalization';
   const isControlsGeneration = message.metadata?.type === 'controls-generation';
-  const isAIRequest = message.metadata?.type === 'ai-request';
   const isIncomplete = message.metadata?.incomplete === true;
   const controlsGenerated = message.metadata?.controlsGenerated === true;
   const controlsError = message.metadata?.controlsError;
   const isGenerating = isControlsGeneration && !controlsGenerated && !controlsError;
-
-  // Hide AI request messages (they're just commands, not meant to be displayed)
-  if (isAIRequest) {
-    return null;
-  }
   
   // Determine avatar emoji based on message type
   const avatarEmoji = displayRole === 'user' 

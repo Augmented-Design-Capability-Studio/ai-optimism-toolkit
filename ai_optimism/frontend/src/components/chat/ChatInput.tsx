@@ -9,13 +9,15 @@ interface ChatInputProps {
   onInputChange: (value: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   isLoading: boolean;
+  disabled?: boolean;
 }
 
 export function ChatInput({ 
   input, 
   onInputChange, 
   onSubmit, 
-  isLoading 
+  isLoading,
+  disabled = false
 }: ChatInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Submit on Enter (without Shift)
@@ -49,12 +51,12 @@ export function ChatInput({
         value={input}
         onChange={(e) => onInputChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        disabled={isLoading}
+        disabled={isLoading || disabled}
       />
       <IconButton
         type="submit"
         color="primary"
-        disabled={isLoading || !input.trim()}
+        disabled={isLoading || disabled || !input.trim()}
       >
         <SendIcon />
       </IconButton>

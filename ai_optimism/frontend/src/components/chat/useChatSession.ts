@@ -12,208 +12,198 @@ export function useChatSession() {
   const { state: backendState } = useBackend();
   const sessionManager = useSessionManager();
   
-  // Session-specific AI config (loaded from backend)
+  // Session state
+  const [currentSession, setCurrentSession] = useState<Session | null>(null);
+  const [sessionDeleted, setSessionDeleted] = useState(false);
+  const [sessionTerminated, setSessionTerminated] = useState(false);
+  
+  // AI config state
   const [sessionApiKey, setSessionApiKey] = useState<string>('');
   const [sessionProvider, setSessionProvider] = useState<string>('google');
   const [sessionModel, setSessionModel] = useState<string>('gemini-2.5-flash');
-
-  const [input, setInput] = useState('');
-  const [currentSession, setCurrentSession] = useState<Session | null>(null);
-  const [sessionTerminated, setSessionTerminated] = useState(false);
   
-  // Ref to track if initialization is in progress to prevent duplicate session creation
-  const isInitializingRef = useRef(false);
+  // Input and optimistic messages
+  const [input, setInput] = useState('');
+  const [optimisticMessages, setOptimisticMessages] = useState<Map<string, {
+    content: string;
+    timestamp: number;
+  }>>(new Map());
+  
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // Determine current mode from session
+  // Derived state
   const mode: SessionMode = currentSession?.mode || 'ai';
   const isResearcherControlled = mode === 'experimental';
 
-  // Clear any stale chat state from previous sessions when no API key is present
-  useEffect(() => {
-    if (!sessionApiKey && typeof window !== 'undefined') {
-      const keysToRemove = Object.keys(localStorage).filter(key =>
-        key.startsWith('chat-') || key.includes('optimization-chat')
-      );
-      keysToRemove.forEach(key => localStorage.removeItem(key));
-    }
-  }, [sessionApiKey]);
-
-  // Helper to show termination notification
-  const showTerminationNotification = () => {
-    setSessionTerminated(true);
-    setTimeout(() => setSessionTerminated(false), 5000);
-  };
-
   // Subscribe to session updates
-  let currentUnsubscribe: (() => void) | null = null;
-
-  const subscribeToCurrentSession = (sessionId: string) => {
-    // Clean up previous subscription if it exists
-    if (currentUnsubscribe) {
-      currentUnsubscribe();
+  const subscribeToSession = (sessionId: string) => {
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
     }
 
-    currentUnsubscribe = sessionManager.subscribeToSession(sessionId, async (updatedSession) => {
-      if (updatedSession) {
-        if (updatedSession.status === 'completed') {
-          showTerminationNotification();
-          const newSession = await sessionManager.createSession('ai');
-          console.log('[useChatSession] Session terminated, created new session:', newSession.id);
-
-          // Explicitly ensure new session starts with active status (not waiting)
-          await sessionManager.updateSession(newSession.id, { status: 'active' });
-          setCurrentSession(newSession);
-
-          // Restart subscription for new session
-          subscribeToCurrentSession(newSession.id);
-        } else {
-          setCurrentSession(updatedSession);
-        }
-      } else {
-        // Session was deleted (subscription returned null)
-        console.warn('[useChatSession] Session was deleted, creating new session');
-        const newSession = await sessionManager.createSession('experimental');
-        await sessionManager.updateSession(newSession.id, { status: 'active' });
-        setCurrentSession(newSession);
-        setSessionTerminated(true);
-        setTimeout(() => setSessionTerminated(false), 5000);
-
-        // Restart subscription for new session
-        subscribeToCurrentSession(newSession.id);
+    unsubscribeRef.current = sessionManager.subscribeToSession(sessionId, (updatedSession) => {
+      // If session was already marked as deleted, don't process any updates
+      if (sessionDeleted) {
+        return;
       }
+
+      if (!updatedSession) {
+        // Session was deleted - stop subscription and mark as deleted
+        console.log('[useChatSession] Session deleted by researcher - stopping subscription');
+        setSessionDeleted(true);
+        setCurrentSession(null);
+        // Clear localStorage to prevent any retry attempts
+        sessionManager.setCurrentSession(null);
+        if (unsubscribeRef.current) {
+          unsubscribeRef.current();
+          unsubscribeRef.current = null;
+        }
+        return;
+      }
+
+      if (updatedSession.status === 'completed') {
+        // Session was terminated - stop subscription and mark as deleted
+        console.log('[useChatSession] Session terminated by researcher - stopping subscription');
+        setSessionDeleted(true);
+        setCurrentSession(null);
+        // Clear localStorage to prevent any retry attempts
+        sessionManager.setCurrentSession(null);
+        if (unsubscribeRef.current) {
+          unsubscribeRef.current();
+          unsubscribeRef.current = null;
+        }
+        return;
+      }
+
+      setCurrentSession(updatedSession);
     });
   };
 
-  // Initialize or load session on mount
-  useEffect(() => {
-    const initializeSession = async () => {
-      // Prevent duplicate initialization (React StrictMode runs effects twice)
-      if (isInitializingRef.current) {
-        console.log('[useChatSession] Initialization already in progress, skipping...');
-        return;
-      }
-      
-      isInitializingRef.current = true;
-      console.log('[useChatSession] initializeSession called');
-      console.log('[useChatSession] Backend URL:', backendState.backendUrl);
+  // Track if we've attempted to load a session to prevent re-initialization
+  const hasAttemptedLoadRef = useRef(false);
 
+  // Load existing session on mount (if any) - NO AUTO CREATION
+  useEffect(() => {
+    // Prevent multiple load attempts
+    if (hasAttemptedLoadRef.current) {
+      return;
+    }
+    hasAttemptedLoadRef.current = true;
+
+    const loadSession = async () => {
       try {
-        // Check for session parameter in URL
+        // Check if sessions were recently cleared - if so, don't try to load/create
+        const sessionsClearedFlag = typeof window !== 'undefined' 
+          ? localStorage.getItem('sessions_cleared_flag') 
+          : null;
+        if (sessionsClearedFlag) {
+          const clearedTime = parseInt(sessionsClearedFlag);
+          const timeSinceCleared = Date.now() - clearedTime;
+          // If cleared within last 2 minutes, don't auto-create
+          if (timeSinceCleared < 120000) {
+            console.log('[useChatSession] Sessions were recently cleared, not loading/creating session');
+            setSessionDeleted(true);
+            return;
+          }
+        }
+
+        // Check URL parameter
         const urlParams = new URLSearchParams(window.location.search);
         const sessionParam = urlParams.get('session');
-
-        let session;
+        
+        let session: Session | null = null;
 
         if (sessionParam) {
-          // Try to load the specified session
           session = await sessionManager.getSession(sessionParam);
-          if (session) {
-            console.log('[useChatSession] Loaded session from URL parameter:', session.id);
-            // Set as current session
+          if (session && session.status !== 'completed') {
+            console.log('[useChatSession] Loaded session from URL:', session.id);
             sessionManager.setCurrentSession(session.id);
           } else {
-            console.warn('[useChatSession] Session from URL parameter not found:', sessionParam);
+            session = null;
           }
         }
 
-        // If no session from URL or session not found, get current session
+        // Check localStorage
         if (!session) {
-          // First, check localStorage synchronously (works better on mobile)
-          const localStorageSessionId = typeof window !== 'undefined' 
-            ? localStorage.getItem('wizard_current_session') 
-            : null;
-          
-          if (localStorageSessionId) {
-            console.log('[useChatSession] Found session ID in localStorage:', localStorageSessionId);
+          const localStorageId = localStorage.getItem('wizard_current_session');
+          if (localStorageId) {
             try {
-              // Try to load the session from backend
-              session = await sessionManager.getSession(localStorageSessionId);
+              session = await sessionManager.getSession(localStorageId);
               if (session && session.status !== 'completed') {
-                console.log('[useChatSession] Successfully restored session from localStorage:', session.id);
-                // Ensure it's set as current session
+                console.log('[useChatSession] Loaded session from localStorage:', session.id);
                 sessionManager.setCurrentSession(session.id);
-              } else if (session?.status === 'completed') {
-                console.log('[useChatSession] Session in localStorage is completed, will create new one');
-                session = null;
-                // Clear the completed session ID
-                sessionManager.setCurrentSession(null);
               } else {
-                console.warn('[useChatSession] Session from localStorage not found on backend:', localStorageSessionId);
+                // Session not found or completed - was deleted/cleared
+                console.log('[useChatSession] Session from localStorage not found or completed - was deleted');
+                setSessionDeleted(true);
+                sessionManager.setCurrentSession(null);
                 session = null;
               }
-            } catch (error: any) {
-              // Network error - keep the session ID and try again later
-              console.warn('[useChatSession] Network error loading session from localStorage, will retry:', error);
-              // Don't clear localStorage - keep the session ID for retry
-              session = null;
-            }
-          }
-          
-          // If still no session, try getCurrentSession (fallback)
-          if (!session) {
-            try {
-              session = await sessionManager.getCurrentSession();
-              if (session) {
-                console.log('[useChatSession] Loaded session via getCurrentSession:', session.id);
-              }
-            } catch (error: any) {
-              console.warn('[useChatSession] Error getting current session:', error);
+            } catch (error) {
+              console.warn('[useChatSession] Error loading session from localStorage:', error);
+              // On error, mark as deleted to prevent auto-creation
+              setSessionDeleted(true);
               session = null;
             }
           }
         }
 
-        // Always ensure there's a session
-        if (!session || session.status === 'completed') {
-          if (session?.status === 'completed') {
-            showTerminationNotification();
-            // Clear completed session from localStorage
-            sessionManager.setCurrentSession(null);
-          }
-          
-          // Only create new session if we truly don't have one
-          if (!session || session.status === 'completed') {
-            console.log('[useChatSession] No valid session found, creating new one');
-            // Create session in experimental mode so researchers can always see it
-            session = await sessionManager.createSession('experimental');
-            // Explicitly ensure new session starts fresh
-            await sessionManager.updateSession(session.id, { status: 'active' });
-            console.log('[useChatSession] Created new experimental session:', session.id);
+        // Try getCurrentSession as fallback (only if we don't have sessionDeleted set)
+        if (!session && !sessionDeleted) {
+          try {
+            session = await sessionManager.getCurrentSession();
+            if (session && session.status !== 'completed') {
+              console.log('[useChatSession] Loaded current session:', session.id);
+            } else {
+              session = null;
+            }
+          } catch (error) {
+            session = null;
           }
         }
 
-        // Validate session has an id before setting it
-        if (!session || !session.id) {
-          console.error('[useChatSession] Invalid session object (missing id):', session);
-          // Create a new session as fallback
-          session = await sessionManager.createSession('experimental');
-          await sessionManager.updateSession(session.id, { status: 'active' });
-          console.log('[useChatSession] Created fallback session:', session.id);
+        if (session && session.id) {
+          setCurrentSession(session);
+          subscribeToSession(session.id);
+        } else {
+          // No session found - mark as deleted so user can create one manually
+          // DO NOT create session automatically
+          setSessionDeleted(true);
         }
-
-        setCurrentSession(session);
-
-        // Subscribe to session updates
-        subscribeToCurrentSession(session.id);
-      } finally {
-        // Reset the flag after initialization completes
-        setTimeout(() => {
-          isInitializingRef.current = false;
-        }, 100);
+      } catch (error) {
+        console.error('[useChatSession] Error loading session:', error);
+        // On any error, mark as deleted to prevent auto-creation
+        setSessionDeleted(true);
       }
     };
 
-    initializeSession();
+    loadSession();
 
-    // Return cleanup function
     return () => {
-      if (currentUnsubscribe) {
-        currentUnsubscribe();
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
       }
     };
-  }, []);
+  }, []); // Only run once on mount
 
-  // Reload session AI config when session changes and poll for updates
+  // Manual function to create a new session
+  const createNewSession = async () => {
+    try {
+      console.log('[useChatSession] Creating new session manually');
+      const session = await sessionManager.createSession('experimental');
+      await sessionManager.updateSession(session.id, { status: 'active' });
+      setCurrentSession(session);
+      setSessionDeleted(false);
+      subscribeToSession(session.id);
+      console.log('[useChatSession] Created new session:', session.id);
+    } catch (error) {
+      console.error('[useChatSession] Error creating new session:', error);
+      throw error;
+    }
+  };
+
+  // Load and poll AI config
   useEffect(() => {
     if (!currentSession?.id) {
       setSessionApiKey('');
@@ -222,38 +212,33 @@ export function useChatSession() {
       return;
     }
 
-    const loadSessionAIConfig = async () => {
+    const loadConfig = async () => {
       try {
         const aiConfig = await getAIConfigKey(currentSession.id);
-        if (aiConfig) {
+        if (aiConfig?.apiKey?.trim()) {
           setSessionApiKey(aiConfig.apiKey);
           setSessionProvider(aiConfig.provider);
           setSessionModel(aiConfig.model);
-          console.log('[useChatSession] Loaded session AI config:', aiConfig.provider, aiConfig.model);
         } else {
           setSessionApiKey('');
           setSessionProvider('google');
           setSessionModel('gemini-2.5-flash');
         }
-      } catch (error) {
-        console.warn('[useChatSession] Failed to load session AI config:', error);
+      } catch (error: any) {
+        if (error?.response?.status !== 404) {
+          console.warn('[useChatSession] Failed to load AI config:', error);
+        }
         setSessionApiKey('');
       }
     };
 
-    // Load immediately
-    loadSessionAIConfig();
-
-    // Poll for updates every 3 seconds (in case researcher pushes new API key)
-    // This ensures API keys are picked up quickly when pushed
-    const interval = setInterval(loadSessionAIConfig, 3000);
-
+    loadConfig();
+    const interval = setInterval(loadConfig, 3000);
     return () => clearInterval(interval);
-  }, [currentSession?.id, currentSession?.updatedAt]);
+  }, [currentSession?.id]);
 
-  // Create transport with body containing API key, provider, and model from session config
+  // Create transport for AI chat
   const transport = useMemo(() => {
-    console.log('[useChatSession] Creating transport with API key:', !!sessionApiKey, 'model:', sessionModel);
     return new DefaultChatTransport({
       api: '/api/chat',
       body: {
@@ -264,429 +249,313 @@ export function useChatSession() {
     });
   }, [sessionApiKey, sessionProvider, sessionModel]);
 
-  // Use session ID as chat ID, but include mode to force reset when mode changes
   const chatId = currentSession ? `chat-${currentSession.id}-${mode}` : 'chat-disconnected';
-
-  // Convert session messages to useChat format for initialMessages
-  // This ensures conversation history persists when switching to AI mode
-  const initialMessages = useMemo(() => {
-    if (!currentSession || isResearcherControlled) {
-      return [];
-    }
-
-    const sessionMessages = Array.isArray(currentSession.messages) ? currentSession.messages : [];
-    if (sessionMessages.length === 0) {
-      return [];
-    }
-
-    // Convert session messages to useChat format
-    // Map 'user' -> 'user', 'ai'/'researcher' -> 'assistant'
-    return sessionMessages
-      .filter(msg => msg.content !== 'Initialize') // Filter out initialization messages
-      .map(msg => ({
-        role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
-        content: msg.content,
-      }));
-  }, [currentSession?.id, currentSession?.messages, isResearcherControlled]);
-
   const { messages, sendMessage, status, error } = useChat({
     id: chatId,
     transport,
-    initialMessages,
   });
 
   const isLoading = status === 'streaming' || status === 'submitted';
 
-  // Initialize AI greeting for new AI-mode sessions (only for truly new sessions)
+  // Initialize AI greeting for new sessions
   useEffect(() => {
     if (!currentSession || !sessionApiKey || isResearcherControlled) return;
-
-    // Check if session has no messages and useChat has no messages (new session)
     const sessionMessages = Array.isArray(currentSession.messages) ? currentSession.messages : [];
     const isNewSession = sessionMessages.length === 0 && messages.length === 0 && !isLoading;
-
     if (isNewSession) {
-      console.log('[useChatSession] Initializing AI for new session');
-      // Send an initialization prompt to get the AI's greeting for new sessions
       sendMessage({
         role: 'user',
         parts: [{ type: 'text', text: 'Initialize' }],
       });
     }
-  }, [currentSession?.id, currentSession?.mode, sessionApiKey, isResearcherControlled, messages.length, isLoading]);
+  }, [currentSession?.id, sessionApiKey, isResearcherControlled, messages.length, isLoading]);
 
-  // Log errors (but suppress API key errors when not connected)
+  // Suppress API key errors when key is not loaded yet
   useEffect(() => {
-    if (error && sessionApiKey) {
-      console.error('[ChatPanel] Chat error:', error);
+    if (error && !sessionApiKey) {
+      const isApiKeyError = error.message?.includes('API key required') || 
+                           error.message?.includes('API key');
+      if (isApiKeyError) {
+        return; // Suppress
+      }
+    }
+    if (error) {
+      console.error('[useChatSession] Chat error:', error);
     }
   }, [error, sessionApiKey]);
 
-  // Send periodic heartbeats to indicate client is active
-  // Heartbeats stop when window/tab is closed, allowing proper detection of disconnected clients
+  // Send heartbeats
   useEffect(() => {
     if (!currentSession) return;
 
-    let heartbeatInterval: NodeJS.Timeout | null = null;
-    let isTabVisible = !document.hidden;
+    let interval: NodeJS.Timeout;
+    let isVisible = !document.hidden;
 
     const sendHeartbeat = async () => {
-      // Only send heartbeat if tab is visible (user is actually using the app)
-      // This ensures we properly detect when window/tab is closed
-      if (!isTabVisible) return;
-
+      if (!isVisible) return;
       try {
-        await sessionManager.sendHeartbeat(currentSession!.id);
+        await sessionManager.sendHeartbeat(currentSession.id);
       } catch (error) {
-        console.warn('[useChatSession] Heartbeat failed, session may be deleted:', error);
-        // Try to create a new session
+        // Check if session still exists
         try {
-          const newSession = await sessionManager.createSession('experimental');
-          await sessionManager.updateSession(newSession.id, { status: 'active' });
-          setCurrentSession(newSession);
-          setSessionTerminated(true);
-          setTimeout(() => setSessionTerminated(false), 5000);
-          // Restart subscription for new session
-          subscribeToCurrentSession(newSession.id);
-        } catch (createError) {
-          console.error('[useChatSession] Failed to create new session after heartbeat failure:', createError);
+          const session = await sessionManager.getSession(currentSession.id);
+          if (!session) {
+            setSessionDeleted(true);
+            setCurrentSession(null);
+          }
+        } catch {
+          setSessionDeleted(true);
+          setCurrentSession(null);
         }
       }
     };
 
-    // Handle page visibility changes
     const handleVisibilityChange = () => {
-      isTabVisible = !document.hidden;
-      // Send immediate heartbeat when tab becomes visible again
-      if (isTabVisible) {
-        sendHeartbeat();
-      }
+      isVisible = !document.hidden;
+      if (isVisible) sendHeartbeat();
     };
 
-    // Send initial heartbeat
     sendHeartbeat();
-
-    // Send heartbeat every 10 seconds (only when tab is visible)
-    heartbeatInterval = setInterval(sendHeartbeat, 10000);
-
-    // Listen for page visibility changes
+    interval = setInterval(sendHeartbeat, 10000);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Send final heartbeat on page unload (best effort, not guaranteed)
-    const handleBeforeUnload = () => {
-      // Try to send one last heartbeat, but don't wait for it
-      // Note: This is best-effort only, as page unload handlers are not guaranteed to execute
-      sendHeartbeat().catch(() => {
-        // Ignore errors on unload
-      });
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
     return () => {
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-      }
+      clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [currentSession, sessionManager]);
 
-  // Save AI responses to session when they complete
+  // Save AI responses to session
   useEffect(() => {
-    const saveAIResponse = async () => {
-      if (!isResearcherControlled && currentSession && messages.length > 0 && status !== 'streaming') {
-        const lastMessage = messages[messages.length - 1];
+    if (isResearcherControlled || !currentSession || messages.length === 0 || status === 'streaming') {
+      return;
+    }
 
-        if (lastMessage.role === 'assistant') {
-          const text = lastMessage.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage.role !== 'assistant') return;
 
-          // Check if this message is already in session to avoid duplicates
-          const sessionMessages = Array.isArray(currentSession.messages) ? currentSession.messages : [];
-          const existingMessage = sessionMessages.find(m =>
-            m.sender === 'ai' && m.content === text
-          );
+    const text = lastMessage.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
+    if (!text.trim()) return;
 
-          if (text.trim() && !existingMessage) {
-            // Get fresh session data from storage to check user message count
-            const freshSession = await sessionManager.getSession(currentSession.id);
+    const sessionMessages = Array.isArray(currentSession.messages) ? currentSession.messages : [];
+    const exists = sessionMessages.some(m => m.sender === 'ai' && m.content === text);
+    if (exists) return;
 
-            // Only check for formalization readiness if there are actual user messages (excluding initialization)
-            // This prevents the initialization greeting or responses to simple commands from triggering readiness detection
-            const freshMessages = Array.isArray(freshSession?.messages) ? freshSession.messages : [];
-            const realUserMessages = freshMessages.filter((m: Message) =>
-              m.sender === 'user' && m.content !== 'Initialize'
-            ).length;
-
-            console.log('[useChatSession] Saving AI message, realUserMessages:', realUserMessages);
-            await sessionManager.addMessage(currentSession.id, 'ai', text);
-
-            // Set status back to active since we've responded to the user
-            if (currentSession.status === 'waiting') {
-              await sessionManager.updateSession(currentSession.id, { status: 'active' });
-            }
-
-            // Only check for formalization readiness if there are real user messages
-            if (realUserMessages > 0) {
-              // Check for formalization readiness signals
-              const { isReady, suggestsReformalizing, acknowledgesRestart } = detectFormalizationReadiness(text);
-
-              if (isReady && currentSession.status !== 'formalized') {
-                console.log('[useChatSession] AI indicated readiness to formalize');
-                await sessionManager.updateSession(currentSession.id, { readyToFormalize: true });
-              } else if ((suggestsReformalizing || acknowledgesRestart) && currentSession.status === 'formalized') {
-                console.log('[useChatSession] AI suggests re-formalization, resetting status');
-                await sessionManager.updateSession(currentSession.id, { status: 'active', readyToFormalize: false });
-              }
-            } else {
-              console.log('[useChatSession] Skipping readiness check - no real user messages yet');
-            }
-          }
-        }
-      }
-    };
-
-    saveAIResponse();
-  }, [messages, status, currentSession, isResearcherControlled]);
-
-  // Check researcher messages for formalization readiness in Experimental mode
-  // Note: Backend also checks this automatically, but this ensures frontend state stays in sync
-  useEffect(() => {
-    const checkResearcherMessages = async () => {
-      if (isResearcherControlled && currentSession) {
-        // Get fresh session data to check for new researcher messages
+    const saveResponse = async () => {
+      try {
         const freshSession = await sessionManager.getSession(currentSession.id);
         if (!freshSession) return;
 
-        // Only check if there are real user messages (excluding initialization)
+        await sessionManager.addMessage(currentSession.id, 'ai', text);
+
+        if (currentSession.status === 'waiting') {
+          await sessionManager.updateSession(currentSession.id, { status: 'active' });
+        }
+
+        const freshMessages = Array.isArray(freshSession.messages) ? freshSession.messages : [];
+        const realUserMessages = freshMessages.filter((m: Message) =>
+          m.sender === 'user' && m.content !== 'Initialize'
+        ).length;
+
+        if (realUserMessages > 0) {
+          const { isReady, suggestsReformalizing, acknowledgesRestart } = detectFormalizationReadiness(text);
+          if (isReady && currentSession.status !== 'formalized') {
+            await sessionManager.updateSession(currentSession.id, { readyToFormalize: true });
+          } else if ((suggestsReformalizing || acknowledgesRestart) && currentSession.status === 'formalized') {
+            await sessionManager.updateSession(currentSession.id, { status: 'active', readyToFormalize: false });
+          }
+        }
+      } catch (error) {
+        console.error('[useChatSession] Error saving AI response:', error);
+      }
+    };
+
+    saveResponse();
+  }, [messages, status, currentSession, isResearcherControlled]);
+
+  // Check researcher messages for formalization readiness
+  useEffect(() => {
+    if (!isResearcherControlled || !currentSession) return;
+
+    const check = async () => {
+      try {
+        const freshSession = await sessionManager.getSession(currentSession.id);
+        if (!freshSession) return;
+
         const freshMessages = Array.isArray(freshSession.messages) ? freshSession.messages : [];
         const realUserMessages = freshMessages.filter((m: Message) =>
           m.sender === 'user' && m.content !== 'Initialize'
         ).length;
 
         if (realUserMessages > 0 && freshSession.status !== 'formalized') {
-          // Get the last researcher message
           const lastResearcherMessage = [...freshMessages]
             .reverse()
             .find((m: Message) => m.sender === 'researcher');
 
           if (lastResearcherMessage) {
-            // Check for readiness keywords (backend also does this, but sync frontend state)
             const { isReady } = detectFormalizationReadiness(lastResearcherMessage.content);
-
-            // Only update if the state doesn't match what we detected
-            // This avoids unnecessary updates since backend already handles this
             if (isReady && !freshSession.readyToFormalize) {
-              console.log('[useChatSession] Researcher message indicates readiness to formalize (syncing frontend state)');
               await sessionManager.updateSession(currentSession.id, { readyToFormalize: true });
             }
           }
         }
+      } catch (error) {
+        console.error('[useChatSession] Error checking researcher messages:', error);
       }
     };
 
-    // Only check when session updates (new messages added)
     if (currentSession?.updatedAt) {
-      checkResearcherMessages();
+      check();
     }
   }, [currentSession?.updatedAt, currentSession?.id, isResearcherControlled, sessionManager]);
-
-  // Track processed AI request message IDs to avoid duplicate responses
-  const processedAIRequestsRef = useRef<Set<string>>(new Set());
-
-  // Detect AI request commands from researcher and trigger AI response
-  useEffect(() => {
-    const handleAIRequest = async () => {
-      if (!currentSession || !sessionApiKey || isResearcherControlled) return;
-      if (currentSession.isAIResponding) return; // Already responding
-
-      const sessionMessages = Array.isArray(currentSession.messages) ? currentSession.messages : [];
-      if (sessionMessages.length === 0) return;
-
-      // Get the last message
-      const lastMessage = sessionMessages[sessionMessages.length - 1];
-
-      // Check if last message is an AI request from researcher
-      if (lastMessage?.sender === 'researcher' && 
-          lastMessage?.metadata?.type === 'ai-request' &&
-          lastMessage?.id &&
-          !processedAIRequestsRef.current.has(lastMessage.id)) {
-        
-        console.log('[useChatSession] Detected AI request from researcher, triggering AI response');
-
-        // Mark this request as processed
-        processedAIRequestsRef.current.add(lastMessage.id);
-
-        // Get the last user message as context
-        const userMessages = sessionMessages.filter((m: Message) => 
-          m.sender === 'user' && m.content !== 'Initialize'
-        );
-        const lastUserMessage = userMessages[userMessages.length - 1];
-
-        if (lastUserMessage) {
-          // Set isAIResponding flag
-          await sessionManager.updateSession(currentSession.id, { isAIResponding: true });
-
-          try {
-            // Trigger AI response using the last user message
-            sendMessage({
-              role: 'user',
-              parts: [{ type: 'text', text: lastUserMessage.content }],
-            });
-          } catch (error) {
-            console.error('[useChatSession] Failed to trigger AI response:', error);
-            await sessionManager.updateSession(currentSession.id, { isAIResponding: false });
-            // Remove from processed set so it can be retried
-            processedAIRequestsRef.current.delete(lastMessage.id);
-          }
-        } else {
-          console.log('[useChatSession] No user message found to respond to');
-          // Remove from processed set since we couldn't process it
-          processedAIRequestsRef.current.delete(lastMessage.id);
-        }
-      }
-    };
-
-    // Check when session updates
-    if (currentSession?.updatedAt) {
-      handleAIRequest();
-    }
-  }, [currentSession?.updatedAt, currentSession?.messages, currentSession?.id, sessionApiKey, isResearcherControlled, sendMessage, sessionManager]);
 
   // Handle message submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !currentSession || !currentSession.id) {
-      if (!currentSession) {
-        console.warn('[useChatSession] Cannot submit: no current session');
-      } else if (!currentSession.id) {
-        console.error('[useChatSession] Cannot submit: currentSession exists but has no id:', currentSession);
-        // Try to reinitialize the session
-        const newSession = await sessionManager.createSession('experimental');
-        await sessionManager.updateSession(newSession.id, { status: 'active' });
-        setCurrentSession(newSession);
-        subscribeToCurrentSession(newSession.id);
-        // Retry with new session
-        await sessionManager.addMessage(newSession.id, 'user', input);
-        setInput('');
-        return;
+    
+    if (!input.trim() || !currentSession?.id) {
+      if (sessionDeleted) {
+        alert('Your session has been deleted. Please create a new session.');
       }
       return;
     }
 
+    const userMessageText = input.trim();
+    setInput('');
+
+    // Add optimistic message
+    const optimisticId = `optimistic-${Date.now()}-${Math.random()}`;
+    const optimisticTimestamp = Date.now();
+    setOptimisticMessages(prev => {
+      const newMap = new Map(prev);
+      newMap.set(optimisticId, { content: userMessageText, timestamp: optimisticTimestamp });
+      return newMap;
+    });
+
     try {
-      // If in AI mode and no API key, try to reload it immediately before sending
-      if (!isResearcherControlled && !sessionApiKey) {
-        console.log('[useChatSession] No API key found, attempting to reload before sending message');
-        try {
-          const aiConfig = await getAIConfigKey(currentSession.id);
-          if (aiConfig && aiConfig.apiKey) {
-            setSessionApiKey(aiConfig.apiKey);
-            setSessionProvider(aiConfig.provider);
-            setSessionModel(aiConfig.model);
-            console.log('[useChatSession] Successfully loaded API key before sending message');
-            // Wait a brief moment for state to update
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-        } catch (error) {
-          console.warn('[useChatSession] Failed to reload API key before sending:', error);
-        }
-      }
-
-      // Always save user message to session
-      const message = await sessionManager.addMessage(currentSession.id, 'user', input);
-
+      const message = await sessionManager.addMessage(currentSession.id, 'user', userMessageText);
+      
       if (!message) {
-        // Session was deleted, create a new one
-        console.warn('[useChatSession] Session was deleted, creating new session');
-        const newSession = await sessionManager.createSession('experimental');
-        await sessionManager.updateSession(newSession.id, { status: 'active' });
-        setCurrentSession(newSession);
-
-        // Restart subscription for new session
-        subscribeToCurrentSession(newSession.id);
-
-        // Retry adding the message to the new session
-        await sessionManager.addMessage(newSession.id, 'user', input);
-
-        // Show notification
-        setSessionTerminated(true);
-        setTimeout(() => setSessionTerminated(false), 5000);
-
-        setInput('');
+        // Session was deleted
+        setSessionDeleted(true);
+        setCurrentSession(null);
+        setOptimisticMessages(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(optimisticId);
+          return newMap;
+        });
         return;
       }
 
-      // If in AI mode (not researcher-controlled), also send to AI
       if (!isResearcherControlled) {
-        // Check API key again after reload attempt
-        if (!sessionApiKey) {
-          console.error('[useChatSession] Cannot send message: No API key available. Please ensure the researcher has pushed an API key to this session.');
-          alert('No API key available. Please ensure the researcher has pushed an API key to this session.');
+        if (!sessionApiKey?.trim()) {
+          setOptimisticMessages(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(optimisticId);
+            return newMap;
+          });
+          alert('AI provider not configured yet. Please wait for the API key to be loaded.');
           return;
         }
 
-        const userMessage = input;
-        setInput('');
-
-        // Send to AI
         sendMessage({
           role: 'user',
-          parts: [{ type: 'text', text: userMessage }],
+          parts: [{ type: 'text', text: userMessageText }],
         });
-
-        // AI response will be handled by streaming and saved when complete
-        // We'll need to watch for the response and save it
       } else {
-        // In experimental mode, set status to waiting since user is waiting for researcher
-        // Also reset readyToFormalize when user sends a new message (conversation continues)
-        if (isResearcherControlled) {
-          await sessionManager.updateSession(currentSession.id, {
-            status: 'waiting',
-            readyToFormalize: false
-          });
-        }
-        setInput('');
+        await sessionManager.updateSession(currentSession.id, {
+          status: 'waiting',
+          readyToFormalize: false,
+        });
       }
     } catch (error) {
+      setOptimisticMessages(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(optimisticId);
+        return newMap;
+      });
+      
       console.error('[useChatSession] Error submitting message:', error);
-      // If there's an error, try to create a new session
-      try {
-        const newSession = await sessionManager.createSession('experimental');
-        await sessionManager.updateSession(newSession.id, { status: 'active' });
-        setCurrentSession(newSession);
-        setSessionTerminated(true);
-        setTimeout(() => setSessionTerminated(false), 5000);
-        // Restart subscription for new session
-        subscribeToCurrentSession(newSession.id);
-      } catch (createError) {
-        console.error('[useChatSession] Failed to create new session:', createError);
+      
+      const errorMessage = String((error as any)?.message || '');
+      if (errorMessage.includes('404') || errorMessage.includes('not found') || errorMessage.includes('deleted')) {
+        setSessionDeleted(true);
+        setCurrentSession(null);
       }
     }
   };
 
-  // Convert session messages to display format
+  // Build display messages with optimistic updates
   const sessionMessages = Array.isArray(currentSession?.messages) ? currentSession.messages : [];
-  const displayMessages = sessionMessages.map(m => ({
+  const sessionDisplayMessages = sessionMessages.map(m => ({
     id: m.id,
     role: m.sender === 'researcher' ? 'assistant' : m.sender === 'ai' ? 'assistant' : m.sender,
     content: m.content,
     metadata: m.metadata,
-  })) || [];
+  }));
+
+  const confirmedUserMessages = useMemo(() => new Set(
+    sessionDisplayMessages
+      .filter(m => m.role === 'user')
+      .map(m => m.content.trim())
+  ), [sessionDisplayMessages]);
+
+  const optimisticDisplayMessages = useMemo(() => {
+    return Array.from(optimisticMessages.entries())
+      .filter(([_, opt]) => !confirmedUserMessages.has(opt.content.trim()))
+      .map(([id, opt]) => ({
+        id,
+        role: 'user' as const,
+        content: opt.content,
+        metadata: { optimistic: true, timestamp: opt.timestamp } as any,
+      }));
+  }, [optimisticMessages, confirmedUserMessages]);
+
+  const displayMessages = useMemo(() => {
+    const all = [...sessionDisplayMessages, ...optimisticDisplayMessages];
+    return all.sort((a, b) => {
+      const aMeta = a.metadata as any;
+      const bMeta = b.metadata as any;
+      const aTime = aMeta?.timestamp || (sessionMessages.find(m => m.id === a.id)?.timestamp || 0);
+      const bTime = bMeta?.timestamp || (sessionMessages.find(m => m.id === b.id)?.timestamp || 0);
+      return aTime - bTime;
+    });
+  }, [sessionDisplayMessages, optimisticDisplayMessages, sessionMessages]);
+
+  // Clean up optimistic messages
+  useEffect(() => {
+    setOptimisticMessages(prev => {
+      if (prev.size === 0) return prev;
+      
+      const confirmed = new Set(
+        sessionMessages
+          .filter(m => m.sender === 'user')
+          .map(m => m.content.trim())
+      );
+      
+      const newMap = new Map(prev);
+      let changed = false;
+      
+      for (const [id, opt] of newMap.entries()) {
+        if (confirmed.has(opt.content.trim()) || Date.now() - opt.timestamp > 10000) {
+          newMap.delete(id);
+          changed = true;
+        }
+      }
+      
+      return changed ? newMap : prev;
+    });
+  }, [sessionMessages]);
 
   const isWaitingForResearcher = isResearcherControlled && currentSession?.status === 'waiting';
   const isAILoading = !isResearcherControlled && (isLoading || currentSession?.isAIResponding === true);
 
-  // Extract conversation text for generation
   const getConversationText = () => {
-    return displayMessages
-      .map(m => `${m.role}: ${m.content}`)
-      .join('\n');
+    return displayMessages.map(m => `${m.role}: ${m.content}`).join('\n');
   };
 
-  // Formalize problem from user side
   const formalizeProblem = async () => {
     if (!currentSession || !sessionApiKey) return;
-
     try {
       await executeFormalization({
         sessionId: currentSession.id,
@@ -701,19 +570,15 @@ export function useChatSession() {
     }
   };
 
-  // Reset formalization to allow re-formalization
   const resetFormalization = async () => {
     if (!currentSession) return;
-
-    // Reset status to active and clear readyToFormalize
     await sessionManager.updateSession(currentSession.id, {
       status: 'active',
-      readyToFormalize: false
+      readyToFormalize: false,
     });
   };
 
   return {
-    // State
     input,
     setInput,
     currentSession,
@@ -722,14 +587,14 @@ export function useChatSession() {
     isLoading: isAILoading,
     isWaitingForResearcher,
     sessionTerminated,
+    sessionDeleted,
     apiKey: sessionApiKey,
     provider: sessionProvider,
     model: sessionModel,
-
-    // Actions
     handleSubmit,
     getConversationText,
     formalizeProblem,
     resetFormalization,
+    createNewSession, // Add manual session creation function
   };
 }
