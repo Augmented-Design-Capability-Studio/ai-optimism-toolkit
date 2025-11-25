@@ -92,20 +92,6 @@ export function useChatSession() {
 
     const loadSession = async () => {
       try {
-        // Check if sessions were recently cleared - if so, don't try to load/create
-        const sessionsClearedFlag = typeof window !== 'undefined' 
-          ? localStorage.getItem('sessions_cleared_flag') 
-          : null;
-        if (sessionsClearedFlag) {
-          const clearedTime = parseInt(sessionsClearedFlag);
-          const timeSinceCleared = Date.now() - clearedTime;
-          // If cleared within last 2 minutes, don't auto-create
-          if (timeSinceCleared < 120000) {
-            console.log('[useChatSession] Sessions were recently cleared, not loading/creating session');
-            setSessionDeleted(true);
-            return;
-          }
-        }
 
         // Check URL parameter
         const urlParams = new URLSearchParams(window.location.search);

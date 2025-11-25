@@ -98,6 +98,14 @@ export function SessionHeader({
           <SessionAIConnectionStatus sessionId={session.id} mode={session.mode} />
         </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+          {session.ipAddress && (
+            <>
+              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                IP: {session.ipAddress}
+              </Typography>
+              <span>•</span>
+            </>
+          )}
           <Typography variant="caption" color="text.secondary">
             Created: {new Date(session.createdAt).toLocaleString()}
           </Typography>

@@ -1,6 +1,6 @@
 """Session CRUD endpoints"""
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+from fastapi import APIRouter, HTTPException, Depends, Request
+from typing import List, Optional
 import time
 from sqlmodel import Session as DBSession, select, delete
 from sqlalchemy.orm import selectinload
@@ -25,8 +25,23 @@ router.include_router(ai_config_router)
 
 
 @router.post("/", response_model=SessionResponse)
-async def create_session(request: CreateSessionRequest, db: DBSession = Depends(get_session)):
+async def create_session(
+    request: CreateSessionRequest, 
+    http_request: Request,
+    db: DBSession = Depends(get_session)
+):
     """Create a new chat session"""
+    # Get client IP address (handles proxies/load balancers like Vercel)
+    ip_address = None
+    forwarded_for = http_request.headers.get("X-Forwarded-For")
+    real_ip = http_request.headers.get("X-Real-IP")
+    if forwarded_for:
+        ip_address = forwarded_for.split(",")[0].strip()
+    elif real_ip:
+        ip_address = real_ip.strip()
+    else:
+        ip_address = http_request.client.host if http_request.client else None
+    
     session = Session(
         id=generate_id(),
         mode=request.mode,
@@ -37,6 +52,7 @@ async def create_session(request: CreateSessionRequest, db: DBSession = Depends(
         updatedAt=int(time.time() * 1000),
         lastActivity=int(time.time() * 1000),
         readyToFormalize=False,
+        ipAddress=ip_address,
     )
     db.add(session)
     db.commit()
@@ -51,6 +67,25 @@ async def list_sessions(db: DBSession = Depends(get_session)):
     """Get all sessions"""
     sessions = db.exec(select(Session).options(selectinload(Session.messages))).all()
     return [session_to_response(s) for s in sessions]
+
+
+@router.get("/with-ips", response_model=List[dict])
+async def list_sessions_with_ips(db: DBSession = Depends(get_session)):
+    """Get all sessions with IP addresses (for admin/researcher use)"""
+    sessions = db.exec(select(Session).options(selectinload(Session.messages))).all()
+    return [
+        {
+            "id": s.id,
+            "ipAddress": getattr(s, 'ipAddress', None),
+            "userId": s.userId,
+            "mode": s.mode,
+            "status": s.status,
+            "createdAt": s.createdAt,
+            "lastActivity": s.lastActivity,
+            "messageCount": len(s.messages) if s.messages else 0,
+        }
+        for s in sessions
+    ]
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
@@ -200,3 +235,38 @@ async def clear_all_sessions(db: DBSession = Depends(get_session)):
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to clear sessions: {exc}") from exc
     return {"message": "All sessions cleared"}
+
+
+@router.delete("/by-ip/{ip_address}")
+async def delete_sessions_by_ip(ip_address: str, db: DBSession = Depends(get_session)):
+    """Delete all sessions from a specific IP address"""
+    try:
+        # Find all sessions with this IP address
+        sessions_to_delete = db.exec(
+            select(Session).where(Session.ipAddress == ip_address)
+        ).all()
+        
+        if not sessions_to_delete:
+            return {
+                "message": f"No sessions found for IP address: {ip_address}",
+                "deleted_count": 0
+            }
+        
+        deleted_count = 0
+        for session in sessions_to_delete:
+            # Delete dependent data first
+            db.exec(delete(Message).where(Message.sessionId == session.id))
+            db.exec(delete(AISessionConfig).where(AISessionConfig.sessionId == session.id))
+            db.delete(session)
+            deleted_count += 1
+        
+        db.commit()
+        
+        return {
+            "message": f"Deleted {deleted_count} session(s) from IP address: {ip_address}",
+            "deleted_count": deleted_count,
+            "ip_address": ip_address
+        }
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete sessions by IP: {exc}") from exc

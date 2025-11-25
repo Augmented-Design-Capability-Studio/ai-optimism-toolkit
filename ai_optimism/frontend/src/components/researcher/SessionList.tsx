@@ -102,7 +102,15 @@ export function SessionList({
                   }
                   secondary={
                     <>
-                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                        {session.ipAddress && (
+                          <>
+                            <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
+                              {session.ipAddress}
+                            </Typography>
+                            <span>•</span>
+                          </>
+                        )}
                         <span>{session.messages.length} message{session.messages.length !== 1 ? 's' : ''}</span>
                         {session.messages.length > 0 && (
                           <>

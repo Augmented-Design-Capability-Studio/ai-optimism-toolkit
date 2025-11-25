@@ -33,6 +33,7 @@ class Session(SQLModel, table=True):
     lastActivity: int
     isAIResponding: Optional[bool] = False
     readyToFormalize: Optional[bool] = False
+    ipAddress: Optional[str] = None  # Store client IP address
     
     messages: List[Message] = Relationship(
         back_populates="session",
@@ -79,6 +80,7 @@ class SessionResponse(BaseModel):
     lastActivity: int
     isAIResponding: Optional[bool] = False
     readyToFormalize: Optional[bool] = False
+    ipAddress: Optional[str] = None
     messages: List[MessageResponse] = []
 
     class Config:

@@ -54,6 +54,30 @@ export default function ResearcherDashboard() {
     }
   };
 
+  // Handle delete sessions by IP
+  const handleDeleteByIP = async () => {
+    const ipAddress = prompt('Enter IP address to delete sessions from (e.g., 67.7.145.37):');
+    if (!ipAddress || !ipAddress.trim()) {
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ALL sessions from IP address ${ipAddress}? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const result = await sessionManager.deleteSessionsByIP(ipAddress.trim());
+      alert(result.message || `Deleted ${result.deleted_count} session(s) from IP ${ipAddress}`);
+      await loadSessions();
+      if (selectedSession && selectedSession.ipAddress === ipAddress.trim()) {
+        setSelectedSession(null);
+      }
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to delete sessions by IP';
+      alert(`Error: ${errorMessage}`);
+    }
+  };
+
   return (
     <ResearcherAuthWrapper>
       {(handleLogout) => (
@@ -62,6 +86,7 @@ export default function ResearcherDashboard() {
             onRefresh={loadSessions} 
             onLogout={handleLogout}
             onClearAll={handleClearAll}
+            onDeleteByIP={handleDeleteByIP}
             onBackendSettings={() => setBackendSettingsOpen(true)}
           />
 

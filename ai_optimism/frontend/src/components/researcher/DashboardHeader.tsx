@@ -12,10 +12,11 @@ interface DashboardHeaderProps {
   onRefresh: () => void;
   onLogout?: () => void;
   onClearAll?: () => void;
+  onDeleteByIP?: () => void;
   onBackendSettings?: () => void;
 }
 
-export function DashboardHeader({ onRefresh, onLogout, onClearAll, onBackendSettings }: DashboardHeaderProps) {
+export function DashboardHeader({ onRefresh, onLogout, onClearAll, onDeleteByIP, onBackendSettings }: DashboardHeaderProps) {
   return (
     <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <Box>
@@ -35,6 +36,16 @@ export function DashboardHeader({ onRefresh, onLogout, onClearAll, onBackendSett
         >
           Refresh
         </Button>
+        {onDeleteByIP && (
+          <Button
+            variant="outlined"
+            color="info"
+            onClick={onDeleteByIP}
+            sx={{ textTransform: 'none' }}
+          >
+            Delete by IP
+          </Button>
+        )}
         {onClearAll && (
           <Button
             variant="outlined"

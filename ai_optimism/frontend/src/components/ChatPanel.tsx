@@ -472,8 +472,14 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
               onClick={async () => {
                 try {
                   await createNewSession();
-                } catch (error) {
-                  alert('Failed to create new session. Please try again.');
+                } catch (error: any) {
+                  // Handle backend rate limiting (429) when sessions were recently cleared
+                  if (error?.response?.status === 429) {
+                    const message = error?.response?.data?.detail || error?.message || 'Sessions were recently cleared. Please wait a moment and try again.';
+                    alert(message);
+                  } else {
+                    alert('Failed to create new session. Please try again.');
+                  }
                 }
               }}
             >

@@ -38,6 +38,7 @@ export interface Session {
   messages: Message[];
   isAIResponding?: boolean;
   readyToFormalize?: boolean;
+  ipAddress?: string | null;  // Client IP address
 }
 
 class SessionManager {
@@ -328,14 +329,6 @@ class SessionManager {
     try {
       const response = await this.client.delete('/sessions/clear/');
       this.setCurrentSession(null);
-      // Set a flag to prevent clients from auto-creating sessions after clear
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('sessions_cleared_flag', Date.now().toString());
-        // Clear the flag after 1 minute (gives time for all clients to detect deletion)
-        setTimeout(() => {
-          localStorage.removeItem('sessions_cleared_flag');
-        }, 60000);
-      }
       console.log('[SessionManager] All sessions cleared:', response.data);
       return true;
     } catch (error: any) {
@@ -344,6 +337,34 @@ class SessionManager {
         console.error('[SessionManager] Error details:', error.response.data);
       }
       return false;
+    }
+  }
+
+  // Delete sessions by IP address
+  async deleteSessionsByIP(ipAddress: string): Promise<{ deleted_count: number; message: string }> {
+    try {
+      // URL encode the IP address to handle special characters
+      const encodedIP = encodeURIComponent(ipAddress);
+      const response = await this.client.delete(`/sessions/by-ip/${encodedIP}`);
+      console.log('[SessionManager] Deleted sessions by IP:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('[SessionManager] Failed to delete sessions by IP:', error);
+      if (error.response?.data) {
+        console.error('[SessionManager] Error details:', error.response.data);
+      }
+      throw error;
+    }
+  }
+
+  // Get sessions with IP addresses (for admin view)
+  async getSessionsWithIPs(): Promise<Array<{ id: string; ipAddress: string | null; userId: string; mode: string; status: string; createdAt: number; lastActivity: number; messageCount: number }>> {
+    try {
+      const response = await this.client.get('/sessions/with-ips');
+      return response.data;
+    } catch (error: any) {
+      console.error('[SessionManager] Failed to get sessions with IPs:', error);
+      throw error;
     }
   }
 
