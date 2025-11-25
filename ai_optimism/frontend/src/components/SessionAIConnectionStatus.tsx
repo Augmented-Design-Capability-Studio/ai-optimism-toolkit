@@ -61,7 +61,7 @@ export const SessionAIConnectionStatus: React.FC<SessionAIConnectionStatusProps>
     // Form state
     const [provider, setProvider] = useState<AIProvider>('google');
     const [apiKey, setApiKey] = useState('');
-    const [model, setModel] = useState('gemini-2.0-flash');
+    const [model, setModel] = useState('gemini-2.5-flash');
     const [showApiKey, setShowApiKey] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);

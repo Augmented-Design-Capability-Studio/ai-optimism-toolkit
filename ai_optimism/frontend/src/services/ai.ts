@@ -164,7 +164,7 @@ const aiApi = {
       providers: {
         google: {
           name: 'Google Gemini',
-          models: ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
+          models: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
           requires_api_key: true,
           endpoint: null
         },

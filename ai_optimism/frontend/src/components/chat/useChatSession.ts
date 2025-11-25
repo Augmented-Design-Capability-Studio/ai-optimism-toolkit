@@ -15,7 +15,7 @@ export function useChatSession() {
   // Session-specific AI config (loaded from backend)
   const [sessionApiKey, setSessionApiKey] = useState<string>('');
   const [sessionProvider, setSessionProvider] = useState<string>('google');
-  const [sessionModel, setSessionModel] = useState<string>('gemini-2.0-flash');
+  const [sessionModel, setSessionModel] = useState<string>('gemini-2.5-flash');
 
   const [input, setInput] = useState('');
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
@@ -218,7 +218,7 @@ export function useChatSession() {
     if (!currentSession?.id) {
       setSessionApiKey('');
       setSessionProvider('google');
-      setSessionModel('gemini-2.0-flash');
+      setSessionModel('gemini-2.5-flash');
       return;
     }
 
@@ -233,7 +233,7 @@ export function useChatSession() {
         } else {
           setSessionApiKey('');
           setSessionProvider('google');
-          setSessionModel('gemini-2.0-flash');
+          setSessionModel('gemini-2.5-flash');
         }
       } catch (error) {
         console.warn('[useChatSession] Failed to load session AI config:', error);
@@ -244,20 +244,22 @@ export function useChatSession() {
     // Load immediately
     loadSessionAIConfig();
 
-    // Poll for updates every 20 seconds (in case researcher pushes new API key)
-    const interval = setInterval(loadSessionAIConfig, 20000);
+    // Poll for updates every 3 seconds (in case researcher pushes new API key)
+    // This ensures API keys are picked up quickly when pushed
+    const interval = setInterval(loadSessionAIConfig, 3000);
 
     return () => clearInterval(interval);
-  }, [currentSession?.id]);
+  }, [currentSession?.id, currentSession?.updatedAt]);
 
   // Create transport with body containing API key, provider, and model from session config
   const transport = useMemo(() => {
+    console.log('[useChatSession] Creating transport with API key:', !!sessionApiKey, 'model:', sessionModel);
     return new DefaultChatTransport({
       api: '/api/chat',
       body: {
         apiKey: sessionApiKey || '',
         provider: sessionProvider || 'google',
-        model: sessionModel || 'gemini-2.0-flash',
+        model: sessionModel || 'gemini-2.5-flash',
       },
     });
   }, [sessionApiKey, sessionProvider, sessionModel]);
@@ -265,14 +267,37 @@ export function useChatSession() {
   // Use session ID as chat ID, but include mode to force reset when mode changes
   const chatId = currentSession ? `chat-${currentSession.id}-${mode}` : 'chat-disconnected';
 
+  // Convert session messages to useChat format for initialMessages
+  // This ensures conversation history persists when switching to AI mode
+  const initialMessages = useMemo(() => {
+    if (!currentSession || isResearcherControlled) {
+      return [];
+    }
+
+    const sessionMessages = Array.isArray(currentSession.messages) ? currentSession.messages : [];
+    if (sessionMessages.length === 0) {
+      return [];
+    }
+
+    // Convert session messages to useChat format
+    // Map 'user' -> 'user', 'ai'/'researcher' -> 'assistant'
+    return sessionMessages
+      .filter(msg => msg.content !== 'Initialize') // Filter out initialization messages
+      .map(msg => ({
+        role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
+        content: msg.content,
+      }));
+  }, [currentSession?.id, currentSession?.messages, isResearcherControlled]);
+
   const { messages, sendMessage, status, error } = useChat({
     id: chatId,
     transport,
+    initialMessages,
   });
 
   const isLoading = status === 'streaming' || status === 'submitted';
 
-  // Initialize AI greeting for new AI-mode sessions
+  // Initialize AI greeting for new AI-mode sessions (only for truly new sessions)
   useEffect(() => {
     if (!currentSession || !sessionApiKey || isResearcherControlled) return;
 
@@ -280,23 +305,13 @@ export function useChatSession() {
     const sessionMessages = Array.isArray(currentSession.messages) ? currentSession.messages : [];
     const isNewSession = sessionMessages.length === 0 && messages.length === 0 && !isLoading;
 
-    // Check if we just switched to AI mode (useChat was reset due to mode change)
-    const justSwitchedToAIMode = sessionMessages.length > 0 && messages.length === 0 && !isLoading;
-
-    if (isNewSession || justSwitchedToAIMode) {
-      console.log('[useChatSession] Initializing AI for session:', isNewSession ? 'new session' : 'mode switch to AI');
-
-      if (justSwitchedToAIMode) {
-        // When switching to AI mode, the researcher dashboard handles AI responses
-        // No need to trigger from client-side to avoid duplicates
-        console.log('[useChatSession] Switched to AI mode - researcher dashboard will handle responses if needed');
-      } else {
-        // Send an initialization prompt to get the AI's greeting for new sessions
-        sendMessage({
-          role: 'user',
-          parts: [{ type: 'text', text: 'Initialize' }],
-        });
-      }
+    if (isNewSession) {
+      console.log('[useChatSession] Initializing AI for new session');
+      // Send an initialization prompt to get the AI's greeting for new sessions
+      sendMessage({
+        role: 'user',
+        parts: [{ type: 'text', text: 'Initialize' }],
+      });
     }
   }, [currentSession?.id, currentSession?.mode, sessionApiKey, isResearcherControlled, messages.length, isLoading]);
 
@@ -475,6 +490,68 @@ export function useChatSession() {
     }
   }, [currentSession?.updatedAt, currentSession?.id, isResearcherControlled, sessionManager]);
 
+  // Track processed AI request message IDs to avoid duplicate responses
+  const processedAIRequestsRef = useRef<Set<string>>(new Set());
+
+  // Detect AI request commands from researcher and trigger AI response
+  useEffect(() => {
+    const handleAIRequest = async () => {
+      if (!currentSession || !sessionApiKey || isResearcherControlled) return;
+      if (currentSession.isAIResponding) return; // Already responding
+
+      const sessionMessages = Array.isArray(currentSession.messages) ? currentSession.messages : [];
+      if (sessionMessages.length === 0) return;
+
+      // Get the last message
+      const lastMessage = sessionMessages[sessionMessages.length - 1];
+
+      // Check if last message is an AI request from researcher
+      if (lastMessage?.sender === 'researcher' && 
+          lastMessage?.metadata?.type === 'ai-request' &&
+          lastMessage?.id &&
+          !processedAIRequestsRef.current.has(lastMessage.id)) {
+        
+        console.log('[useChatSession] Detected AI request from researcher, triggering AI response');
+
+        // Mark this request as processed
+        processedAIRequestsRef.current.add(lastMessage.id);
+
+        // Get the last user message as context
+        const userMessages = sessionMessages.filter((m: Message) => 
+          m.sender === 'user' && m.content !== 'Initialize'
+        );
+        const lastUserMessage = userMessages[userMessages.length - 1];
+
+        if (lastUserMessage) {
+          // Set isAIResponding flag
+          await sessionManager.updateSession(currentSession.id, { isAIResponding: true });
+
+          try {
+            // Trigger AI response using the last user message
+            sendMessage({
+              role: 'user',
+              parts: [{ type: 'text', text: lastUserMessage.content }],
+            });
+          } catch (error) {
+            console.error('[useChatSession] Failed to trigger AI response:', error);
+            await sessionManager.updateSession(currentSession.id, { isAIResponding: false });
+            // Remove from processed set so it can be retried
+            processedAIRequestsRef.current.delete(lastMessage.id);
+          }
+        } else {
+          console.log('[useChatSession] No user message found to respond to');
+          // Remove from processed set since we couldn't process it
+          processedAIRequestsRef.current.delete(lastMessage.id);
+        }
+      }
+    };
+
+    // Check when session updates
+    if (currentSession?.updatedAt) {
+      handleAIRequest();
+    }
+  }, [currentSession?.updatedAt, currentSession?.messages, currentSession?.id, sessionApiKey, isResearcherControlled, sendMessage, sessionManager]);
+
   // Handle message submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -497,6 +574,24 @@ export function useChatSession() {
     }
 
     try {
+      // If in AI mode and no API key, try to reload it immediately before sending
+      if (!isResearcherControlled && !sessionApiKey) {
+        console.log('[useChatSession] No API key found, attempting to reload before sending message');
+        try {
+          const aiConfig = await getAIConfigKey(currentSession.id);
+          if (aiConfig && aiConfig.apiKey) {
+            setSessionApiKey(aiConfig.apiKey);
+            setSessionProvider(aiConfig.provider);
+            setSessionModel(aiConfig.model);
+            console.log('[useChatSession] Successfully loaded API key before sending message');
+            // Wait a brief moment for state to update
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        } catch (error) {
+          console.warn('[useChatSession] Failed to reload API key before sending:', error);
+        }
+      }
+
       // Always save user message to session
       const message = await sessionManager.addMessage(currentSession.id, 'user', input);
 
@@ -522,7 +617,14 @@ export function useChatSession() {
       }
 
       // If in AI mode (not researcher-controlled), also send to AI
-      if (!isResearcherControlled && sessionApiKey) {
+      if (!isResearcherControlled) {
+        // Check API key again after reload attempt
+        if (!sessionApiKey) {
+          console.error('[useChatSession] Cannot send message: No API key available. Please ensure the researcher has pushed an API key to this session.');
+          alert('No API key available. Please ensure the researcher has pushed an API key to this session.');
+          return;
+        }
+
         const userMessage = input;
         setInput('');
 
@@ -589,7 +691,7 @@ export function useChatSession() {
       await executeFormalization({
         sessionId: currentSession.id,
         apiKey: sessionApiKey,
-        model: sessionModel || 'gemini-2.0-flash',
+        model: sessionModel || 'gemini-2.5-flash',
         messages: currentSession.messages,
         sessionManager,
       });

@@ -179,7 +179,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
           },
           body: JSON.stringify({
             description: conversationText,
-            model: model || 'gemini-2.0-flash',
+            model: model || 'gemini-2.5-flash',
           }),
         });
 

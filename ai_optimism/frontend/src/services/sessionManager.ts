@@ -18,7 +18,7 @@ export interface Message {
   content: string;
   timestamp: number;
   metadata?: {
-    type?: 'formalization' | 'controls-generation';
+    type?: 'formalization' | 'controls-generation' | 'ai-request';
     incomplete?: boolean;
     controlsGenerated?: boolean;
     controlsError?: string;

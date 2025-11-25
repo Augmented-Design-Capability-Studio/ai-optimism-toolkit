@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     });
 
     const result = await generateObject({
-      model: google(modelName || 'gemini-2.0-flash'),
+      model: google(modelName || 'gemini-2.5-flash'),
       schema: controlsSchema,
       prompt: getGenerateControlsPrompt(description),
     });

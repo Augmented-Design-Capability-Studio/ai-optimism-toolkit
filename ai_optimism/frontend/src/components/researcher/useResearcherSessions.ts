@@ -118,7 +118,7 @@ export const useResearcherSessions = () => {
     // Get AI config from session (pushed by researcher)
     let apiKey: string | null = null;
     let provider = 'google';
-    let model = 'gemini-2.0-flash';
+    let model = 'gemini-2.5-flash';
 
     try {
       const aiConfig = await getAIConfigKey(sessionId);
@@ -142,7 +142,7 @@ export const useResearcherSessions = () => {
       await executeFormalization({
         sessionId,
         apiKey,
-        model: model || 'gemini-2.0-flash',
+        model: model || 'gemini-2.5-flash',
         messages: session.messages,
         sessionManager,
       });
@@ -171,77 +171,6 @@ export const useResearcherSessions = () => {
 
     // Then update the backend
     await sessionManager.updateSession(sessionId, { mode: newMode });
-    
-    // If switching TO AI mode and user is waiting for a response, trigger AI response
-    if (newMode === 'ai') {
-      const session = await sessionManager.getSession(sessionId);
-      if (session && session.status === 'waiting' && session.messages.length > 0) {
-        const lastMessage = session.messages[session.messages.length - 1];
-        
-        // Get AI config from session (pushed by researcher)
-        let apiKey: string | null = null;
-        let provider = 'google';
-        let model = 'gemini-2.0-flash';
-
-        try {
-          const aiConfig = await getAIConfigKey(sessionId);
-          if (aiConfig) {
-            apiKey = aiConfig.apiKey;
-            provider = aiConfig.provider;
-            model = aiConfig.model;
-          }
-        } catch (error) {
-          console.error('[Mode Toggle] Failed to load session AI config:', error);
-        }
-
-        if (lastMessage.sender === 'user' && apiKey) {
-          // Set isAIResponding to show thinking indicator
-          await sessionManager.updateSession(sessionId, { isAIResponding: true });
-          await loadSessions();
-          
-          // Trigger AI response for the pending user message
-          try {
-            const { streamText } = await import('ai');
-            const { createGoogleGenerativeAI } = await import('@ai-sdk/google');
-
-            const google = createGoogleGenerativeAI({
-              apiKey: apiKey,
-            });
-
-            const aiModel = google(model || 'gemini-2.0-flash');
-
-            // Build conversation history for context
-            const conversationMessages = session.messages.map(msg => ({
-              role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
-              content: msg.content,
-            }));
-
-            const result = await streamText({
-              model: aiModel,
-              messages: conversationMessages,
-            });
-
-            let aiResponse = '';
-            for await (const textPart of result.textStream) {
-              aiResponse += textPart;
-            }
-
-            if (aiResponse.trim()) {
-              await sessionManager.addMessage(sessionId, 'ai', aiResponse);
-              // Set status back to active since we've responded
-              await sessionManager.updateSession(sessionId, { status: 'active' });
-            }
-          } catch (error) {
-            console.error('[Mode Toggle] Failed to generate AI response:', error);
-          } finally {
-            // Clear isAIResponding flag
-            await sessionManager.updateSession(sessionId, { isAIResponding: false });
-          }
-        } else if (lastMessage.sender === 'user' && !apiKey) {
-          console.warn('[Mode Toggle] No API key configured for session, cannot generate AI response');
-        }
-      }
-    }
     
     // Reload sessions to ensure consistency
     await loadSessions();
