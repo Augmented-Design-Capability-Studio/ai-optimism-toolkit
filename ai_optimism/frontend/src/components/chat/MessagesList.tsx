@@ -64,15 +64,8 @@ export function MessagesList({
     return () => container.removeEventListener('scroll', checkScrollPosition);
   }, []);
 
-  // Show welcome message:
-  // - In experimental mode: show until AI responds (no assistant messages yet)
-  // - In AI mode without API key: always show
-  // - In AI mode with API key: show until AI responds (no assistant messages yet)
-  const hasAssistantMessages = messages.some((msg: any) => msg.role === 'assistant');
-  // Show welcome message until AI/researcher responds (no assistant messages yet)
-  const shouldShowWelcome = 
-    (mode === 'experimental' && !hasAssistantMessages) ||
-    (mode === 'ai' && !hasAssistantMessages);
+  // Always show welcome message in chat
+  const shouldShowWelcome = true;
 
   return (
     <Box
