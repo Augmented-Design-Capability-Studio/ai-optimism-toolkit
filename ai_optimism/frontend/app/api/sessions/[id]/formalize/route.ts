@@ -3,6 +3,8 @@ import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { getFormalizationPrompt } from '../../../../../src/config/prompts';
 
+export const runtime = 'edge';
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -18,14 +20,71 @@ export async function POST(
       );
     }
 
-    // For now, use environment variable for API key (researcher's key)
-    // In production, you'd use a secure backend API key
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || process.env.GOOGLE_API_KEY;
-    
-    if (!apiKey) {
+    // Get backend URL from environment variable
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+    const baseUrl = `${backendUrl}/api`;
+
+    // Fetch AI config (including decrypted API key) from backend
+    let aiConfig;
+    try {
+      const configUrl = `${baseUrl}/sessions/${sessionId}/ai-config/key`;
+      console.log('[Formalize API] Fetching AI config from:', configUrl);
+      
+      const configResponse = await fetch(configUrl, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('[Formalize API] Config response status:', configResponse.status);
+
+      if (configResponse.status === 404) {
+        return NextResponse.json(
+          { error: 'AI provider not configured for this session' },
+          { status: 400 }
+        );
+      }
+
+      if (!configResponse.ok) {
+        const errorText = await configResponse.text();
+        console.error('[Formalize API] Config response error:', errorText);
+        throw new Error(`Failed to fetch AI config: ${configResponse.status} ${configResponse.statusText}`);
+      }
+
+      aiConfig = await configResponse.json();
+      console.log('[Formalize API] Successfully fetched AI config');
+    } catch (error: any) {
+      console.error('[Formalize API] Error fetching AI config:', {
+        error,
+        message: error.message,
+        stack: error.stack,
+        backendUrl,
+        baseUrl,
+        sessionId,
+      });
+      const errorMessage = error.message || String(error) || 'Unknown error';
+      const isNetworkError = errorMessage.includes('fetch') || 
+                            errorMessage.includes('ECONNREFUSED') || 
+                            errorMessage.includes('network') ||
+                            errorMessage.includes('Failed to fetch') ||
+                            errorMessage.includes('ECONNRESET') ||
+                            errorMessage.includes('ENOTFOUND');
+      
       return NextResponse.json(
-        { error: 'AI provider not configured on server' },
+        { 
+          error: isNetworkError 
+            ? 'Cannot connect to backend server' 
+            : 'Failed to fetch AI configuration',
+          details: `Backend URL: ${backendUrl}. Error: ${errorMessage}`
+        },
         { status: 500 }
+      );
+    }
+
+    if (!aiConfig || !aiConfig.apiKey) {
+      return NextResponse.json(
+        { error: 'AI provider not configured for this session' },
+        { status: 400 }
       );
     }
 
@@ -37,17 +96,18 @@ export async function POST(
       })
       .join('\n\n');
 
-    // Initialize Google AI
+    // Initialize Google AI with API key from backend
     const google = createGoogleGenerativeAI({
-      apiKey,
+      apiKey: aiConfig.apiKey,
     });
 
     // Use centralized formalization prompt
     const formalizationPrompt = getFormalizationPrompt(conversationText);
 
     // Generate formalization
+    const modelName = aiConfig.model || 'gemini-2.5-flash';
     const { text } = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: google(modelName),
       messages: [{ role: 'user', content: formalizationPrompt }],
       temperature: 0.3, // Lower temperature for more structured output
     });

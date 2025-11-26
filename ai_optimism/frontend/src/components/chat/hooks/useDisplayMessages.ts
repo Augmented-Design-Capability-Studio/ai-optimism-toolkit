@@ -1,0 +1,160 @@
+import { useEffect, useState, useMemo } from 'react';
+import { Session } from '../../../services/sessionManager';
+import { extractMessageText } from '../utils/messageConverters';
+
+interface DisplayMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  metadata?: any;
+}
+
+interface UseDisplayMessagesProps {
+  currentSession: Session | null;
+  isResearcherControlled: boolean;
+  messages: any[];
+  status: string;
+}
+
+export function useDisplayMessages({
+  currentSession,
+  isResearcherControlled,
+  messages,
+  status,
+}: UseDisplayMessagesProps) {
+  const [optimisticMessages, setOptimisticMessages] = useState<
+    Map<
+      string,
+      {
+        content: string;
+        timestamp: number;
+      }
+    >
+  >(new Map());
+
+  const sessionMessages = Array.isArray(currentSession?.messages)
+    ? currentSession.messages
+    : [];
+
+  const sessionDisplayMessages = useMemo(() => {
+    return sessionMessages.map((m) => ({
+      id: m.id,
+      role:
+        m.sender === 'researcher'
+          ? 'assistant'
+          : m.sender === 'ai'
+          ? 'assistant'
+          : m.sender,
+      content: m.content,
+      metadata: m.metadata,
+    }));
+  }, [sessionMessages]);
+
+  const streamingMessages = useMemo(() => {
+    if (isResearcherControlled || !status || status !== 'streaming') {
+      return [];
+    }
+
+    return messages
+      .filter((msg: any) => msg.role === 'assistant')
+      .map((msg: any) => {
+        const content = extractMessageText(msg);
+        return {
+          id: msg.id || `streaming-${Date.now()}`,
+          role: 'assistant' as const,
+          content,
+          parts: msg.parts,
+          metadata: { ...msg.metadata, streaming: true } as any,
+        };
+      });
+  }, [messages, status, isResearcherControlled]);
+
+  const confirmedUserMessages = useMemo(
+    () =>
+      new Set(
+        sessionDisplayMessages
+          .filter((m) => m.role === 'user')
+          .map((m) => m.content.trim())
+      ),
+    [sessionDisplayMessages]
+  );
+
+  const optimisticDisplayMessages = useMemo(() => {
+    return Array.from(optimisticMessages.entries())
+      .filter(([_, opt]) => !confirmedUserMessages.has(opt.content.trim()))
+      .map(([id, opt]) => ({
+        id,
+        role: 'user' as const,
+        content: opt.content,
+        metadata: { optimistic: true, timestamp: opt.timestamp } as any,
+      }));
+  }, [optimisticMessages, confirmedUserMessages]);
+
+  const displayMessages = useMemo(() => {
+    const backendMessageIds = new Set(sessionDisplayMessages.map((m) => m.id));
+    const uniqueStreamingMessages = streamingMessages.filter((streamMsg) => {
+      const existsInBackend = sessionDisplayMessages.some(
+        (backendMsg) =>
+          backendMsg.role === 'assistant' &&
+          backendMsg.content.trim() === streamMsg.content.trim()
+      );
+      return !existsInBackend;
+    });
+
+    const all = [
+      ...sessionDisplayMessages,
+      ...uniqueStreamingMessages,
+      ...optimisticDisplayMessages,
+    ];
+    return all.sort((a, b) => {
+      const aMeta = a.metadata as any;
+      const bMeta = b.metadata as any;
+      const aTime =
+        aMeta?.timestamp ||
+        (sessionMessages.find((m) => m.id === a.id)?.timestamp || 0);
+      const bTime =
+        bMeta?.timestamp ||
+        (sessionMessages.find((m) => m.id === b.id)?.timestamp || 0);
+      return aTime - bTime;
+    });
+  }, [
+    sessionDisplayMessages,
+    streamingMessages,
+    optimisticDisplayMessages,
+    sessionMessages,
+  ]);
+
+  useEffect(() => {
+    setOptimisticMessages((prev) => {
+      if (prev.size === 0) return prev;
+
+      const confirmed = new Set(
+        sessionMessages
+          .filter((m) => m.sender === 'user')
+          .map((m) => m.content.trim())
+      );
+
+      const newMap = new Map(prev);
+      let changed = false;
+
+      for (const [id, opt] of newMap.entries()) {
+        if (
+          confirmed.has(opt.content.trim()) ||
+          Date.now() - opt.timestamp > 10000
+        ) {
+          newMap.delete(id);
+          changed = true;
+        }
+      }
+
+      return changed ? newMap : prev;
+    });
+  }, [sessionMessages]);
+
+  return {
+    displayMessages,
+    optimisticMessages,
+    setOptimisticMessages,
+  };
+}
+

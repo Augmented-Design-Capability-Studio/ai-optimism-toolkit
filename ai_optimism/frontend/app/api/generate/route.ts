@@ -38,24 +38,75 @@ const controlsSchema = z.object({
 
 export async function POST(req: Request) {
   try {
-    const { description, model: modelName } = await req.json();
-    const apiKey = req.headers.get('x-api-key');
-
-    if (!apiKey) {
-      return new Response('API key required', { status: 400 });
-    }
+    const { description, model: modelName, sessionId } = await req.json();
 
     if (!description) {
-      return new Response('Description required', { status: 400 });
+      return Response.json({ error: 'Description required' }, { status: 400 });
     }
 
-    // Create Google provider with API key
+    if (!sessionId) {
+      return Response.json({ error: 'Session ID required' }, { status: 400 });
+    }
+
+    // Get backend URL from environment variable
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+    const baseUrl = `${backendUrl}/api`;
+
+    // Fetch AI config (including decrypted API key) from backend
+    let aiConfig;
+    try {
+      const configResponse = await fetch(`${baseUrl}/sessions/${sessionId}/ai-config/key`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (configResponse.status === 404) {
+        return Response.json(
+          { error: 'AI provider not configured for this session' },
+          { status: 400 }
+        );
+      }
+
+      if (!configResponse.ok) {
+        throw new Error(`Failed to fetch AI config: ${configResponse.statusText}`);
+      }
+
+      aiConfig = await configResponse.json();
+    } catch (error: any) {
+      console.error('[Generate API] Error fetching AI config:', error);
+      const errorMessage = error.message || 'Unknown error';
+      const isNetworkError = errorMessage.includes('fetch') || 
+                            errorMessage.includes('ECONNREFUSED') || 
+                            errorMessage.includes('network') ||
+                            errorMessage.includes('Failed to fetch');
+      
+      return Response.json(
+        { 
+          error: isNetworkError 
+            ? 'Cannot connect to backend server' 
+            : 'Failed to fetch AI configuration',
+          details: `Backend URL: ${backendUrl}. Error: ${errorMessage}`
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!aiConfig || !aiConfig.apiKey) {
+      return Response.json(
+        { error: 'AI provider not configured for this session' },
+        { status: 400 }
+      );
+    }
+
+    // Create Google provider with API key from backend
     const google = createGoogleGenerativeAI({
-      apiKey,
+      apiKey: aiConfig.apiKey,
     });
 
+    const finalModel = aiConfig.model || modelName || 'gemini-2.5-flash';
     const result = await generateObject({
-      model: google(modelName || 'gemini-2.5-flash'),
+      model: google(finalModel),
       schema: controlsSchema,
       prompt: getGenerateControlsPrompt(description),
     });
@@ -128,12 +179,21 @@ export async function POST(req: Request) {
     // Ensure objectives were produced by the model; fail clearly if not
     if (!filteredObject.objectives || filteredObject.objectives.length === 0) {
       console.error('Generate result missing objectives:', filteredObject);
-      return new Response('Generated controls missing objectives', { status: 500 });
+      return Response.json(
+        { error: 'Generated controls missing objectives' },
+        { status: 500 }
+      );
     }
 
     return Response.json(filteredObject);
   } catch (error) {
     console.error('Generate error:', error);
-    return new Response('Error generating controls', { status: 500 });
+    return Response.json(
+      {
+        error: 'Error generating controls',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 500 }
+    );
   }
 }

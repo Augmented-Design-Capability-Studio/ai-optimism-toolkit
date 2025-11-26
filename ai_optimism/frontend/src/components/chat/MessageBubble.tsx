@@ -50,6 +50,10 @@ export function MessageBubble({ message, mode, onGenerateControls }: MessageBubb
   const controlsError = message.metadata?.controlsError;
   const isGenerating = isControlsGeneration && !controlsGenerated && !controlsError;
   
+  // Hide the original "Generating optimization controls..." content when controls are generated
+  const shouldHideGeneratingContent = isControlsGeneration && controlsGenerated && 
+    message.content?.includes('Generating optimization controls');
+  
   // Determine avatar emoji based on message type
   const avatarEmoji = displayRole === 'user' 
     ? '👤' 
@@ -239,75 +243,78 @@ export function MessageBubble({ message, mode, onGenerateControls }: MessageBubb
               </Box>
             )}
             
-            <Box
-              sx={{
-                '& p': { mb: 1 },
-              '& ul, & ol': { pl: 2, mb: 1 },
-              '& li': { mb: 0.5 },
-              '& code': {
-                bgcolor: 'grey.200',
-                px: 0.5,
-                py: 0.25,
-                borderRadius: 0.5,
-                fontFamily: 'monospace',
-                fontSize: '0.875em',
-              },
-              '& pre': {
-                bgcolor: 'grey.200',
-                p: 1,
-                borderRadius: 1,
-                overflow: 'auto',
-                mb: 1,
-              },
-              '& pre code': {
-                bgcolor: 'transparent',
-                p: 0,
-              },
-              '& table': {
-                borderCollapse: 'collapse',
-                width: '100%',
-                mb: 1,
-              },
-              '& th, & td': {
-                border: '1px solid',
-                borderColor: 'divider',
-                p: 1,
-                textAlign: 'left',
-              },
-              '& th': {
-                bgcolor: 'grey.200',
-                fontWeight: 'bold',
-              },
-              '& h1, & h2, & h3, & h4, & h5, & h6': {
-                mt: 2,
-                mb: 1,
-                fontWeight: 'bold',
-              },
-              '& blockquote': {
-                borderLeft: '4px solid',
-                borderColor: 'primary.main',
-                pl: 2,
-                my: 1,
-                color: 'text.secondary',
-              },
+            {/* Hide the "Generating optimization controls..." content when controls are generated */}
+            {!shouldHideGeneratingContent && (
+              <Box
+                sx={{
+                  '& p': { mb: 1 },
+                  '& ul, & ol': { pl: 2, mb: 1 },
+                  '& li': { mb: 0.5 },
+                  '& code': {
+                    bgcolor: 'grey.200',
+                    px: 0.5,
+                    py: 0.25,
+                    borderRadius: 0.5,
+                    fontFamily: 'monospace',
+                    fontSize: '0.875em',
+                  },
+                  '& pre': {
+                    bgcolor: 'grey.200',
+                    p: 1,
+                    borderRadius: 1,
+                    overflow: 'auto',
+                    mb: 1,
+                  },
+                  '& pre code': {
+                    bgcolor: 'transparent',
+                    p: 0,
+                  },
+                  '& table': {
+                    borderCollapse: 'collapse',
+                    width: '100%',
+                    mb: 1,
+                  },
+                  '& th, & td': {
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    p: 1,
+                    textAlign: 'left',
+                  },
+                  '& th': {
+                    bgcolor: 'grey.200',
+                    fontWeight: 'bold',
+                  },
+                  '& h1, & h2, & h3, & h4, & h5, & h6': {
+                    mt: 2,
+                    mb: 1,
+                    fontWeight: 'bold',
+                  },
+                  '& blockquote': {
+                    borderLeft: '4px solid',
+                    borderColor: 'primary.main',
+                    pl: 2,
+                    my: 1,
+                    color: 'text.secondary',
+                  },
+                }}
+              >
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {textContent}
+                </ReactMarkdown>
+              </Box>
+            )}
+          </Box>
+        ) : (
+          <Typography
+            variant="body2"
+            sx={{
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
             }}
           >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {textContent}
-            </ReactMarkdown>
-          </Box>
-          </Box>
-          ) : (
-            <Typography
-              variant="body2"
-              sx={{
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}
-            >
-              {textContent}
-            </Typography>
-          )
+            {textContent}
+          </Typography>
+        )
         )}
       </Paper>
     </Box>

@@ -165,7 +165,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         }
       } else {
         // AI mode: generate from conversation or specific formalization
-        if (!apiKey) {
+        if (!currentSession?.id) {
           alert('Please connect to an AI provider first');
           setIsGenerating(false);
           return;
@@ -177,16 +177,23 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': apiKey,
           },
           body: JSON.stringify({
             description: conversationText,
             model: model || 'gemini-2.5-flash',
+            sessionId: currentSession.id,
           }),
         });
 
         if (!response.ok) {
-          throw new Error(`Generation failed: ${response.statusText}`);
+          let errorMessage = `Generation failed: ${response.statusText}`;
+          try {
+            const error = await response.json();
+            errorMessage = error.error || error.details || errorMessage;
+          } catch {
+            // If response is not JSON, use status text
+          }
+          throw new Error(errorMessage);
         }
 
         controls = await response.json();
