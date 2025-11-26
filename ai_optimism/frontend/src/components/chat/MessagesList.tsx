@@ -14,6 +14,7 @@ interface MessagesListProps {
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   isWaitingForResearcher?: boolean;
+  isGenerating?: boolean;
   onGenerateControls?: (formalizationText: string) => void;
 }
 
@@ -25,6 +26,7 @@ export function MessagesList({
   messagesEndRef,
   messagesContainerRef,
   isWaitingForResearcher = false,
+  isGenerating = false,
   onGenerateControls,
 }: MessagesListProps) {
   const [isNearBottom, setIsNearBottom] = useState(true);
@@ -86,6 +88,7 @@ export function MessagesList({
           key={message.id} 
           message={message} 
           mode={mode}
+          isGeneratingControls={isGenerating}
           onGenerateControls={onGenerateControls}
         />
       ))}

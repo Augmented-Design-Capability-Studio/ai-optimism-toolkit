@@ -126,6 +126,10 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
 
   // Generate controls from conversation
   const handleGenerateControls = async (formalizationText?: string) => {
+    // Prevent multiple simultaneous calls
+    if (isGenerating) {
+      return;
+    }
     setIsGenerating(true);
 
     // Add a thinking message for the generation process
@@ -519,6 +523,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         messagesEndRef={messagesEndRef}
         messagesContainerRef={messagesContainerRef}
         isWaitingForResearcher={isWaitingForResearcher}
+        isGenerating={isGenerating}
         onGenerateControls={handleGenerateControls}
       />
 

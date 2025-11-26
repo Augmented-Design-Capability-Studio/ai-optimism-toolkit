@@ -10,10 +10,11 @@ import { SessionMode } from '../../services/sessionManager';
 interface MessageBubbleProps {
   message: any;
   mode: SessionMode;
+  isGeneratingControls?: boolean;
   onGenerateControls?: (formalizationText: string) => void;
 }
 
-export function MessageBubble({ message, mode, onGenerateControls }: MessageBubbleProps) {
+export function MessageBubble({ message, mode, isGeneratingControls = false, onGenerateControls }: MessageBubbleProps) {
   // Determine message role and content based on mode
   let messageRole = message.role;
   let textContent = '';
@@ -50,8 +51,9 @@ export function MessageBubble({ message, mode, onGenerateControls }: MessageBubb
   const controlsError = message.metadata?.controlsError;
   const isGenerating = isControlsGeneration && !controlsGenerated && !controlsError;
   
-  // Hide the original "Generating optimization controls..." content when controls are generated
-  const shouldHideGeneratingContent = isControlsGeneration && controlsGenerated && 
+  // Hide the original "Generating optimization controls..." content when controls are generated or currently generating
+  const shouldHideGeneratingContent = isControlsGeneration && 
+    (isGenerating || controlsGenerated) && 
     message.content?.includes('Generating optimization controls');
   
   // Determine avatar emoji based on message type
@@ -199,10 +201,11 @@ export function MessageBubble({ message, mode, onGenerateControls }: MessageBubb
                   fullWidth
                   variant="contained"
                   color="secondary"
-                  startIcon={<AutoFixHighIcon />}
+                  startIcon={isGeneratingControls ? <CircularProgress size={16} /> : <AutoFixHighIcon />}
                   onClick={() => onGenerateControls(textContent)}
+                  disabled={isGeneratingControls}
                 >
-                  ✨ Generate Controls Panel
+                  {isGeneratingControls ? 'Generating Controls...' : '✨ Generate Controls Panel'}
                 </Button>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', textAlign: 'center' }}>
                   Generate optimization controls from this problem definition
@@ -243,8 +246,8 @@ export function MessageBubble({ message, mode, onGenerateControls }: MessageBubb
               </Box>
             )}
             
-            {/* Hide the "Generating optimization controls..." content when controls are generated */}
-            {!shouldHideGeneratingContent && (
+            {/* Hide the "Generating optimization controls..." content when controls are generated or currently generating */}
+            {!shouldHideGeneratingContent && !isGenerating && (
               <Box
                 sx={{
                   '& p': { mb: 1 },
