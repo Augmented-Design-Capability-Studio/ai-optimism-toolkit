@@ -3,6 +3,7 @@ import { Session, Message } from '../../../services/sessionManager';
 import { convertToUseChatMessages } from '../utils/messageConverters';
 import { getRealUserMessageCount } from '../utils/sessionHelpers';
 import { detectFormalizationReadiness } from '../../../services/formalizationHelper';
+import { parseStructuredData, getUpdateType } from '../../../utils/structuredDataParser';
 
 interface UseMessageSyncProps {
   currentSession: Session | null;
@@ -158,7 +159,19 @@ export function useMessageSync({
         const freshSession = await sessionManager.getSession(currentSession.id);
         if (!freshSession) return;
 
-        await sessionManager.addMessage(currentSession.id, 'ai', text);
+        // Parse structured data from AI response
+        const structuredData = parseStructuredData(text);
+        const updateType = structuredData ? getUpdateType(structuredData) : null;
+
+        // Prepare metadata
+        const metadata: Message['metadata'] = updateType
+          ? {
+              type: updateType as 'variables-update' | 'objectives-update' | 'constraints-update' | 'properties-update',
+              structuredData,
+            }
+          : undefined;
+
+        await sessionManager.addMessage(currentSession.id, 'ai', text, metadata);
 
         if (currentSession.status === 'waiting') {
           await sessionManager.updateSession(currentSession.id, {

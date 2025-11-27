@@ -3,8 +3,10 @@
 import { Box, Paper, Typography, Avatar, Accordion, AccordionSummary, AccordionDetails, Chip, Button, CircularProgress } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import CodeIcon from '@mui/icons-material/Code';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useState } from 'react';
 import { SessionMode } from '../../services/sessionManager';
 
 interface MessageBubbleProps {
@@ -12,6 +14,60 @@ interface MessageBubbleProps {
   mode: SessionMode;
   isGeneratingControls?: boolean;
   onGenerateControls?: (formalizationText: string) => void;
+}
+
+// Helper function to extract JSON blocks from text
+function extractJSONBlocks(text: string): Array<{ before: string; json: string; after: string }> {
+  const blocks: Array<{ before: string; json: string; after: string }> = [];
+  let remaining = text;
+  let offset = 0;
+
+  // Match ```json ... ``` blocks
+  const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/g;
+  let match;
+  
+  while ((match = jsonBlockRegex.exec(text)) !== null) {
+    const before = text.substring(offset, match.index);
+    const json = match[1].trim();
+    offset = match.index + match[0].length;
+    
+    blocks.push({
+      before,
+      json,
+      after: '', // Will be filled by next iteration or final remaining
+    });
+  }
+  
+  // If we found blocks, update the last one's 'after' with remaining text
+  if (blocks.length > 0) {
+    blocks[blocks.length - 1].after = text.substring(offset);
+  }
+  
+  return blocks.length > 0 ? blocks : [];
+}
+
+// Helper function to split text into parts with JSON blocks
+function splitTextWithJSON(text: string): Array<{ type: 'text' | 'json'; content: string }> {
+  const jsonBlocks = extractJSONBlocks(text);
+  
+  if (jsonBlocks.length === 0) {
+    return [{ type: 'text', content: text }];
+  }
+  
+  const parts: Array<{ type: 'text' | 'json'; content: string }> = [];
+  
+  for (let i = 0; i < jsonBlocks.length; i++) {
+    const block = jsonBlocks[i];
+    if (block.before) {
+      parts.push({ type: 'text', content: block.before });
+    }
+    parts.push({ type: 'json', content: block.json });
+    if (i === jsonBlocks.length - 1 && block.after) {
+      parts.push({ type: 'text', content: block.after });
+    }
+  }
+  
+  return parts;
 }
 
 export function MessageBubble({ message, mode, isGeneratingControls = false, onGenerateControls }: MessageBubbleProps) {
@@ -40,6 +96,10 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
     }
   }
   
+  // Split content into parts with JSON blocks
+  const contentParts = splitTextWithJSON(textContent);
+  const hasJSON = contentParts.some(p => p.type === 'json');
+  
   // Map researcher to assistant for display
   const displayRole = messageRole === 'researcher' ? 'assistant' : messageRole;
   
@@ -49,11 +109,9 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
   const isIncomplete = message.metadata?.incomplete === true;
   const controlsGenerated = message.metadata?.controlsGenerated === true;
   const controlsError = message.metadata?.controlsError;
-  const isGenerating = isControlsGeneration && !controlsGenerated && !controlsError;
   
-  // Hide the original "Generating optimization controls..." content when controls are generated or currently generating
+  // Hide "Generating optimization controls..." messages - we don't show them at all
   const shouldHideGeneratingContent = isControlsGeneration && 
-    (isGenerating || controlsGenerated) && 
     message.content?.includes('Generating optimization controls');
   
   // Determine avatar emoji based on message type
@@ -78,14 +136,14 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
         sx={{
           bgcolor: displayRole === 'user' 
             ? 'primary.main' 
-            : isIncomplete
-            ? 'warning.main'
+            : isFormalization && isIncomplete
+            ? 'warning.main' // Amber for incomplete formalization
             : isFormalization
-            ? 'success.main'
+            ? 'success.main' // Green for complete formalization
             : isControlsGeneration && controlsGenerated
             ? 'secondary.main' // Purple for successful generation
             : isControlsGeneration && controlsError
-            ? 'warning.main' // Amber for failed generation
+            ? 'error.main' // Red for failed generation
             : 'secondary.main',
           width: 32,
           height: 32,
@@ -100,14 +158,14 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
           maxWidth: '80%',
           bgcolor: displayRole === 'user' 
             ? 'primary.light' 
-            : isIncomplete
-            ? 'rgba(255, 152, 0, 0.15)' // Soft amber for incomplete
+            : isFormalization && isIncomplete
+            ? 'rgba(255, 152, 0, 0.15)' // Soft amber for incomplete formalization
             : isFormalization
-            ? 'success.light'
+            ? 'success.light' // Green for complete formalization
             : isControlsGeneration && controlsGenerated
             ? 'secondary.light' // Purple for successful generation
             : isControlsGeneration && controlsError
-            ? 'rgba(255, 152, 0, 0.15)' // Soft amber for failed generation
+            ? 'rgba(211, 47, 47, 0.15)' // Soft red for failed generation
             : 'grey.100',
           color: displayRole === 'user' ? 'primary.contrastText' : 'text.primary',
           ...(isFormalization && {
@@ -120,7 +178,7 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
           }),
           ...(isControlsGeneration && controlsError && {
             border: 2,
-            borderColor: 'warning.main',
+            borderColor: 'error.main',
           }),
         }}
       >
@@ -236,74 +294,77 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
               </Box>
             )}
             
-            {/* Show thinking indicator during generation */}
-            {isGenerating && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-                <CircularProgress size={16} thickness={5} />
-                <Typography variant="body2" color="text.secondary">
-                  Generating controls...
-                </Typography>
-              </Box>
-            )}
-            
-            {/* Hide the "Generating optimization controls..." content when controls are generated or currently generating */}
-            {!shouldHideGeneratingContent && !isGenerating && (
-              <Box
-                sx={{
-                  '& p': { mb: 1 },
-                  '& ul, & ol': { pl: 2, mb: 1 },
-                  '& li': { mb: 0.5 },
-                  '& code': {
-                    bgcolor: 'grey.200',
-                    px: 0.5,
-                    py: 0.25,
-                    borderRadius: 0.5,
-                    fontFamily: 'monospace',
-                    fontSize: '0.875em',
-                  },
-                  '& pre': {
-                    bgcolor: 'grey.200',
-                    p: 1,
-                    borderRadius: 1,
-                    overflow: 'auto',
-                    mb: 1,
-                  },
-                  '& pre code': {
-                    bgcolor: 'transparent',
-                    p: 0,
-                  },
-                  '& table': {
-                    borderCollapse: 'collapse',
-                    width: '100%',
-                    mb: 1,
-                  },
-                  '& th, & td': {
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    p: 1,
-                    textAlign: 'left',
-                  },
-                  '& th': {
-                    bgcolor: 'grey.200',
-                    fontWeight: 'bold',
-                  },
-                  '& h1, & h2, & h3, & h4, & h5, & h6': {
-                    mt: 2,
-                    mb: 1,
-                    fontWeight: 'bold',
-                  },
-                  '& blockquote': {
-                    borderLeft: '4px solid',
-                    borderColor: 'primary.main',
-                    pl: 2,
-                    my: 1,
-                    color: 'text.secondary',
-                  },
-                }}
-              >
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {textContent}
-                </ReactMarkdown>
+            {/* Hide "Generating optimization controls..." messages completely */}
+            {!shouldHideGeneratingContent && (
+              <Box>
+                {contentParts.map((part, index) => {
+                  if (part.type === 'json') {
+                    return (
+                      <JSONBlockCollapsible key={`json-${index}`} jsonContent={part.content} />
+                    );
+                  } else {
+                    return (
+                      <Box
+                        key={`text-${index}`}
+                        sx={{
+                          '& p': { mb: 1 },
+                          '& ul, & ol': { pl: 2, mb: 1 },
+                          '& li': { mb: 0.5 },
+                          '& code': {
+                            bgcolor: 'grey.200',
+                            px: 0.5,
+                            py: 0.25,
+                            borderRadius: 0.5,
+                            fontFamily: 'monospace',
+                            fontSize: '0.875em',
+                          },
+                          '& pre': {
+                            bgcolor: 'grey.200',
+                            p: 1,
+                            borderRadius: 1,
+                            overflow: 'auto',
+                            mb: 1,
+                          },
+                          '& pre code': {
+                            bgcolor: 'transparent',
+                            p: 0,
+                          },
+                          '& table': {
+                            borderCollapse: 'collapse',
+                            width: '100%',
+                            mb: 1,
+                          },
+                          '& th, & td': {
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            p: 1,
+                            textAlign: 'left',
+                          },
+                          '& th': {
+                            bgcolor: 'grey.200',
+                            fontWeight: 'bold',
+                          },
+                          '& h1, & h2, & h3, & h4, & h5, & h6': {
+                            mt: 2,
+                            mb: 1,
+                            fontWeight: 'bold',
+                          },
+                          '& blockquote': {
+                            borderLeft: '4px solid',
+                            borderColor: 'primary.main',
+                            pl: 2,
+                            my: 1,
+                            color: 'text.secondary',
+                          },
+                        }}
+                      >
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {part.content}
+                        </ReactMarkdown>
+                      </Box>
+                    );
+                  }
+                })}
               </Box>
             )}
           </Box>
@@ -321,5 +382,87 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
         )}
       </Paper>
     </Box>
+  );
+}
+
+// Component for collapsible JSON blocks
+function JSONBlockCollapsible({ jsonContent }: { jsonContent: string }) {
+  const [expanded, setExpanded] = useState(false);
+  
+  // Try to format JSON nicely
+  let formattedJSON = jsonContent;
+  try {
+    const parsed = JSON.parse(jsonContent);
+    formattedJSON = JSON.stringify(parsed, null, 2);
+  } catch (e) {
+    // If not valid JSON, use as-is
+  }
+  
+  return (
+    <Accordion
+      expanded={expanded}
+      onChange={(_, isExpanded) => setExpanded(isExpanded)}
+      disableGutters
+      elevation={0}
+      sx={{
+        my: 1,
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        bgcolor: 'grey.50',
+        '&:before': { display: 'none' },
+      }}
+    >
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon />}
+        sx={{
+          px: 1.5,
+          py: 1,
+          minHeight: 40,
+          '& .MuiAccordionSummary-content': {
+            my: 0,
+            alignItems: 'center',
+          },
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+          <CodeIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+          <Typography variant="body2" color="text.secondary">
+            {expanded ? 'Hide structured data' : 'Show structured data (JSON)'}
+          </Typography>
+          {!expanded && (
+            <Chip
+              label="JSON"
+              size="small"
+              sx={{
+                height: 20,
+                fontSize: '0.65rem',
+                bgcolor: 'primary.light',
+                color: 'primary.contrastText',
+              }}
+            />
+          )}
+        </Box>
+      </AccordionSummary>
+      <AccordionDetails sx={{ px: 1.5, pb: 1.5, pt: 0 }}>
+        <Box
+          component="pre"
+          sx={{
+            bgcolor: 'grey.100',
+            p: 1.5,
+            borderRadius: 1,
+            overflow: 'auto',
+            fontSize: '0.75rem',
+            fontFamily: 'monospace',
+            m: 0,
+            maxHeight: '400px',
+            border: 1,
+            borderColor: 'divider',
+          }}
+        >
+          {formattedJSON}
+        </Box>
+      </AccordionDetails>
+    </Accordion>
   );
 }

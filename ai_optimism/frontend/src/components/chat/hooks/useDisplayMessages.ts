@@ -106,7 +106,21 @@ export function useDisplayMessages({
       ...uniqueStreamingMessages,
       ...optimisticDisplayMessages,
     ];
-    return all.sort((a, b) => {
+    
+    // Filter out "Generating optimization controls..." messages completely
+    // We don't show these - only show success/error messages
+    const filtered = all.filter((m) => {
+      // Remove all "Generating optimization controls..." messages
+      if (
+        m.metadata?.type === 'controls-generation' &&
+        m.content?.includes('Generating optimization controls')
+      ) {
+        return false;
+      }
+      return true;
+    });
+    
+    return filtered.sort((a, b) => {
       const aMeta = a.metadata as any;
       const bMeta = b.metadata as any;
       const aTime =

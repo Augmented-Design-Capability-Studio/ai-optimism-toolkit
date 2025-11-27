@@ -12,6 +12,7 @@ interface ConstraintCardProps {
   constraint: Constraint;
   currentValue?: number;
   limit?: number;
+  operator?: string;
   isSatisfied?: boolean;
   dependencies: string[];
   onEdit?: () => void;
@@ -22,14 +23,34 @@ export function ConstraintCard({
   constraint,
   currentValue,
   limit,
+  operator,
   isSatisfied = true,
   dependencies,
   onEdit,
   onVariableClick,
 }: ConstraintCardProps) {
   // Calculate progress percentage for visual indicator
-  const progressPercentage = limit && currentValue !== undefined
-    ? Math.min(100, (currentValue / limit) * 100)
+  // For <= and <: show how close current value is to the limit (higher = closer to violation)
+  // For >= and >: show how close current value is to the limit from below (lower = closer to violation)
+  const progressPercentage = limit && currentValue !== undefined && operator
+    ? (() => {
+        if (operator === '<=' || operator === '<') {
+          // For upper bounds: show percentage of limit used
+          return Math.min(100, Math.max(0, (currentValue / limit) * 100));
+        } else if (operator === '>=' || operator === '>') {
+          // For lower bounds: show how far above the limit we are
+          // If currentValue >= limit, we're satisfied, show 100%
+          // If currentValue < limit, show percentage of how close we are
+          if (currentValue >= limit) {
+            return 100; // Fully satisfied
+          } else {
+            return Math.min(100, Math.max(0, (currentValue / limit) * 100));
+          }
+        } else {
+          // For == and !=, just show a simple percentage
+          return limit !== 0 ? Math.min(100, Math.abs((currentValue / limit) * 100)) : 0;
+        }
+      })()
     : undefined;
 
   return (
@@ -122,7 +143,7 @@ export function ConstraintCard({
               Current: {currentValue.toFixed(2)}
             </Typography>
             <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-              Limit: {limit.toFixed(2)}
+              Limit: {operator ? `${operator}${limit.toFixed(2)}` : limit.toFixed(2)}
             </Typography>
           </Box>
           <LinearProgress

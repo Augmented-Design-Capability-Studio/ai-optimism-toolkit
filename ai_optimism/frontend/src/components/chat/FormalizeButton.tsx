@@ -69,7 +69,7 @@ export function FormalizeButton({
       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
         {isPremature
           ? '💬 Continue chatting - gathering more details'
-          : '✓ Ready to formalize - sufficient information gathered'}
+          : '✓ Ready to formalize - generates final clean version'}
       </Typography>
     </Box>
   );
