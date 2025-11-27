@@ -14,6 +14,10 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent / '.env'
 load_dotenv(env_path)
 
+# Load .env.local to override (for local development)
+env_local_path = Path(__file__).parent / '.env.local'
+load_dotenv(env_local_path, override=True)
+
 cloudflared_process = None
 cloudflared_monitor_thread = None
 cloudflared_tunnel_name = None
