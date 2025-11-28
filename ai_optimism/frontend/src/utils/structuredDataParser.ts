@@ -134,7 +134,7 @@ function normalizeVariable(v: any): Variable | null {
   if (type === 'categorical') {
     if (Array.isArray(v.categories) && v.categories.length > 0) {
       variable.categories = v.categories.map((c: any) => String(c));
-      variable.currentCategory = variable.categories[0];
+      variable.currentCategory = variable.categories![0];
     } else {
       // Invalid categorical without categories
       return null;
