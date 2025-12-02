@@ -387,10 +387,10 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
                       }}
-                    >
+                        >
                       {JSON.stringify(message.metadata.optimizationPacket, null, 2)}
                     </Box>
-                    {message.metadata?.heuristic_map && (
+                    {message.metadata?.heuristic_map != null ? (
                       <Box sx={{ mt: 2 }}>
                         <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 'bold' }}>
                           Heuristic Map:
@@ -410,7 +410,7 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
                           {JSON.stringify(message.metadata.heuristic_map, null, 2)}
                         </Box>
                       </Box>
-                    )}
+                    ) : null}
                   </Box>
                 </AccordionDetails>
               </Accordion>
