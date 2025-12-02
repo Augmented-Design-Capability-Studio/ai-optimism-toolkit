@@ -270,7 +270,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
 
   return (
     <Paper
-      elevation={2}
+      elevation={4}
       sx={{
         height: '100%',
         display: 'flex',

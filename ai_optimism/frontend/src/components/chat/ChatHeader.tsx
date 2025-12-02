@@ -31,8 +31,10 @@ export function ChatHeader({ mode, session }: ChatHeaderProps) {
         p: 2,
         borderBottom: 1,
         borderColor: 'divider',
-        bgcolor: 'primary.main',
-        color: 'primary.contrastText',
+        borderTop: '3px solid',
+        borderTopColor: 'primary.main',
+        bgcolor: 'white',
+        color: 'text.primary',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -51,7 +53,7 @@ export function ChatHeader({ mode, session }: ChatHeaderProps) {
         <Tooltip title="Share session link">
           <IconButton
             onClick={handleShare}
-            sx={{ color: 'primary.contrastText' }}
+            sx={{ color: 'text.primary' }}
             size="small"
           >
             <ShareIcon />

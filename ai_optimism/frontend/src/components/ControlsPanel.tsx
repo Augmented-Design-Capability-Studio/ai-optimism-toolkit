@@ -82,7 +82,7 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
 
   return (
     <Paper
-      elevation={2}
+      elevation={4}
       sx={{
         height: '100%',
         display: 'flex',
@@ -100,8 +100,10 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
           p: 2,
           borderBottom: 1,
           borderColor: 'divider',
-          bgcolor: 'secondary.main',
-          color: 'secondary.contrastText',
+          borderTop: '3px solid',
+          borderTopColor: 'secondary.main',
+          bgcolor: 'white',
+          color: 'text.primary',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between'

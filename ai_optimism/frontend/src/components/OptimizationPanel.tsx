@@ -238,7 +238,7 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
 
   return (
     <Paper
-      elevation={2}
+      elevation={4}
       sx={{
         height: '100%',
         display: 'flex',
@@ -252,8 +252,10 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
           p: 2,
           borderBottom: 1,
           borderColor: 'divider',
-          bgcolor: 'success.main',
-          color: 'success.contrastText',
+          borderTop: '3px solid',
+          borderTopColor: 'success.main',
+          bgcolor: 'white',
+          color: 'text.primary',
         }}
       >
         <Typography variant="h6" fontWeight="bold">

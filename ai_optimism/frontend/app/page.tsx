@@ -111,7 +111,15 @@ export default function HomePage() {
     <ClientAuthWrapper>
       {(handleLogout) => (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', bgcolor: '#f5f5f5', overflow: 'hidden' }}>
-          <AppBar position="static" sx={{ flexShrink: 0, width: '100vw' }}>
+          <AppBar 
+            position="static" 
+            sx={{ 
+              flexShrink: 0, 
+              width: '100vw',
+              bgcolor: 'primary.main',
+              color: 'primary.contrastText',
+            }}
+          >
             <Toolbar>
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5, py: 1 }}>
                 {currentSession && (
@@ -119,7 +127,7 @@ export default function HomePage() {
                 )}
                 <BackendStatusIndicator onClick={() => setBackendSettingsOpen(true)} />
               </Box>
-              <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+              <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'white' }}>
                 AI OPTIMISM TOOLKIT
               </Typography>
               <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
@@ -132,7 +140,14 @@ export default function HomePage() {
                   variant="outlined"
                   color="inherit"
                   onClick={handleLogout}
-                  sx={{ color: 'white', borderColor: 'rgba(255, 255, 255, 0.3)' }}
+                  sx={{ 
+                    color: 'white', 
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                    '&:hover': {
+                      borderColor: 'white',
+                      bgcolor: 'rgba(255, 255, 255, 0.1)'
+                    }
+                  }}
                 >
                   Logout
                 </Button>

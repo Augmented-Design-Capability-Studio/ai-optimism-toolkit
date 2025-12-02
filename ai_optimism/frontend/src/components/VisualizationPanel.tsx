@@ -22,7 +22,7 @@ export function VisualizationPanel({ data, onWeightsChange }: VisualizationPanel
 
     return (
         <Paper
-            elevation={2}
+            elevation={4}
             sx={{
                 height: '100%',
                 display: 'flex',
@@ -36,8 +36,10 @@ export function VisualizationPanel({ data, onWeightsChange }: VisualizationPanel
                     p: 2,
                     borderBottom: 1,
                     borderColor: 'divider',
-                    bgcolor: 'info.main',
-                    color: 'info.contrastText',
+                    borderTop: '3px solid',
+                    borderTopColor: 'warning.main',
+                    bgcolor: 'white',
+                    color: 'text.primary',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
