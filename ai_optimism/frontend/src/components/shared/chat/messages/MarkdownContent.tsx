@@ -17,8 +17,12 @@ interface MarkdownContentProps {
 export function MarkdownContent({ content, variant = 'default', sx }: MarkdownContentProps) {
   const styles = variant === 'light' ? markdownStylesLight : markdownStyles;
   
+  // MUI's sx prop accepts arrays, but TypeScript types are strict
+  // Use type assertion to allow array merging
+  const mergedSx = sx ? [styles, sx] as SxProps<Theme> : styles;
+  
   return (
-    <Box sx={sx ? [styles, sx] : styles}>
+    <Box sx={mergedSx}>
       <ReactMarkdown remarkPlugins={[remarkGfm]}>
         {content}
       </ReactMarkdown>
