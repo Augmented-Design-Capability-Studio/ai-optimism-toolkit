@@ -39,9 +39,9 @@ export default function HomePage() {
   }, [sessionManager]);
 
   // Restore controls from session messages (only on session change or initial load)
-  // Also clear controls when session is deleted or terminated
+  // Also clear controls when session is terminated
   useEffect(() => {
-    if (!currentSession?.id || currentSession?.status === 'completed' || currentSession?.status === 'deleted') {
+    if (!currentSession?.id || currentSession?.status === 'completed') {
       setGeneratedControls(null);
       setVariableValues({});
       setOptimizationData(null);
