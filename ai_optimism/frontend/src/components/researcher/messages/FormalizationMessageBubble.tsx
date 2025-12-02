@@ -3,7 +3,7 @@
  */
 
 import { Message } from '../../../services/sessionManager';
-import { FormalizationMessage } from '../../shared/messages';
+import { FormalizationMessage } from '../../shared/chat';
 
 interface FormalizationMessageBubbleProps {
   message: Message;

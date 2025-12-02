@@ -1,8 +1,6 @@
 'use client';
 
-import { Box, TextField, IconButton } from '@mui/material';
-import SendIcon from '@mui/icons-material/Send';
-import { SessionMode } from '../../services/sessionManager';
+import { MarkdownInput } from '../shared/chat';
 
 interface ChatInputProps {
   input: string;
@@ -19,47 +17,15 @@ export function ChatInput({
   isLoading,
   disabled = false
 }: ChatInputProps) {
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    // Submit on Enter (without Shift)
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      onSubmit(e as any);
-    }
-    // Shift+Enter adds new line (default behavior)
-  };
-
   return (
-    <Box
-      component="form"
+    <MarkdownInput
+      value={input}
+      onChange={onInputChange}
       onSubmit={onSubmit}
-      sx={{
-        p: 2,
-        borderTop: 1,
-        borderColor: 'divider',
-        display: 'flex',
-        gap: 1,
-        alignItems: 'flex-end',
-      }}
-    >
-      <TextField
-        fullWidth
-        multiline
-        maxRows={6}
-        minRows={1}
-        size="small"
-        placeholder="Describe your optimization problem..."
-        value={input}
-        onChange={(e) => onInputChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={isLoading || disabled}
-      />
-      <IconButton
-        type="submit"
-        color="primary"
-        disabled={isLoading || disabled || !input.trim()}
-      >
-        <SendIcon />
-      </IconButton>
-    </Box>
+      placeholder="Describe your optimization problem..."
+      disabled={disabled}
+      isLoading={isLoading}
+      showAIButton={false}
+    />
   );
 }

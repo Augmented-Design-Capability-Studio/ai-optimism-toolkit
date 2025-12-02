@@ -17,8 +17,11 @@ interface MarkdownContentProps {
 export function MarkdownContent({ content, variant = 'default', sx }: MarkdownContentProps) {
   const styles = variant === 'light' ? markdownStylesLight : markdownStyles;
   
+  // Merge styles properly for TypeScript
+  const mergedSx: SxProps<Theme> = sx ? [styles, sx] : styles;
+  
   return (
-    <Box sx={{ ...styles, ...sx }}>
+    <Box sx={mergedSx}>
       <ReactMarkdown remarkPlugins={[remarkGfm]}>
         {content}
       </ReactMarkdown>

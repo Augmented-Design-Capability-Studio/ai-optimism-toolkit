@@ -25,15 +25,15 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
     }
     prevMessageCountRef.current = currentMessageCount;
   }, [messages]);
-
+  
   return (
-    <Box sx={{ flex: 1, overflow: 'auto', p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box sx={{ flex: 1, overflow: 'auto', p: 2, pb: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
       {messages.map((message) => (
         <MessageBubble key={message.id} message={message} />
       ))}
 
       {isFormalizingSession && <FormalizingIndicator />}
-
+      
       {/* Invisible element to scroll to */}
       <div ref={messagesEndRef} />
     </Box>

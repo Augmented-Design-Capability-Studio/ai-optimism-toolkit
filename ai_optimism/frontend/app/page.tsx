@@ -5,9 +5,7 @@ import { ChatPanel } from '../src/components/ChatPanel';
 import { ControlsPanel } from '../src/components/ControlsPanel';
 import { VisualizationPanel } from '../src/components/VisualizationPanel';
 import { OptimizationPanel } from '../src/components/OptimizationPanel';
-import { SessionAIConnectionStatus } from '../src/components/SessionAIConnectionStatus';
-import { BackendStatusIndicator } from '../src/components/BackendStatusIndicator';
-import { BackendSettings } from '../src/components/BackendSettings';
+import { SessionAIStatusIndicator, SessionAISettings, BackendStatusIndicator, BackendSettings } from '../src/components/shared';
 import { ClientAuthWrapper } from '../src/components/ClientAuthWrapper';
 import { useState, useEffect, useRef } from 'react';
 import { useSessionManager, Session } from '../src/services/sessionManager';
@@ -19,6 +17,7 @@ export default function HomePage() {
   const [optimizationData, setOptimizationData] = useState<unknown>(null);
   const [heuristicWeights, setHeuristicWeights] = useState<Record<string, Record<string, number>> | null>(null);
   const [backendSettingsOpen, setBackendSettingsOpen] = useState(false);
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
 
   const sessionManager = useSessionManager();
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
@@ -123,7 +122,18 @@ export default function HomePage() {
             <Toolbar>
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5, py: 1 }}>
                 {currentSession && (
-                  <SessionAIConnectionStatus sessionId={currentSession.id} mode={currentSession.mode} />
+                  <>
+                    <SessionAIStatusIndicator 
+                      sessionId={currentSession.id} 
+                      mode={currentSession.mode}
+                      onClick={() => setAiSettingsOpen(true)}
+                    />
+                    <SessionAISettings
+                      open={aiSettingsOpen}
+                      sessionId={currentSession.id}
+                      onClose={() => setAiSettingsOpen(false)}
+                    />
+                  </>
                 )}
                 <BackendStatusIndicator onClick={() => setBackendSettingsOpen(true)} />
               </Box>

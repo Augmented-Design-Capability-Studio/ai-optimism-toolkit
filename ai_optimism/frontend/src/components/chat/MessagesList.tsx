@@ -76,6 +76,7 @@ export function MessagesList({
         flex: 1,
         overflowY: 'auto',
         p: 2,
+        pb: 6, // Extra padding at bottom to prevent preview from blocking messages
         display: 'flex',
         flexDirection: 'column',
         gap: 2,

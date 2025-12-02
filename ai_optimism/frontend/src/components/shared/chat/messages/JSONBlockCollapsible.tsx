@@ -20,7 +20,7 @@ export function JSONBlockCollapsible({ jsonContent }: JSONBlockCollapsibleProps)
   try {
     const parsed = JSON.parse(jsonContent);
     formattedJSON = JSON.stringify(parsed, null, 2);
-  } catch (e) {
+  } catch {
     // If not valid JSON, use as-is
   }
   

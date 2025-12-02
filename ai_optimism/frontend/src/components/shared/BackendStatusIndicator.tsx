@@ -7,7 +7,7 @@ import {
   HourglassEmpty as HourglassEmptyIcon,
 } from '@mui/icons-material';
 import { useEffect, useState } from 'react';
-import { useBackend } from '../contexts/BackendContext';
+import { useBackend } from '../../contexts/BackendContext';
 
 interface BackendStatusIndicatorProps {
   className?: string;
@@ -123,3 +123,4 @@ export function BackendStatusIndicator({ className, onClick }: BackendStatusIndi
     </Tooltip>
   );
 }
+

@@ -2,6 +2,7 @@
  * Session detail panel with header controls
  */
 
+import { useState } from 'react';
 import {
   Box,
   Typography,
@@ -21,7 +22,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { Session, useSessionManager } from '../../services/sessionManager';
-import { SessionAIConnectionStatus } from '../SessionAIConnectionStatus';
+import { SessionAIStatusIndicator, SessionAISettings } from '../shared';
 
 interface SessionHeaderProps {
   session: Session;
@@ -41,6 +42,7 @@ export function SessionHeader({
   onDelete,
 }: SessionHeaderProps) {
   const sessionManager = useSessionManager();
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
   const handleExport = () => {
     // Generate chat log text
     const header = `Chat Session: ${session.id}\nCreated: ${new Date(session.createdAt).toLocaleString()}\nStatus: ${session.status}\nMode: ${session.mode}\n${'='.repeat(80)}\n\n`;
@@ -94,33 +96,42 @@ export function SessionHeader({
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             <Typography variant="subtitle1" fontWeight="medium">
-              Session {session.id.slice(-8)}
-            </Typography>
-            {session.ipAddress && (
+            Session {session.id.slice(-8)}
+          </Typography>
+          {session.ipAddress && (
               <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
                 IP: {session.ipAddress}
               </Typography>
             )}
-            <Chip
-              label={session.status.charAt(0).toUpperCase() + session.status.slice(1)}
-              size="small"
-              color={
-                session.status === 'completed' ? 'default' :
-                  session.status === 'formalized' ? 'success' :
-                    session.status === 'waiting' ? 'warning' : 'primary'
-              }
-            />
-            <Chip
-              label={Date.now() - session.lastActivity < 25000 ? 'Connected' : 'Disconnected'}
-              size="small"
-              color={Date.now() - session.lastActivity < 25000 ? 'success' : 'default'}
-              variant={Date.now() - session.lastActivity < 25000 ? 'filled' : 'outlined'}
-              title={Date.now() - session.lastActivity < 25000 
-                ? 'Client window/tab is open and connected' 
-                : 'Client window/tab appears to be closed (no heartbeat received)'}
-            />
+          <Chip
+            label={session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+            size="small"
+            color={
+              session.status === 'completed' ? 'default' :
+                session.status === 'formalized' ? 'success' :
+                  session.status === 'waiting' ? 'warning' : 'primary'
+            }
+          />
+          <Chip
+            label={Date.now() - session.lastActivity < 25000 ? 'Connected' : 'Disconnected'}
+            size="small"
+            color={Date.now() - session.lastActivity < 25000 ? 'success' : 'default'}
+            variant={Date.now() - session.lastActivity < 25000 ? 'filled' : 'outlined'}
+            title={Date.now() - session.lastActivity < 25000 
+              ? 'Client window/tab is open and connected' 
+              : 'Client window/tab appears to be closed (no heartbeat received)'}
+          />
           </Box>
-          <SessionAIConnectionStatus sessionId={session.id} mode={session.mode} />
+          <SessionAIStatusIndicator 
+            sessionId={session.id} 
+            mode={session.mode}
+            onClick={() => setAiSettingsOpen(true)}
+          />
+          <SessionAISettings
+            open={aiSettingsOpen}
+            sessionId={session.id}
+            onClose={() => setAiSettingsOpen(false)}
+          />
         </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
           <Typography variant="caption" color="text.secondary">

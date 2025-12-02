@@ -3,7 +3,7 @@
  */
 
 import { Message } from '../../../services/sessionManager';
-import { OptimizationRunMessage } from '../../shared/messages';
+import { OptimizationRunMessage } from '../../shared/chat';
 
 interface OptimizationRunMessageBubbleProps {
   message: Message;

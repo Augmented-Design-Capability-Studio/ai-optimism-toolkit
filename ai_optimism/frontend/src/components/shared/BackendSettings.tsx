@@ -10,7 +10,7 @@ import {
     TextField,
     Alert,
 } from '@mui/material';
-import { useBackend } from '../contexts/BackendContext';
+import { useBackend } from '../../contexts/BackendContext';
 
 interface BackendSettingsProps {
     open: boolean;
@@ -85,3 +85,4 @@ export const BackendSettings: React.FC<BackendSettingsProps> = ({ open, onClose 
         </Dialog>
     );
 };
+

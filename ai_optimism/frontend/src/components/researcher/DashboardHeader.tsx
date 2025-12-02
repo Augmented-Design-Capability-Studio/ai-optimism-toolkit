@@ -6,7 +6,7 @@ import { Box, Typography, Button } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
-import { BackendStatusIndicator } from '../BackendStatusIndicator';
+import { BackendStatusIndicator } from '../shared/BackendStatusIndicator';
 
 interface DashboardHeaderProps {
   onRefresh: () => void;

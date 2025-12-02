@@ -2,7 +2,7 @@
 
 import { Box, Paper, Typography, Avatar, Chip } from '@mui/material';
 import { SessionMode } from '../../services/sessionManager';
-import { FormalizationMessage, OptimizationRunMessage, MarkdownContent, splitTextWithJSON, JSONBlockCollapsible } from '../shared/messages';
+import { FormalizationMessage, OptimizationRunMessage, MarkdownContent, splitTextWithJSON, JSONBlockCollapsible } from '../shared/chat';
 
 interface MessageBubbleProps {
   message: any;

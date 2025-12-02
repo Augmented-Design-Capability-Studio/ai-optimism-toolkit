@@ -11,7 +11,7 @@ import {
   SessionDetail,
 } from '../../src/components/researcher';
 import { ResearcherAuthWrapper } from '../../src/components/researcher/ResearcherAuthWrapper';
-import { BackendSettings } from '../../src/components/BackendSettings';
+import { BackendSettings } from '../../src/components/shared/BackendSettings';
 
 export default function ResearcherDashboard() {
   const [backendSettingsOpen, setBackendSettingsOpen] = useState(false);

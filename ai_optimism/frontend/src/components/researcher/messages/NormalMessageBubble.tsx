@@ -5,7 +5,7 @@
 
 import { Box } from '@mui/material';
 import { Message } from '../../../services/sessionManager';
-import { MarkdownContent, splitTextWithJSON, JSONBlockCollapsible } from '../../shared/messages';
+import { MarkdownContent, splitTextWithJSON, JSONBlockCollapsible } from '../../shared/chat';
 
 interface NormalMessageBubbleProps {
   message: Message;
