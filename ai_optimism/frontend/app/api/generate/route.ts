@@ -8,13 +8,15 @@ export const runtime = 'edge';
 /**
  * Merge simple bound constraints into variable min/max values
  * Returns updated variables and filtered constraints
+ * Preserves all properties from input variables
  */
-function mergeSimpleBoundConstraints(
-  variables: Array<{ name: string; type: string; min?: number; max?: number; [key: string]: any }>,
+function mergeSimpleBoundConstraints<T extends { name: string; type: string; min?: number; max?: number; [key: string]: any }>(
+  variables: T[],
   constraints: Array<{ expression: string; [key: string]: any }>
-): { variables: typeof variables; constraints: typeof constraints } {
-  const updatedVars = variables.map(v => ({ ...v }));
-  const remainingConstraints: typeof constraints = [];
+): { variables: T[]; constraints: Array<{ expression: string; [key: string]: any }> } {
+  // Create a copy to avoid mutating the original - spread preserves all properties
+  const updatedVars: T[] = variables.map(v => ({ ...v }));
+  const remainingConstraints: Array<{ expression: string; [key: string]: any }> = [];
 
   for (const constraint of constraints) {
     const expr = constraint.expression.replace(/\s/g, ''); // Remove whitespace
@@ -246,8 +248,11 @@ export async function POST(req: Request) {
 
     // Merge simple bound constraints into variable min/max values
     if (filteredObject.constraints && filteredObject.constraints.length > 0 && filteredObject.variables) {
-      const merged = mergeSimpleBoundConstraints(filteredObject.variables, filteredObject.constraints);
-      filteredObject.variables = merged.variables;
+      // Create a typed reference to preserve the exact variable type
+      const variables = filteredObject.variables;
+      const merged = mergeSimpleBoundConstraints(variables, filteredObject.constraints);
+      // Type assertion: spread operator preserves all properties including required ones
+      filteredObject.variables = merged.variables as typeof variables;
       filteredObject.constraints = merged.constraints.length > 0 ? merged.constraints : undefined;
     }
 
