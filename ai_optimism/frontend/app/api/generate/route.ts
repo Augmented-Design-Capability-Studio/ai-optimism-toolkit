@@ -8,15 +8,18 @@ export const runtime = 'edge';
 /**
  * Merge simple bound constraints into variable min/max values
  * Returns updated variables and filtered constraints
- * Preserves all properties from input variables
+ * Preserves all properties from input variables and constraints
  */
-function mergeSimpleBoundConstraints<T extends { name: string; type: string; min?: number; max?: number; [key: string]: any }>(
-  variables: T[],
-  constraints: Array<{ expression: string; [key: string]: any }>
-): { variables: T[]; constraints: Array<{ expression: string; [key: string]: any }> } {
+function mergeSimpleBoundConstraints<
+  TVar extends { name: string; type: string; min?: number; max?: number; [key: string]: any },
+  TConstraint extends { expression: string; [key: string]: any }
+>(
+  variables: TVar[],
+  constraints: TConstraint[]
+): { variables: TVar[]; constraints: TConstraint[] } {
   // Create a copy to avoid mutating the original - spread preserves all properties
-  const updatedVars: T[] = variables.map(v => ({ ...v }));
-  const remainingConstraints: Array<{ expression: string; [key: string]: any }> = [];
+  const updatedVars: TVar[] = variables.map(v => ({ ...v }));
+  const remainingConstraints: TConstraint[] = [];
 
   for (const constraint of constraints) {
     const expr = constraint.expression.replace(/\s/g, ''); // Remove whitespace
