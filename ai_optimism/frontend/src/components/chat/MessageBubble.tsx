@@ -120,13 +120,7 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
   // Determine avatar emoji based on message type
   const avatarEmoji = displayRole === 'user' 
     ? '👤' 
-    : isControlsGeneration
-    ? '🎛️'  // Emoji for controls generation
-    : isOptimizationRun
-    ? '✨'  // Same emoji as formalization for consistency
-    : messageRole === 'ai' 
-    ? '✨'  // Special emoji for AI formalization
-    : '🤖';
+    : '🤖';  // All AI messages use robot emoji
   
   return (
     <Box

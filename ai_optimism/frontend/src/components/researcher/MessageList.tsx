@@ -67,19 +67,15 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                   : 'secondary.main',
               width: 32,
               height: 32,
+              fontSize: '20px',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
             }}
           >
-            {message.sender === 'user' 
-              ? '👤' 
-              : message.sender === 'researcher' 
-              ? '🧙' 
-              : message.metadata?.type === 'controls-generation'
-              ? '🎛️' // Controls emoji for controls generation
-              : message.metadata?.type === 'optimization-run'
-              ? '✨' // Same emoji as formalization for consistency
-              : message.metadata?.type === 'formalization'
-              ? '✨' // Sparkles for formalization
-              : '🤖'}
+            {(() => {
+              if (message.sender === 'user') return '👤';
+              if (message.sender === 'researcher') return '🧙';
+              return '🤖'; // All AI messages use robot emoji
+            })()}
           </Avatar>
           <Paper
             elevation={1}
@@ -379,9 +375,11 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
               bgcolor: 'success.main',
               width: 32,
               height: 32,
+              fontSize: '20px',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
             }}
           >
-            ✨
+            🤖
           </Avatar>
           <Paper
             elevation={1}
