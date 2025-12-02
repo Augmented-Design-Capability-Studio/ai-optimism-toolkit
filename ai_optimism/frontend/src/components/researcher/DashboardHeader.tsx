@@ -20,11 +20,8 @@ export function DashboardHeader({ onRefresh, onLogout, onClearAll, onDeleteByIP,
   return (
     <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <Box>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
+        <Typography variant="h5" fontWeight="bold">
           🧙 Researcher Dashboard
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Monitor sessions, provide guidance, and formalize optimization problems
         </Typography>
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>

@@ -88,24 +88,41 @@ export function SessionHeader({
   };
 
   return (
-    <Box sx={{ p: 2, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider' }}>
+    <Box sx={{ p: 1.5, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider' }}>
       {/* Session Info */}
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-          <Typography variant="h6">
-            Session {session.id.slice(-8)}
-          </Typography>
-          <SessionAIConnectionStatus sessionId={session.id} mode={session.mode} />
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-          {session.ipAddress && (
-            <>
+      <Box sx={{ mb: 1.5 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography variant="subtitle1" fontWeight="medium">
+              Session {session.id.slice(-8)}
+            </Typography>
+            {session.ipAddress && (
               <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
                 IP: {session.ipAddress}
               </Typography>
-              <span>•</span>
-            </>
-          )}
+            )}
+            <Chip
+              label={session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+              size="small"
+              color={
+                session.status === 'completed' ? 'default' :
+                  session.status === 'formalized' ? 'success' :
+                    session.status === 'waiting' ? 'warning' : 'primary'
+              }
+            />
+            <Chip
+              label={Date.now() - session.lastActivity < 25000 ? 'Connected' : 'Disconnected'}
+              size="small"
+              color={Date.now() - session.lastActivity < 25000 ? 'success' : 'default'}
+              variant={Date.now() - session.lastActivity < 25000 ? 'filled' : 'outlined'}
+              title={Date.now() - session.lastActivity < 25000 
+                ? 'Client window/tab is open and connected' 
+                : 'Client window/tab appears to be closed (no heartbeat received)'}
+            />
+          </Box>
+          <SessionAIConnectionStatus sessionId={session.id} mode={session.mode} />
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
           <Typography variant="caption" color="text.secondary">
             Created: {new Date(session.createdAt).toLocaleString()}
           </Typography>
@@ -113,34 +130,13 @@ export function SessionHeader({
           <Typography variant="caption" color="text.secondary">
             Updated: {new Date(session.updatedAt).toLocaleString()}
           </Typography>
-          <Chip
-            label={session.status.charAt(0).toUpperCase() + session.status.slice(1)}
-            size="small"
-            color={
-              session.status === 'completed' ? 'default' :
-                session.status === 'formalized' ? 'success' :
-                  session.status === 'waiting' ? 'warning' : 'primary'
-            }
-          />
-          <Chip
-            label={Date.now() - session.lastActivity < 25000 ? 'Connected' : 'Disconnected'}
-            size="small"
-            color={Date.now() - session.lastActivity < 25000 ? 'success' : 'default'}
-            variant={Date.now() - session.lastActivity < 25000 ? 'filled' : 'outlined'}
-            title={Date.now() - session.lastActivity < 25000 
-              ? 'Client window/tab is open and connected' 
-              : 'Client window/tab appears to be closed (no heartbeat received)'}
-          />
         </Box>
       </Box>
 
       {/* Controls Row */}
-      <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
         {/* Mode Toggle */}
         <Box>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-            User sees:
-          </Typography>
           <ToggleButtonGroup
             value={session.mode}
             exclusive
