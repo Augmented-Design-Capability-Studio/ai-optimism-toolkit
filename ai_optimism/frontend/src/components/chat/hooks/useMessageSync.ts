@@ -55,13 +55,8 @@ export function useMessageSync({
       initializedRef.current = initKey;
       initializingRef.current = false;
     } else if (messages.length === 0 && backendChatMessages.length === 0) {
-      initializingRef.current = true;
-      sendMessage({
-        role: 'user',
-        parts: [{ type: 'text', text: 'Initialize' }],
-      });
+      // Empty session - just mark as initialized, WelcomeMessage component handles the welcome UI
       initializedRef.current = initKey;
-      initializingRef.current = false;
     } else if (backendChatMessages.length > messages.length && !isLoading) {
       initializingRef.current = true;
       setMessages(backendChatMessages);
@@ -75,7 +70,6 @@ export function useMessageSync({
     status,
     messages.length,
     isLoading,
-    sendMessage,
   ]);
 
   // Sync useChat with backend AI messages from researcher

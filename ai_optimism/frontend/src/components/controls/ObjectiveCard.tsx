@@ -60,7 +60,7 @@ export function ObjectiveCard({
         position: 'relative',
         transition: 'all 0.2s',
         gridColumn: 'span 6',
-        gridRow: 'span 3',
+        gridRow: 'span 2',
         boxSizing: 'border-box',
         border: 2,
         borderColor: isMaximize ? 'success.main' : 'info.main',
@@ -74,19 +74,19 @@ export function ObjectiveCard({
       }}
     >
       {/* Header with Current Value aligned */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1, mb: 0.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1, mb: 0.25 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.2 }}>
             {isMaximize ? (
-              <TrendingUpIcon sx={{ fontSize: 16, color: 'success.main' }} />
+              <TrendingUpIcon sx={{ fontSize: 14, color: 'success.main' }} />
             ) : (
-              <TrendingDownIcon sx={{ fontSize: 16, color: 'info.main' }} />
+              <TrendingDownIcon sx={{ fontSize: 14, color: 'info.main' }} />
             )}
             <Typography
               variant="caption"
               fontWeight="bold"
               sx={{
-                fontSize: '0.75rem',
+                fontSize: '0.7rem',
                 color: isMaximize ? 'success.dark' : 'info.dark',
                 textTransform: 'uppercase',
               }}
@@ -98,14 +98,14 @@ export function ObjectiveCard({
             variant="subtitle2"
             fontWeight="bold"
             sx={{
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               lineHeight: 1.2,
             }}
           >
             {objective.name}
           </Typography>
           {objective.description && (
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', display: 'block', mt: 0.25 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', display: 'block', mt: 0.15 }}>
               {objective.description}
             </Typography>
           )}
@@ -117,15 +117,15 @@ export function ObjectiveCard({
             <Box sx={{ 
               bgcolor: 'background.paper', 
               borderRadius: 1, 
-              px: 1, 
-              py: 0.5,
+              px: 0.75, 
+              py: 0.4,
               textAlign: 'center',
-              minWidth: 70,
+              minWidth: 65,
             }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1 }}>
                 Current
               </Typography>
-              <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1rem', color: isMaximize ? 'success.dark' : 'info.dark', lineHeight: 1 }}>
+              <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '0.95rem', color: isMaximize ? 'success.dark' : 'info.dark', lineHeight: 1 }}>
                 {currentValue.toFixed(2)}
               </Typography>
             </Box>
@@ -139,7 +139,7 @@ export function ObjectiveCard({
                 opacity: 0,
                 transition: 'opacity 0.2s',
                 p: 0.25,
-                mb: 0.25,
+                mb: 0.2,
               }}
             >
               <EditIcon sx={{ fontSize: 14 }} />
@@ -151,16 +151,15 @@ export function ObjectiveCard({
       {/* Formula - Full Width */}
       <Box
         sx={{
-          flex: 1,
           bgcolor: 'background.paper',
           borderRadius: 1,
           px: 1,
-          py: 0.5,
+          py: 0.4,
           overflow: 'auto',
           minHeight: 0,
         }}
       >
-        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', mb: 0.25 }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', mb: 0.2 }}>
           Formula
         </Typography>
         <Box

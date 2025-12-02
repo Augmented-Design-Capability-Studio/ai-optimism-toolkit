@@ -41,6 +41,7 @@ export interface Property {
 export interface Constraint {
   expression: string;
   description: string;
+  title?: string;
 }
 
 export interface Algorithm {

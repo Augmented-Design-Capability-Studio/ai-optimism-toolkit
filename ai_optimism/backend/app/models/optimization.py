@@ -33,6 +33,7 @@ class Property(BaseModel):
 class Constraint(BaseModel):
     expression: str
     description: str
+    title: Optional[str] = None
 
 class OptimizationProblem(BaseModel):
     name: str

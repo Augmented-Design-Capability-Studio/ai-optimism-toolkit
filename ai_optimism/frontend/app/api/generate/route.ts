@@ -5,6 +5,109 @@ import { getGenerateControlsPrompt } from '../../../src/config/prompts';
 
 export const runtime = 'edge';
 
+/**
+ * Merge simple bound constraints into variable min/max values
+ * Returns updated variables and filtered constraints
+ */
+function mergeSimpleBoundConstraints(
+  variables: Array<{ name: string; type: string; min?: number; max?: number; [key: string]: any }>,
+  constraints: Array<{ expression: string; [key: string]: any }>
+): { variables: typeof variables; constraints: typeof constraints } {
+  const updatedVars = variables.map(v => ({ ...v }));
+  const remainingConstraints: typeof constraints = [];
+
+  for (const constraint of constraints) {
+    const expr = constraint.expression.replace(/\s/g, ''); // Remove whitespace
+    let merged = false;
+
+    // Check each variable to see if this is a simple bound constraint
+    for (const variable of updatedVars) {
+      if (variable.type === 'categorical') continue; // Skip categorical variables
+
+      const varName = variable.name;
+      const currentMin = variable.min;
+      const currentMax = variable.max;
+
+      // Patterns: varName >= value, varName > value, varName <= value, varName < value
+      // Also: value <= varName, value < varName, value >= varName, value > varName
+      
+      // Match patterns like "varName>=value" or "varName>value"
+      const geMatch = expr.match(new RegExp(`^${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}>=(-?\\d+(?:\\.\\d+)?)$`));
+      const gtMatch = expr.match(new RegExp(`^${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}>(-?\\d+(?:\\.\\d+)?)$`));
+      const leMatch = expr.match(new RegExp(`^${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}<=(-?\\d+(?:\\.\\d+)?)$`));
+      const ltMatch = expr.match(new RegExp(`^${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}<(-?\\d+(?:\\.\\d+)?)$`));
+      
+      // Match reverse patterns like "value<=varName" or "value<varName"
+      const revGeMatch = expr.match(new RegExp(`^(-?\\d+(?:\\.\\d+)?)<=${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+      const revGtMatch = expr.match(new RegExp(`^(-?\\d+(?:\\.\\d+)?)<${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+      const revLeMatch = expr.match(new RegExp(`^(-?\\d+(?:\\.\\d+)?)<=${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+      const revLtMatch = expr.match(new RegExp(`^(-?\\d+(?:\\.\\d+)?)<${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
+
+      if (geMatch) {
+        // varName >= value -> update min
+        const value = parseFloat(geMatch[1]);
+        if (currentMin === undefined || value > currentMin) {
+          variable.min = value;
+          merged = true;
+          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.min = ${value}`);
+        }
+      } else if (gtMatch) {
+        // varName > value -> update min (with small epsilon for strict inequality)
+        const value = parseFloat(gtMatch[1]);
+        const minValue = value + 0.0001; // Small epsilon for strict >
+        if (currentMin === undefined || minValue > currentMin) {
+          variable.min = minValue;
+          merged = true;
+          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.min = ${minValue}`);
+        }
+      } else if (leMatch) {
+        // varName <= value -> update max
+        const value = parseFloat(leMatch[1]);
+        if (currentMax === undefined || value < currentMax) {
+          variable.max = value;
+          merged = true;
+          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.max = ${value}`);
+        }
+      } else if (ltMatch) {
+        // varName < value -> update max (with small epsilon for strict inequality)
+        const value = parseFloat(ltMatch[1]);
+        const maxValue = value - 0.0001; // Small epsilon for strict <
+        if (currentMax === undefined || maxValue < currentMax) {
+          variable.max = maxValue;
+          merged = true;
+          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.max = ${maxValue}`);
+        }
+      } else if (revGeMatch || revLeMatch) {
+        // value <= varName -> same as varName >= value
+        const value = parseFloat((revGeMatch || revLeMatch)![1]);
+        if (currentMin === undefined || value > currentMin) {
+          variable.min = value;
+          merged = true;
+          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.min = ${value}`);
+        }
+      } else if (revGtMatch || revLtMatch) {
+        // value < varName -> same as varName > value
+        const value = parseFloat((revGtMatch || revLtMatch)![1]);
+        const minValue = value + 0.0001;
+        if (currentMin === undefined || minValue > currentMin) {
+          variable.min = minValue;
+          merged = true;
+          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.min = ${minValue}`);
+        }
+      }
+
+      if (merged) break;
+    }
+
+    if (!merged) {
+      // Keep constraint if it wasn't merged into a variable bound
+      remainingConstraints.push(constraint);
+    }
+  }
+
+  return { variables: updatedVars, constraints: remainingConstraints };
+}
+
 // Schema for optimization problem controls
 const controlsSchema = z.object({
   variables: z.array(z.object({
@@ -33,6 +136,7 @@ const controlsSchema = z.object({
   constraints: z.array(z.object({
     expression: z.string().describe('Python expression for constraint (e.g., "x + y <= 100")'),
     description: z.string().describe('What this constraint ensures'),
+    title: z.string().describe('Short title for display in visualizations (REQUIRED, 3-5 words max, e.g., "Total Budget Limit", "Staff Ratio")'),
   })).optional(),
 });
 
@@ -140,40 +244,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // Filter out simple bound constraints that are redundant with variable min/max
+    // Merge simple bound constraints into variable min/max values
     if (filteredObject.constraints && filteredObject.constraints.length > 0 && filteredObject.variables) {
-      filteredObject.constraints = filteredObject.constraints.filter(constraint => {
-        const expr = constraint.expression.replace(/\s/g, ''); // Remove whitespace
-
-        // Check each variable to see if this is a simple bound constraint
-        for (const variable of filteredObject.variables) {
-          if (variable.type === 'categorical') continue; // Skip categorical variables
-
-          const varName = variable.name;
-          const min = variable.min;
-          const max = variable.max;
-
-          // Check for patterns like: varName >= min, varName <= max, min <= varName, varName < max, etc.
-          const patterns = [
-            new RegExp(`^${varName}>=${min}$`),
-            new RegExp(`^${varName}>${min}$`),
-            new RegExp(`^${varName}<=${max}$`),
-            new RegExp(`^${varName}<${max}$`),
-            new RegExp(`^${min}<=${varName}$`),
-            new RegExp(`^${min}<${varName}$`),
-            new RegExp(`^${max}>=${varName}$`),
-            new RegExp(`^${max}>${varName}$`),
-          ];
-
-          // If any pattern matches, this is a redundant simple bound
-          if (patterns.some(pattern => pattern.test(expr))) {
-            console.log(`[Generate] Filtering redundant constraint: ${constraint.expression} (covered by ${varName} min/max)`);
-            return false; // Filter out this constraint
-          }
-        }
-
-        return true; // Keep this constraint
-      });
+      const merged = mergeSimpleBoundConstraints(filteredObject.variables, filteredObject.constraints);
+      filteredObject.variables = merged.variables;
+      filteredObject.constraints = merged.constraints.length > 0 ? merged.constraints : undefined;
     }
 
     // Ensure objectives were produced by the model; fail clearly if not

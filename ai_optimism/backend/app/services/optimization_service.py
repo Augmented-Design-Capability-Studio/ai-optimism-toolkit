@@ -232,9 +232,11 @@ class OptimizationService:
             
             left_vars, right_vars, op = analyze_constraint(constraint.expression)
             
-            # Use constraint description as name if available, otherwise use expression
+            # Use constraint title if available, then description, then expression
             # This makes the heuristic map more readable
-            if constraint.description and constraint.description.strip():
+            if constraint.title and constraint.title.strip():
+                violation_name = f"Violation: {constraint.title}"
+            elif constraint.description and constraint.description.strip():
                 violation_name = f"Violation: {constraint.description}"
             else:
                 # Fallback to expression, but limit length for readability

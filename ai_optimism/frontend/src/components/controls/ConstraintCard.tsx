@@ -64,7 +64,7 @@ export function ConstraintCard({
         position: 'relative',
         transition: 'all 0.2s',
         gridColumn: 'span 6',
-        gridRow: 'span 3',
+        gridRow: 'span 2',
         boxSizing: 'border-box',
         border: 2,
         borderColor: isSatisfied ? 'success.main' : 'error.main',
@@ -78,27 +78,32 @@ export function ConstraintCard({
       }}
     >
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 0.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 0.25 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
             {isSatisfied ? (
-              <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+              <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />
             ) : (
-              <WarningIcon sx={{ fontSize: 16, color: 'error.main' }} />
+              <WarningIcon sx={{ fontSize: 14, color: 'error.main' }} />
             )}
             <Typography
               variant="caption"
               fontWeight="bold"
               sx={{
-                fontSize: '0.75rem',
+                fontSize: '0.7rem',
                 color: isSatisfied ? 'success.dark' : 'error.dark',
               }}
             >
               {isSatisfied ? 'SATISFIED' : 'VIOLATED'}
             </Typography>
           </Box>
+          {constraint.title && (
+            <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 'bold', display: 'block', mb: 0.25 }}>
+              {constraint.title}
+            </Typography>
+          )}
           {constraint.description && (
-            <Typography variant="caption" sx={{ fontSize: '0.7rem', display: 'block', mt: 0.25 }}>
+            <Typography variant="caption" sx={{ fontSize: '0.65rem', display: 'block', color: 'text.secondary' }}>
               {constraint.description}
             </Typography>
           )}
@@ -121,14 +126,14 @@ export function ConstraintCard({
       </Box>
 
       {/* Expression */}
-      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', my: 0.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', my: 0.25 }}>
         <Typography
           sx={{
             fontFamily: 'monospace',
-            fontSize: '0.75rem',
+            fontSize: '0.7rem',
             flex: 1,
             wordBreak: 'break-word',
-            lineHeight: 1.4,
+            lineHeight: 1.3,
           }}
         >
           {constraint.expression}
@@ -137,8 +142,8 @@ export function ConstraintCard({
 
       {/* Value and Progress */}
       {currentValue !== undefined && limit !== undefined && typeof currentValue === 'number' && typeof limit === 'number' && (
-        <Box sx={{ mb: 0.5 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.25 }}>
+        <Box sx={{ mb: dependencies.length > 0 ? 0.3 : 0, mt: 0.3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.15 }}>
             <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
               Current: {currentValue.toFixed(2)}
             </Typography>
@@ -150,8 +155,8 @@ export function ConstraintCard({
             variant="determinate"
             value={progressPercentage || 0}
             sx={{
-              height: 6,
-              borderRadius: 3,
+              height: 4,
+              borderRadius: 2,
               bgcolor: 'grey.300',
               '& .MuiLinearProgress-bar': {
                 bgcolor: isSatisfied ? 'success.main' : 'error.main',
@@ -163,7 +168,7 @@ export function ConstraintCard({
 
       {/* Dependencies */}
       {dependencies.length > 0 && (
-        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', mt: 'auto' }}>
           {dependencies.map((dep) => (
             <Chip
               key={dep}

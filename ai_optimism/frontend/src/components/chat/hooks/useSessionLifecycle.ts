@@ -126,9 +126,12 @@ export function useSessionLifecycle() {
     try {
       const session = await sessionManager.createSession('experimental');
       await sessionManager.updateSession(session.id, { status: 'active' });
-      setCurrentSession(session);
-      setSessionDeleted(false);
-      subscribeToSession(session.id);
+      
+      // Force page refresh to ensure clean state across all components
+      // This guarantees no stale data, memory leaks, or edge cases
+      window.location.href = `/?session=${session.id}`;
+      
+      // This code won't execute due to navigation, but kept for type safety
       return session;
     } catch (error) {
       console.error('[useSessionLifecycle] Error creating new session:', error);

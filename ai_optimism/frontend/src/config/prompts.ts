@@ -31,9 +31,10 @@ INCREMENTAL STRUCTURED DATA EXTRACTION:
 - Only include the sections you've identified in the current response (partial data is fine)
 - Variable format: { "name": "var_name", "type": "continuous|discrete|categorical", "min": 0, "max": 100, "default": 50, "description": "...", "categories": [...] (for categorical) }
 - Objective format: { "name": "obj_name", "expression": "python expression", "goal": "minimize|maximize", "description": "..." }
-- Constraint format: { "expression": "python expression", "description": "..." }
+- Constraint format: { "expression": "python expression", "description": "...", "title": "..." (REQUIRED short title, 3-5 words max) }
 - Property format: { "name": "prop_name", "expression": "python expression", "description": "..." }
 - Use snake_case or camelCase for all names (no spaces or special characters)
+- Expressions must be inline only - no helper functions or separate data structures allowed
 - This allows the control panel to show progress incrementally as we discuss the problem
 
 CRITICAL RULES:
@@ -71,10 +72,36 @@ Please provide a structured problem definition with the following required secti
 
 3) Constraints (REQUIRED - or explicitly state "no constraints"):
   - Provide each constraint as a Python expression (e.g., "x + y <= 100") and a one-line description.
+  - You MUST include a short title (REQUIRED, 3-5 words max) for display in visualizations (e.g., "Total Budget Limit", "Staff Ratio").
 
 IMPORTANT NAMING CONVENTIONS:
   - Use snake_case (e.g., "cookie_diameter") or camelCase (e.g., "cookieDiameter").
   - Variable, objective, and constraint names must be human-readable and descriptive; avoid spaces and special characters.
+
+EXPRESSION RULES - CRITICAL:
+  - DO NOT define helper functions (e.g., def get_property(...), get_meal_property(...))
+  - DO NOT define data structures or lookup dictionaries separately (e.g., meal_properties = {...})
+  - DO NOT include Python code blocks with function definitions or variable assignments
+  - ALL calculations MUST be inline directly in the expression
+  - For lookup tables or data mappings, use inline dictionary lookups or conditional expressions
+
+  Examples:
+  ❌ WRONG - Using helper function:
+    Helper: def get_meal_property(meal, prop): return meal_properties[meal][prop]
+    Expression: get_meal_property(lunch_day_1, 'protein')
+
+  ❌ WRONG - Separate data structure:
+    Data: meal_properties = {"Meal1": {"protein": 35, ...}, ...}
+    Expression: get_meal_property(lunch_day_1, 'protein')
+
+  ✅ CORRECT - Inline dictionary lookup:
+    Expression: {"Steamed Fish Meal": 35, "Chicken Stir-fry Meal": 30, "Lean Pork/Beef Meal": 30}[lunch_day_1]
+
+  ✅ CORRECT - Using ternary operator for simple lookups:
+    Expression: 35 if lunch_day_1 == "Steamed Fish Meal" else (30 if lunch_day_1 == "Chicken Stir-fry Meal" else 30)
+
+  ✅ CORRECT - Direct calculation:
+    Expression: lunch_cost + dinner_cost + breakfast_cost
 
 PRESERVATION RULES:
   - Preserve any mathematical expressions exactly as the user wrote them when possible.
@@ -147,9 +174,17 @@ Identify:
      * Complex conditions (e.g., "x * y >= 50")
      * Conditional logic (e.g., "x > 0 if y == 'option1' else True")
    - If a constraint is just a simple bound on a single variable, adjust that variable's min/max instead
+   - For each constraint, you MUST provide a short title (REQUIRED, 3-5 words max, e.g., "Total Budget Limit", "Staff Ratio") that will be used for display in visualizations
 5. Stopping criteria:
    - max_iterations: Maximum number of optimization iterations (default: 100, range: 10-10000)
    - convergence_threshold: Threshold for convergence detection (default: 0.001, range: 0.00001-0.1)
+
+EXPRESSION RULES - CRITICAL:
+- DO NOT define helper functions or separate data structures
+- ALL expressions must be self-contained Python expressions
+- For lookup tables, use inline dictionary lookups: {"key1": value1, "key2": value2}[variable]
+- Inline all calculations directly in objective/constraint/property expressions
+- Example: Use {"Meal1": 35, "Meal2": 30}[meal_var] instead of defining a helper function
 
 CRITICAL NAMING RULES:
 - All names (variables, properties, objectives, constraints) MUST be in snake_case (e.g., "cookie_diameter", "baking_time") or camelCase (e.g., "cookieDiameter", "bakingTime")

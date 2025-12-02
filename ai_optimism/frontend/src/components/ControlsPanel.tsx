@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Paper, Typography, Chip, Switch, FormControlLabel } from '@mui/material';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { VariableWidget } from './controls/VariableWidget';
 import { VariableEditDialog } from './controls/VariableEditDialog';
 import { ObjectiveCard } from './controls/ObjectiveCard';
@@ -64,8 +64,14 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
     onControlsUpdate,
   });
 
-  // Get sorted variables
-  const { important, other } = getSortedVariables(parsedControls);
+  // Get sorted variables - memoize to prevent unnecessary recalculations and hook issues
+  const { importantVars, otherVars } = useMemo(() => {
+    const { important, other } = getSortedVariables(parsedControls);
+    return {
+      importantVars: important || [],
+      otherVars: other || [],
+    };
+  }, [parsedControls]);
 
   // Helper functions using utilities
   const evaluateExpr = (expression: string) =>
@@ -183,13 +189,13 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
           <Box>
             {/* ... existing controls content ... */}
             {/* Variables Section */}
-            {parsedControls.variables && parsedControls.variables.length > 0 && (
+            {parsedControls.variables && parsedControls.variables.length > 0 ? (
               <Box sx={{ mb: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
                   <Typography variant="subtitle2" fontWeight="bold" sx={{ color: 'primary.main' }}>
                     🎚️ Variables ({parsedControls.variables.length})
                   </Typography>
-                  {other.length > 0 && (
+                  {otherVars.length > 0 && (
                     <Box
                       onClick={() => setShowAllVariables(!showAllVariables)}
                       sx={{
@@ -203,7 +209,7 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
                       }}
                     >
                       <Typography variant="caption">
-                        {showAllVariables ? 'Show less' : `Show all (${other.length} more)`}
+                        {showAllVariables ? 'Show less' : `Show all (${otherVars.length} more)`}
                       </Typography>
                       {showAllVariables ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
                     </Box>
@@ -218,10 +224,10 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
                     gridAutoRows: '70px',
                     gridAutoFlow: 'dense',
                     gap: 1.5,
-                    mb: showAllVariables && other.length > 0 ? 2 : 0,
+                    mb: showAllVariables && otherVars.length > 0 ? 2 : 0,
                   }}
                 >
-                  {important.map((variable) => (
+                  {importantVars.map((variable) => (
                     <VariableWidget
                       key={variable.name}
                       variable={variable}
@@ -233,7 +239,7 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
                 </Box>
 
                 {/* Other variables (collapsible) */}
-                {showAllVariables && other.length > 0 && (
+                {showAllVariables && otherVars.length > 0 && (
                   <>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, mt: 1 }}>
                       Additional Parameters
@@ -247,7 +253,7 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
                         gap: 1.5,
                       }}
                     >
-                      {other.map((variable) => (
+                      {otherVars.map((variable) => (
                         <VariableWidget
                           key={variable.name}
                           variable={variable}
@@ -260,7 +266,7 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
                   </>
                 )}
               </Box>
-            )}
+            ) : null}
 
             {/* Objectives Section */}
             <Box sx={{ mb: 3 }}>

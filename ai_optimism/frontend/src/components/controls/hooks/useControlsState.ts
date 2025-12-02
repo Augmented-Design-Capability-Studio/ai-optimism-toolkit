@@ -35,6 +35,10 @@ export function useControlsState({
         }
       });
       setValues(initialValues);
+    } else {
+      // Clear state when controls become null
+      setParsedControls(null);
+      setValues({});
     }
   }, [controls]);
 

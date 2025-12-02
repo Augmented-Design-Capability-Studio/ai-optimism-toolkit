@@ -111,6 +111,11 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
 
   useEffect(() => {
     if (!currentSession?.messages || !onControlsGeneratedRef.current) {
+      // If no messages or no callback, clear controls if we had them before
+      if (lastAggregatedControlsRef.current !== null && onControlsGeneratedRef.current) {
+        lastAggregatedControlsRef.current = null;
+        onControlsGeneratedRef.current(null);
+      }
       return;
     }
 
@@ -132,9 +137,10 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         lastAggregatedControlsRef.current = controlsHash;
         onControlsGeneratedRef.current(aggregatedControls);
       }
-    } else if (lastAggregatedControlsRef.current !== null) {
-      // Controls were cleared, reset the ref
+    } else if (lastAggregatedControlsRef.current !== null && onControlsGeneratedRef.current) {
+      // Controls were cleared, reset the ref and explicitly clear parent controls
       lastAggregatedControlsRef.current = null;
+      onControlsGeneratedRef.current(null); // Explicitly clear controls in parent
     }
   }, [currentSession?.messages, currentSession?.id]);
 
@@ -221,8 +227,8 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         controls = await response.json();
       }
 
-      // Add success message after generation completes
-      if (currentSession) {
+      // Save controls to session and pass to parent
+      if (currentSession && controls) {
         await sessionManager.addMessage(
           currentSession.id,
           'ai',
@@ -230,6 +236,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
           {
             type: 'controls-generation',
             controlsGenerated: true,
+            structuredData: controls, // Save controls for persistence
           }
         );
       }

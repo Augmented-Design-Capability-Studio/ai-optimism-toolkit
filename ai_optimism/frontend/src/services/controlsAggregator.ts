@@ -54,7 +54,7 @@ function aggregateIncrementalUpdates(messages: Message[]): Controls | null {
     const updateType = metadata.type;
     const data = metadata.structuredData as Partial<Controls>;
 
-    // Merge variables
+    // Merge variables first (needed for constraint merging)
     if (data.variables && Array.isArray(data.variables)) {
       aggregated.variables = mergeVariables(aggregated.variables || [], data.variables);
     }
@@ -64,9 +64,10 @@ function aggregateIncrementalUpdates(messages: Message[]): Controls | null {
       aggregated.objectives = mergeObjectives(aggregated.objectives || [], data.objectives);
     }
 
-    // Merge constraints
+    // Merge constraints (and merge simple bounds into variables)
+    // Note: This modifies aggregated.variables in place
     if (data.constraints && Array.isArray(data.constraints)) {
-      aggregated.constraints = mergeConstraints(aggregated.constraints || [], data.constraints);
+      aggregated.constraints = mergeConstraints(aggregated.constraints || [], data.constraints, aggregated.variables || []);
     }
 
     // Merge properties
@@ -162,10 +163,109 @@ function mergeObjectives(existing: Objective[], newObjs: Objective[]): Objective
 }
 
 /**
+ * Merge simple bound constraints into variable min/max values
+ * Returns updated variables and filtered constraints
+ */
+function mergeSimpleBoundConstraints(
+  variables: Variable[],
+  constraints: Constraint[]
+): { variables: Variable[]; constraints: Constraint[] } {
+  const updatedVars = variables.map(v => ({ ...v }));
+  const remainingConstraints: Constraint[] = [];
+
+  for (const constraint of constraints) {
+    const expr = constraint.expression.replace(/\s/g, ''); // Remove whitespace
+    let merged = false;
+
+    // Check each variable to see if this is a simple bound constraint
+    for (const variable of updatedVars) {
+      if (variable.type === 'categorical') continue; // Skip categorical variables
+
+      const varName = variable.name;
+      const escapedVarName = varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      // Match patterns like "varName>=value" or "varName>value"
+      const geMatch = expr.match(new RegExp(`^${escapedVarName}>=(-?\\d+(?:\\.\\d+)?)$`));
+      const gtMatch = expr.match(new RegExp(`^${escapedVarName}>(-?\\d+(?:\\.\\d+)?)$`));
+      const leMatch = expr.match(new RegExp(`^${escapedVarName}<=(-?\\d+(?:\\.\\d+)?)$`));
+      const ltMatch = expr.match(new RegExp(`^${escapedVarName}<(-?\\d+(?:\\.\\d+)?)$`));
+      
+      // Match reverse patterns like "value<=varName" or "value<varName"
+      const revGeMatch = expr.match(new RegExp(`^(-?\\d+(?:\\.\\d+)?)<=${escapedVarName}$`));
+      const revGtMatch = expr.match(new RegExp(`^(-?\\d+(?:\\.\\d+)?)<${escapedVarName}$`));
+
+      if (geMatch) {
+        // varName >= value -> update min
+        const value = parseFloat(geMatch[1]);
+        const currentMin = variable.min;
+        if (currentMin === undefined || value > currentMin) {
+          variable.min = value;
+          merged = true;
+        }
+      } else if (gtMatch) {
+        // varName > value -> update min (with small epsilon for strict inequality)
+        const value = parseFloat(gtMatch[1]);
+        const minValue = value + 0.0001; // Small epsilon for strict >
+        const currentMin = variable.min;
+        if (currentMin === undefined || minValue > currentMin) {
+          variable.min = minValue;
+          merged = true;
+        }
+      } else if (leMatch) {
+        // varName <= value -> update max
+        const value = parseFloat(leMatch[1]);
+        const currentMax = variable.max;
+        if (currentMax === undefined || value < currentMax) {
+          variable.max = value;
+          merged = true;
+        }
+      } else if (ltMatch) {
+        // varName < value -> update max (with small epsilon for strict inequality)
+        const value = parseFloat(ltMatch[1]);
+        const maxValue = value - 0.0001; // Small epsilon for strict <
+        const currentMax = variable.max;
+        if (currentMax === undefined || maxValue < currentMax) {
+          variable.max = maxValue;
+          merged = true;
+        }
+      } else if (revGeMatch) {
+        // value <= varName -> same as varName >= value
+        const value = parseFloat(revGeMatch[1]);
+        const currentMin = variable.min;
+        if (currentMin === undefined || value > currentMin) {
+          variable.min = value;
+          merged = true;
+        }
+      } else if (revGtMatch) {
+        // value < varName -> same as varName > value
+        const value = parseFloat(revGtMatch[1]);
+        const minValue = value + 0.0001;
+        const currentMin = variable.min;
+        if (currentMin === undefined || minValue > currentMin) {
+          variable.min = minValue;
+          merged = true;
+        }
+      }
+
+      if (merged) break;
+    }
+
+    if (!merged) {
+      // Keep constraint if it wasn't merged into a variable bound
+      remainingConstraints.push(constraint);
+    }
+  }
+
+  return { variables: updatedVars, constraints: remainingConstraints };
+}
+
+/**
  * Merge constraints intelligently
  * Matches by expression, updates description if changed
+ * Also merges simple bound constraints into variable min/max values
  */
-function mergeConstraints(existing: Constraint[], newCons: Constraint[]): Constraint[] {
+function mergeConstraints(existing: Constraint[], newCons: Constraint[], variables: Variable[]): Constraint[] {
+  // First merge new constraints with existing ones
   const merged = [...existing];
   const existingMap = new Map<string, number>();
   merged.forEach((c, idx) => existingMap.set(c.expression, idx));
@@ -173,10 +273,11 @@ function mergeConstraints(existing: Constraint[], newCons: Constraint[]): Constr
   for (const newCon of newCons) {
     const existingIdx = existingMap.get(newCon.expression);
     if (existingIdx !== undefined) {
-      // Constraint exists, update description if provided
+      // Constraint exists, update description and title if provided
       merged[existingIdx] = {
         ...merged[existingIdx],
         description: newCon.description || merged[existingIdx].description,
+        title: newCon.title || merged[existingIdx].title,
       };
     } else {
       // New constraint, add it
@@ -185,7 +286,13 @@ function mergeConstraints(existing: Constraint[], newCons: Constraint[]): Constr
     }
   }
 
-  return merged;
+  // Then merge simple bound constraints into variable min/max
+  const result = mergeSimpleBoundConstraints([...variables], merged);
+  
+  // Update variables array by replacing elements
+  variables.splice(0, variables.length, ...result.variables);
+
+  return result.constraints;
 }
 
 /**
