@@ -45,20 +45,49 @@ export function MessageInput({
   };
 
   const handleRequestAI = async () => {
-    if (!onRequestAIResponse || isGeneratingAI) return;
+    if (!hasAIConfig || isGeneratingAI) return;
     
     setIsGeneratingAI(true);
     try {
-      await onRequestAIResponse(sessionId);
-    } catch (error) {
+      // Call API directly to get AI response
+      const requestBody: { draft?: string } = {};
+      
+      // If input has text, send it for formatting; otherwise draft new message
+      if (input.trim()) {
+        requestBody.draft = input.trim();
+      }
+      
+      const response = await fetch(`/api/sessions/${sessionId}/ai-response`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate AI response');
+      }
+
+      const data = await response.json();
+      const aiResponseText = data.response;
+
+      if (!aiResponseText) {
+        throw new Error('No response received from AI');
+      }
+
+      // Put the AI response in the input box instead of sending it
+      setInput(aiResponseText);
+    } catch (error: any) {
       console.error('[MessageInput] Error requesting AI response:', error);
+      alert(`Failed to generate AI response: ${error.message || 'Unknown error'}`);
     } finally {
       setIsGeneratingAI(false);
     }
   };
 
   const isAIButtonDisabled = 
-    !onRequestAIResponse ||
     !hasAIConfig ||
     isGeneratingAI ||
     disabled ||
@@ -90,14 +119,16 @@ export function MessageInput({
         onKeyDown={handleKeyDown}
         disabled={disabled}
       />
-      {onRequestAIResponse && (
+      {hasAIConfig && (
         <Tooltip 
           title={
-            !hasAIConfig 
-              ? "AI provider not configured for this session"
-              : isGeneratingAI
-              ? "Generating AI response..."
-              : "Request AI response on client's behalf"
+            isGeneratingAI
+              ? input.trim()
+                ? "Formatting your draft..."
+                : "Drafting AI response..."
+              : input.trim()
+              ? "Format and improve your draft text"
+              : "Draft an AI response based on conversation"
           }
           arrow
         >

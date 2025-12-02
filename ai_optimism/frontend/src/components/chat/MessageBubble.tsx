@@ -106,7 +106,9 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
   // Check if this is a formalization message
   const isFormalization = message.metadata?.type === 'formalization';
   const isControlsGeneration = message.metadata?.type === 'controls-generation';
-  const isIncomplete = message.metadata?.incomplete === true;
+  // Check for incomplete formalization in both metadata and content (fallback)
+  const isIncomplete = message.metadata?.incomplete === true || 
+    (isFormalization && textContent.toLowerCase().includes('incomplete formalization'));
   const controlsGenerated = message.metadata?.controlsGenerated === true;
   const controlsError = message.metadata?.controlsError;
   

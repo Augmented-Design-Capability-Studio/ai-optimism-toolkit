@@ -36,6 +36,14 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [sessionManager]);
 
+  // Clear controls and related state when session changes
+  useEffect(() => {
+    // Clear all controls-related state when session ID changes
+    setGeneratedControls(null);
+    setVariableValues({});
+    setOptimizationData(null);
+  }, [currentSession?.id]);
+
   const handleControlsGenerated = (controls: unknown) => {
     console.log('[HomePage] Controls generated:', controls);
     setGeneratedControls(controls);

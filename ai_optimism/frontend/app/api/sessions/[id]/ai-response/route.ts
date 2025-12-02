@@ -12,6 +12,15 @@ export async function POST(
   try {
     const { id: sessionId } = await params;
     
+    // Parse request body to check for draft parameter
+    let requestBody: { draft?: string } = {};
+    try {
+      requestBody = await request.json();
+    } catch {
+      // If no body or invalid JSON, continue with empty object
+      requestBody = {};
+    }
+    
     // Get backend URL from environment variable
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
     const baseUrl = `${backendUrl}/api`;
@@ -52,6 +61,68 @@ export async function POST(
       );
     }
 
+    // Create Google provider with session's API key
+    const google = createGoogleGenerativeAI({
+      apiKey: aiConfig.apiKey,
+    });
+    
+    const model = google(aiConfig.model || 'gemini-2.5-flash');
+
+    // If draft is provided, format/improve it instead of generating from conversation
+    if (requestBody.draft && requestBody.draft.trim()) {
+      console.log('[AI Response API] Formatting draft text for session:', sessionId);
+      
+      // Get conversation context for better formatting
+      let conversationContext = '';
+      try {
+        const messagesResponse = await fetch(`${baseUrl}/sessions/${sessionId}/messages`, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (messagesResponse.ok) {
+          const sessionMessages = await messagesResponse.json();
+          // Get last few messages for context
+          const recentMessages = sessionMessages.slice(-6);
+          conversationContext = recentMessages
+            .map((msg: any) => `${msg.sender === 'user' ? 'User' : msg.sender === 'researcher' ? 'Researcher' : 'AI'}: ${msg.content}`)
+            .join('\n');
+        }
+      } catch (error) {
+        console.warn('[AI Response API] Could not fetch conversation context:', error);
+      }
+
+      const formatPrompt = `You are helping a researcher improve and format a draft message. The researcher has typed a draft response and wants you to improve it for clarity, professionalism, and effectiveness while preserving their intent.
+
+${conversationContext ? `Recent conversation context:\n${conversationContext}\n\n` : ''}Draft text to improve:
+"""
+${requestBody.draft}
+"""
+
+Please improve and format this draft message. Make it clear, professional, and appropriate for the conversation context. Preserve the researcher's intent and main points, but improve clarity, grammar, and structure. Return only the improved text without any additional commentary or explanation.`;
+
+      // Hybrid system prompt: researcher-friendly but still provides optimization guidance
+      const researcherFormatSystemPrompt = `${CHAT_SYSTEM_PROMPT}
+
+IMPORTANT CONTEXT FOR DRAFT FORMATTING:
+- You are helping a RESEARCHER colleague format their draft message, not a user seeking optimization help
+- The researcher may write simple messages (like greetings) that don't need optimization guidance - just format them professionally
+- When the draft contains optimization-related content, you can enhance it with better structure and clarity while maintaining optimization guidance principles
+- Do NOT reject or criticize simple messages - just format them appropriately for the conversation context
+- Your goal is to improve clarity and professionalism while preserving the researcher's intent, whether the message is simple or optimization-focused`;
+
+      const { text } = await generateText({
+        model,
+        messages: [{ role: 'user', content: formatPrompt }],
+        system: researcherFormatSystemPrompt,
+      });
+
+      console.log('[AI Response API] Formatted draft length:', text.length);
+      return NextResponse.json({ response: text });
+    }
+
+    // Otherwise, generate from conversation (existing behavior)
     // Get session messages from backend
     const messagesResponse = await fetch(`${baseUrl}/sessions/${sessionId}/messages`, {
       headers: {
@@ -97,13 +168,6 @@ export async function POST(
         content: msg.content,
       };
     });
-
-    // Create Google provider with session's API key
-    const google = createGoogleGenerativeAI({
-      apiKey: aiConfig.apiKey,
-    });
-    
-    const model = google(aiConfig.model || 'gemini-2.5-flash');
     
     console.log('[AI Response API] Generating AI response for session:', sessionId, {
       messageCount: aiMessages.length,
