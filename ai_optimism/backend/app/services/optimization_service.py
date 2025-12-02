@@ -1,23 +1,128 @@
-from typing import List, Dict
-from ..models.optimization import OptimizationProblem, OptimizationConfig
+from typing import List, Dict, Optional
+from sqlmodel import Session, select
+from ..models.optimization import (
+    OptimizationProblem, OptimizationConfig,
+    OptimizationProblemDB, OptimizationRunDB
+)
+from ..utils.common import generate_id
+import time
 
 class OptimizationService:
     def __init__(self):
+        # Keep in-memory dict for backward compatibility during migration
         self.problems: Dict[str, OptimizationProblem] = {}
     
-    def create_problem(self, problem: OptimizationProblem) -> Dict:
-        problem_id = str(len(self.problems) + 1)
+    def create_problem(self, problem: OptimizationProblem, session_id: Optional[str] = None) -> Dict:
+        """Create a new optimization problem and save to database"""
+        problem_id = generate_id()
+        current_time = int(time.time() * 1000)
+        
+        # Convert Pydantic model to dict for JSON storage
+        problem_dict = {
+            "variables": [v.model_dump() for v in problem.variables],
+            "objectives": [o.model_dump() for o in problem.objectives],
+            "constraints": [c.model_dump() for c in (problem.constraints or [])],
+            "properties": [p.model_dump() for p in (problem.properties or [])] if problem.properties else None,
+        }
+        
+        # Save to database
+        db_problem = OptimizationProblemDB(
+            id=problem_id,
+            session_id=session_id,
+            name=problem.name,
+            description=problem.description,
+            variables=problem_dict["variables"],
+            objectives=problem_dict["objectives"],
+            constraints=problem_dict["constraints"],
+            properties=problem_dict["properties"],
+            created_at=current_time,
+            updated_at=current_time
+        )
+        
+        # Also keep in memory for backward compatibility
         self.problems[problem_id] = problem
+        
+        # Save to database
+        from ..database import engine
+        with Session(engine) as db:
+            db.add(db_problem)
+            db.commit()
+            db.refresh(db_problem)
+        
         return {"id": problem_id, "problem": problem}
     
-    def list_problems(self) -> List[Dict]:
-        return [{"id": k, "problem": v} for k, v in self.problems.items()]
+    def list_problems(self, session_id: Optional[str] = None) -> List[Dict]:
+        """List optimization problems, optionally filtered by session_id"""
+        results = []
+        
+        from ..database import engine
+        with Session(engine) as db:
+            if session_id:
+                # Filter by session
+                statement = select(OptimizationProblemDB).where(
+                    OptimizationProblemDB.session_id == session_id
+                )
+                db_problems = db.exec(statement).all()
+            else:
+                # Get all problems
+                db_problems = db.exec(select(OptimizationProblemDB)).all()
+            
+            for db_problem in db_problems:
+                # Convert back to Pydantic model for API response
+                from ..models.optimization import Variable, Objective, Constraint, Property
+                
+                variables = [Variable(**v) for v in db_problem.variables]
+                objectives = [Objective(**o) for o in db_problem.objectives]
+                constraints = [Constraint(**c) for c in (db_problem.constraints or [])]
+                properties = [Property(**p) for p in (db_problem.properties or [])] if db_problem.properties else None
+                
+                problem = OptimizationProblem(
+                    name=db_problem.name,
+                    description=db_problem.description,
+                    variables=variables,
+                    objectives=objectives,
+                    constraints=constraints,
+                    properties=properties
+                )
+                results.append({"id": db_problem.id, "problem": problem})
+        
+        # Also include in-memory problems for backward compatibility
+        for k, v in self.problems.items():
+            if not any(r["id"] == k for r in results):
+                results.append({"id": k, "problem": v})
+        
+        return results
     
     def run_optimization(self, config: OptimizationConfig) -> Dict:
-        if config.problem_id not in self.problems:
-            raise ValueError("Problem not found")
-            
-        problem = self.problems[config.problem_id]
+        """Run optimization and save results to database"""
+        # Try to get problem from database first
+        problem = None
+        db_problem = None
+        
+        from ..database import engine
+        with Session(engine) as db:
+            db_problem = db.get(OptimizationProblemDB, config.problem_id)
+            if db_problem:
+                # Convert from database format
+                from ..models.optimization import Variable, Objective, Constraint, Property
+                variables = [Variable(**v) for v in db_problem.variables]
+                objectives = [Objective(**o) for o in db_problem.objectives]
+                constraints = [Constraint(**c) for c in (db_problem.constraints or [])]
+                properties = [Property(**p) for p in (db_problem.properties or [])] if db_problem.properties else None
+                problem = OptimizationProblem(
+                    name=db_problem.name,
+                    description=db_problem.description,
+                    variables=variables,
+                    objectives=objectives,
+                    constraints=constraints,
+                    properties=properties
+                )
+        
+        # Fallback to in-memory for backward compatibility
+        if not problem:
+            if config.problem_id not in self.problems:
+                raise ValueError("Problem not found")
+            problem = self.problems[config.problem_id]
         
         # 1. Setup Toolkit Components
         import sys
@@ -375,6 +480,22 @@ class OptimizationService:
             except:
                 pass
 
+        # 3. Merge custom heuristic weights from config if provided
+        if config.heuristic_weights:
+            # config.heuristic_weights format: { "objective_name": { "modifier_name": weight } }
+            for obj_name, mod_weights in config.heuristic_weights.items():
+                try:
+                    obj = library.get_objective(obj_name)
+                    for mod_name, weight in mod_weights.items():
+                        try:
+                            mod = library.get_modifier(mod_name)
+                            if mod not in weights_map: weights_map[mod] = {}
+                            weights_map[mod][obj] = weight  # Override with custom weight
+                        except:
+                            pass
+                except:
+                    pass
+
         heuristic_map.add_heuristic_weights(weights_map)
 
         optimizer = Optimizer(
@@ -426,8 +547,56 @@ class OptimizationService:
                 except:
                     pass
 
+        # Convert weights_map to dict format for storage (objective_name -> modifier_name -> weight)
+        weights_dict = {}
+        for mod, obj_weights in weights_map.items():
+            for obj, weight in obj_weights.items():
+                if obj.name not in weights_dict:
+                    weights_dict[obj.name] = {}
+                weights_dict[obj.name][mod.name] = weight
+
+        # Save optimization run to database
+        run_id = generate_id()
+        started_at = int(time.time() * 1000)
+        
+        run_data = {
+            "status": "success",
+            "config": config.model_dump(),
+            "results": results,
+            "best_design": results[0] if results else None,
+            "heuristic_map": hm_data
+        }
+        
+        optimization_run = OptimizationRunDB(
+            id=run_id,
+            problem_id=config.problem_id,
+            session_id=config.session_id,
+            config={
+                "population_size": config.population_size,
+                "max_iterations": config.max_iterations,
+                "convergence_threshold": config.convergence_threshold
+            },
+            heuristic_weights=weights_dict if weights_dict else None,
+            results={
+                "results": results,
+                "best_design": results[0] if results else None
+            },
+            heuristic_map=hm_data,
+            status="completed",
+            started_at=started_at,
+            completed_at=int(time.time() * 1000),
+            error_message=None
+        )
+        
+        from ..database import engine
+        with Session(engine) as db:
+            db.add(optimization_run)
+            db.commit()
+            db.refresh(optimization_run)
+
         return {
             "status": "success",
+            "run_id": run_id,
             "config": config.model_dump(),
             "results": results,
             "best_design": results[0] if results else None,

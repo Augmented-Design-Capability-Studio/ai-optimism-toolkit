@@ -60,6 +60,8 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                   ? 'info.main'
                   : message.metadata?.type === 'controls-generation' && message.metadata?.controlsGenerated
                   ? 'secondary.main' // Purple for successful controls generation
+                  : message.metadata?.type === 'optimization-run'
+                  ? 'info.main' // Blue for optimization runs
                   : message.metadata?.type === 'formalization'
                   ? 'success.main' // Green for formalization
                   : 'secondary.main',
@@ -73,6 +75,8 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
               ? '🧙' 
               : message.metadata?.type === 'controls-generation'
               ? '🎛️' // Controls emoji for controls generation
+              : message.metadata?.type === 'optimization-run'
+              ? '✨' // Same emoji as formalization for consistency
               : message.metadata?.type === 'formalization'
               ? '✨' // Sparkles for formalization
               : '🤖'}
@@ -82,6 +86,7 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
             sx={{
               p: 2,
               maxWidth: '70%',
+              width: '70%',
               bgcolor:
                 message.sender === 'user'
                   ? 'grey.100'
@@ -91,6 +96,8 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                   ? 'rgba(255, 152, 0, 0.15)' // Soft amber for incomplete
                   : message.metadata?.type === 'formalization'
                   ? 'success.light'
+                  : message.metadata?.type === 'optimization-run'
+                  ? 'info.light' // Light blue for optimization runs
                   : message.metadata?.type === 'controls-generation' && message.metadata?.controlsGenerated
                   ? 'secondary.light' // Purple for successful generation
                   : message.metadata?.type === 'controls-generation' && message.metadata?.controlsError
@@ -99,6 +106,10 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
               ...(message.metadata?.type === 'formalization' && {
                 border: 2,
                 borderColor: message.metadata?.incomplete ? 'warning.main' : 'success.main',
+              }),
+              ...(message.metadata?.type === 'optimization-run' && {
+                border: 2,
+                borderColor: message.metadata?.status === 'completed' ? 'info.main' : message.metadata?.status === 'failed' ? 'error.main' : 'default',
               }),
               ...(message.metadata?.type === 'controls-generation' && message.metadata?.controlsGenerated && {
                 border: 2,
@@ -117,6 +128,8 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                 ? 'You (Researcher)'
                 : message.metadata?.type === 'formalization'
                 ? 'AI Formalization'
+                : message.metadata?.type === 'optimization-run'
+                ? 'Optimization Run'
                 : message.metadata?.type === 'controls-generation'
                 ? 'Controls Generation'
                 : 'AI Assistant'}
@@ -152,7 +165,145 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
               </Box>
             )}
             
-            {message.metadata?.type === 'formalization' ? (
+            {message.metadata?.type === 'optimization-run' ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
+                {/* Optimization Report Accordion */}
+                <Accordion
+                  disableGutters
+                  elevation={0}
+                  sx={{
+                    bgcolor: 'transparent',
+                    '&:before': { display: 'none' },
+                    width: '100%',
+                  }}
+                >
+                  <AccordionSummary
+                    expandIcon={<ExpandMoreIcon />}
+                    sx={{
+                      px: 0,
+                      minHeight: 40,
+                      width: '100%',
+                      '& .MuiAccordionSummary-content': {
+                        my: 0.5,
+                        width: '100%',
+                      },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', width: '100%' }}>
+                      <Chip
+                        label={message.metadata?.status === 'completed' ? '✅ Optimization Completed' : message.metadata?.status === 'failed' ? '❌ Optimization Failed' : '⏳ Optimization Running'}
+                        size="small"
+                        color={message.metadata?.status === 'completed' ? 'success' : message.metadata?.status === 'failed' ? 'error' : 'default'}
+                      />
+                      {message.metadata?.bestScore && (
+                        <Chip
+                          label={`Best Score: ${message.metadata.bestScore.toFixed(3)}`}
+                          size="small"
+                        />
+                      )}
+                      <Typography variant="caption" color="text.secondary">
+                        Click to expand report
+                      </Typography>
+                    </Box>
+                  </AccordionSummary>
+                  <AccordionDetails sx={{ px: 0, pt: 1 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {message.content}
+                    </Typography>
+                    {message.metadata?.runId && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                        Run ID: {message.metadata.runId}
+                      </Typography>
+                    )}
+                  </AccordionDetails>
+                </Accordion>
+                
+                {/* Optimization Packet Accordion */}
+                {message.metadata?.optimizationPacket && (
+                  <Accordion
+                    disableGutters
+                    elevation={0}
+                    sx={{
+                      bgcolor: 'transparent',
+                      '&:before': { display: 'none' },
+                      width: '100%',
+                    }}
+                  >
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
+                      sx={{
+                        px: 0,
+                        minHeight: 40,
+                        width: '100%',
+                        '& .MuiAccordionSummary-content': {
+                          my: 0.5,
+                          width: '100%',
+                        },
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', width: '100%' }}>
+                        <Chip
+                          label="📦 Optimization Packet"
+                          size="small"
+                          color="info"
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          Click to expand packet sent to server
+                        </Typography>
+                      </Box>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ px: 0, pt: 1 }}>
+                      <Box sx={{ bgcolor: 'grey.50', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 'bold' }}>
+                          Full optimization packet sent to backend:
+                        </Typography>
+                        <Box
+                          component="pre"
+                          sx={{
+                            margin: 0,
+                            fontSize: '0.75rem',
+                            overflow: 'auto',
+                            maxHeight: '400px',
+                            fontFamily: 'monospace',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {JSON.stringify(message.metadata.optimizationPacket, null, 2)}
+                        </Box>
+                        {message.metadata?.heuristic_map && (
+                          <Box sx={{ mt: 2 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 'bold' }}>
+                              Heuristic Map:
+                            </Typography>
+                            <Box
+                              component="pre"
+                              sx={{
+                                margin: 0,
+                                fontSize: '0.75rem',
+                                overflow: 'auto',
+                                maxHeight: '300px',
+                                fontFamily: 'monospace',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {JSON.stringify(message.metadata.heuristic_map, null, 2)}
+                            </Box>
+                          </Box>
+                        )}
+                      </Box>
+                    </AccordionDetails>
+                  </Accordion>
+                )}
+              </Box>
+            ) : message.metadata?.type === 'formalization' ? (
               <Accordion
                 disableGutters
                 elevation={0}
@@ -160,6 +311,7 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                   bgcolor: 'transparent',
                   '&:before': { display: 'none' },
                   mt: 1,
+                  width: '100%',
                 }}
               >
                 <AccordionSummary
@@ -167,12 +319,14 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
                   sx={{
                     px: 0,
                     minHeight: 40,
+                    width: '100%',
                     '& .MuiAccordionSummary-content': {
                       my: 0.5,
+                      width: '100%',
                     },
                   }}
                 >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', width: '100%' }}>
                     <Chip
                       label={message.metadata?.incomplete ? '⚠️ Incomplete Formalization' : '✨ Problem Formalized'}
                       size="small"

@@ -44,6 +44,8 @@ const getBackendApi = (url: string) => ({
         listProblems: `${url}/api/optimization/problems/`,
         execute: `${url}/api/optimization/execute/`,
         clear: `${url}/api/optimization/problems/clear/`,
+        getRuns: `${url}/api/optimization/runs/`,
+        getRun: (id: string) => `${url}/api/optimization/runs/${id}`,
     },
     sessions: {
         create: `${url}/api/sessions/`,

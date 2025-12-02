@@ -17,6 +17,7 @@ export default function HomePage() {
   const [generatedControls, setGeneratedControls] = useState<unknown>(null);
   const [variableValues, setVariableValues] = useState<Record<string, number>>({});
   const [optimizationData, setOptimizationData] = useState<unknown>(null);
+  const [heuristicWeights, setHeuristicWeights] = useState<Record<string, Record<string, number>> | null>(null);
   const [backendSettingsOpen, setBackendSettingsOpen] = useState(false);
 
   const sessionManager = useSessionManager();
@@ -90,7 +91,20 @@ export default function HomePage() {
     if (fullData) {
       console.log('[HomePage] Storing optimization data:', fullData);
       setOptimizationData(fullData);
+      // Initialize heuristic weights from the optimization data if available
+      // but don't overwrite user-edited weights (only initialize if null)
+      setHeuristicWeights(prev => {
+        if (fullData?.heuristic_map?.weights && !prev) {
+          return fullData.heuristic_map.weights;
+        }
+        return prev;
+      });
     }
+  };
+
+  const handleWeightsChange = (weights: Record<string, Record<string, number>>) => {
+    console.log('[HomePage] Heuristic weights changed:', weights);
+    setHeuristicWeights(weights);
   };
 
   return (
@@ -200,13 +214,18 @@ export default function HomePage() {
                 </Box>
 
                 <Box sx={{ height: '100%', overflow: 'hidden' }}>
-                  <VisualizationPanel data={optimizationData} />
+                  <VisualizationPanel 
+                    data={optimizationData} 
+                    onWeightsChange={handleWeightsChange}
+                  />
                 </Box>
 
                 <Box sx={{ height: '100%', overflow: 'hidden' }}>
                   <OptimizationPanel
                     controls={generatedControls as any}
                     onResultsUpdate={handleOptimizationResults}
+                    sessionId={currentSession?.id}
+                    heuristicWeights={heuristicWeights}
                   />
                 </Box>
               </Box>

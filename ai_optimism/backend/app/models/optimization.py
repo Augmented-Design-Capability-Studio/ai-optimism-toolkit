@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Literal
+from sqlmodel import SQLModel, Field as SQLField, JSON, Relationship
+import time
 
 class ModifierStrategy(BaseModel):
     type: Literal["gaussian", "uniform", "random_reset", "neighbor_step"]
@@ -48,3 +50,35 @@ class OptimizationConfig(BaseModel):
     population_size: int = 50
     max_iterations: int = 100
     convergence_threshold: float = 0.001
+    session_id: Optional[str] = None  # Link to session
+    heuristic_weights: Optional[Dict[str, Dict[str, float]]] = None  # Custom heuristic weights
+
+
+# SQLModel database tables for persistence
+class OptimizationProblemDB(SQLModel, table=True):
+    """Persisted optimization problem definition in database"""
+    id: str = SQLField(primary_key=True)
+    session_id: Optional[str] = SQLField(default=None, index=True)  # Link to session (nullable for backward compatibility)
+    name: str
+    description: Optional[str] = None
+    variables: Dict[str, Any] = SQLField(sa_type=JSON)  # Store as JSON
+    objectives: Dict[str, Any] = SQLField(sa_type=JSON)
+    constraints: Optional[Dict[str, Any]] = SQLField(default=None, sa_type=JSON)
+    properties: Optional[Dict[str, Any]] = SQLField(default=None, sa_type=JSON)
+    created_at: int
+    updated_at: int
+
+
+class OptimizationRunDB(SQLModel, table=True):
+    """Each optimization execution stored in database"""
+    id: str = SQLField(primary_key=True)
+    problem_id: str = SQLField(foreign_key="optimizationproblemdb.id", index=True)
+    session_id: Optional[str] = SQLField(default=None, index=True)  # For quick lookup
+    config: Dict[str, Any] = SQLField(sa_type=JSON)  # max_iterations, population_size, etc.
+    heuristic_weights: Optional[Dict[str, Any]] = SQLField(default=None, sa_type=JSON)  # Custom weights used
+    results: Dict[str, Any] = SQLField(sa_type=JSON)  # Top results, best design, etc.
+    heuristic_map: Optional[Dict[str, Any]] = SQLField(default=None, sa_type=JSON)  # Full heuristic map data
+    status: str  # 'running', 'completed', 'failed'
+    started_at: int
+    completed_at: Optional[int] = None
+    error_message: Optional[str] = None

@@ -17,7 +17,9 @@ import StopIcon from '@mui/icons-material/Stop';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useState, type ChangeEvent } from 'react';
 import { useBackend } from '../contexts/BackendContext';
+import { useSessionManager } from '../services/sessionManager';
 import type { Controls } from './controls/types';
+import { Session } from '../services/sessionManager';
 
 type OptimizationStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error';
 
@@ -34,9 +36,12 @@ interface OptimizationPanelProps {
   onStop?: () => void;
   onReset?: () => void;
   onResultsUpdate?: (results: OptimizationResult[], fullData?: any) => void;
+  sessionId?: string | null;  // Optional session ID to link optimization to session
+  heuristicWeights?: Record<string, Record<string, number>> | null;  // Heuristic weights from HeuristicNetwork
 }
 
-export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset, onResultsUpdate }: OptimizationPanelProps) {
+export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset, onResultsUpdate, sessionId, heuristicWeights }: OptimizationPanelProps) {
+  const sessionManager = useSessionManager();
   const [status, setStatus] = useState<OptimizationStatus>('idle');
   const [iteration, setIteration] = useState(0);
   const [maxIterations, setMaxIterations] = useState(100);
@@ -70,9 +75,16 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
     onStart?.();
 
     try {
+      // Get current session ID if not provided
+      const currentSessionId = sessionId || (await sessionManager.getCurrentSession())?.id || null;
+      
       // Step 1: Create optimization problem
       addLog('📝 Creating optimization problem...');
-      const problemResponse = await fetch(backendApi.optimization.createProblem, {
+      const problemUrl = currentSessionId 
+        ? `${backendApi.optimization.createProblem}?session_id=${encodeURIComponent(currentSessionId)}`
+        : backendApi.optimization.createProblem;
+      
+      const problemResponse = await fetch(problemUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -97,15 +109,34 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
       addLog(`⚙️ Running optimization (${maxIterations} iterations, population: ${populationSize})...`);
       setIteration(0);
 
-      const executeResponse = await fetch(backendApi.optimization.execute, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // Use heuristic weights from HeuristicNetwork if available
+      // These are user-edited weights from the visualization panel
+      
+      // Store the full optimization packet for later use
+      const optimizationPacket = {
+        problem: {
+          id: problemId,
+          name: 'Web Optimization',
+          description: 'Optimization from web interface',
+          variables: controls.variables,
+          objectives: controls.objectives,
+          properties: controls.properties || [],
+          constraints: controls.constraints || [],
+        },
+        config: {
           problem_id: problemId,
           population_size: populationSize,
           max_iterations: maxIterations,
           convergence_threshold: 0.001,
-        }),
+          session_id: currentSessionId,
+          heuristic_weights: heuristicWeights,
+        },
+      };
+      
+      const executeResponse = await fetch(backendApi.optimization.execute, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(optimizationPacket.config),
       });
 
       if (!executeResponse.ok) {
@@ -125,6 +156,41 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
 
         // Notify parent component with both results and full data (includes heuristic_map)
         onResultsUpdate?.(executeData.results, executeData);
+
+        // Create optimization run message bubble if we have a session
+        if (currentSessionId && executeData.run_id) {
+          try {
+            const bestDesign = executeData.best_design || executeData.results[0];
+            const messageContent = `Optimization completed successfully!\n\n` +
+              `Best Score: ${bestDesign.score.toFixed(6)}\n` +
+              `Population Size: ${populationSize}\n` +
+              `Max Iterations: ${maxIterations}\n` +
+              `Solutions Found: ${executeData.results.length}\n\n` +
+              `Run ID: ${executeData.run_id}`;
+
+            await sessionManager.addMessage(
+              currentSessionId,
+              'ai',
+              messageContent,
+              {
+                type: 'optimization-run',
+                runId: executeData.run_id,
+                status: 'completed',
+                bestScore: bestDesign.score,
+                results: executeData.results,
+                config: {
+                  population_size: populationSize,
+                  max_iterations: maxIterations,
+                },
+                optimizationPacket: optimizationPacket, // Store full packet sent to server
+                heuristic_map: executeData.heuristic_map, // Store heuristic map if available
+              }
+            );
+          } catch (error) {
+            console.error('[OptimizationPanel] Error creating optimization message:', error);
+            // Don't fail the optimization if message creation fails
+          }
+        }
       }
 
       setStatus('completed');

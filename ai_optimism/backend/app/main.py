@@ -3,6 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from .routers import optimization, evaluate, sessions
 from .database import create_db_and_tables
+# Import models to ensure SQLModel discovers them for table creation
+# Models are imported via routers, but we import them here explicitly to ensure table creation
+from .models.optimization import OptimizationProblemDB, OptimizationRunDB
+from .models.session import Session, Message, AISessionConfig
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,7 +25,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(optimization.router, prefix="/api")
+app.include_router(optimization.router, prefix="/api/optimization")
 
 app.include_router(evaluate.router, prefix="/api/evaluate", tags=["evaluate"])
 

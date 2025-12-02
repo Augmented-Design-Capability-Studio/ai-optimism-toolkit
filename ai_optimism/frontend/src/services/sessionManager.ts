@@ -18,11 +18,40 @@ export interface Message {
   content: string;
   timestamp: number;
   metadata?: {
-    type?: 'formalization' | 'controls-generation' | 'variables-update' | 'objectives-update' | 'constraints-update' | 'properties-update';
+    type?: 'formalization' | 'controls-generation' | 'optimization-run' | 'variables-update' | 'objectives-update' | 'constraints-update' | 'properties-update';
     incomplete?: boolean;
     controlsGenerated?: boolean;
     controlsError?: string;
     structuredData?: unknown;
+    // Optimization run metadata
+    runId?: string;
+    status?: 'running' | 'completed' | 'failed';
+    bestScore?: number;
+    results?: unknown;
+    config?: {
+      population_size?: number;
+      max_iterations?: number;
+    };
+    optimizationPacket?: {
+      problem: {
+        id: string;
+        name: string;
+        description?: string;
+        variables: unknown[];
+        objectives: unknown[];
+        properties?: unknown[];
+        constraints?: unknown[];
+      };
+      config: {
+        problem_id: string;
+        population_size: number;
+        max_iterations: number;
+        convergence_threshold: number;
+        session_id?: string | null;
+        heuristic_weights?: unknown;
+      };
+    };
+    heuristic_map?: unknown;
   };
 }
 

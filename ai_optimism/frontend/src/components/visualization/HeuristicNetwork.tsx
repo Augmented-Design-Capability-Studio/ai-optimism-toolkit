@@ -7,6 +7,7 @@ import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 
 interface HeuristicNetworkProps {
     data: any;
+    onWeightsChange?: (weights: Record<string, Record<string, number>>) => void;
 }
 
 // Helper to parse modifier into action and variable name
@@ -21,6 +22,9 @@ const parseModifier = (label: string): { action: string; variable: string } => {
     }
     if (label.startsWith('rand_')) {
         return { action: 'Randomize', variable: label.substring(5) };
+    }
+    if (label.startsWith('mod_')) {
+        return { action: 'Modify', variable: label.substring(4) };
     }
     return { action: '', variable: label };
 };
@@ -53,7 +57,7 @@ const formatLabel = (label: string, type: 'objective' | 'modifier'): string => {
     return label;
 };
 
-export function HeuristicNetwork({ data }: HeuristicNetworkProps) {
+export function HeuristicNetwork({ data, onWeightsChange }: HeuristicNetworkProps) {
     const [anchorEl, setAnchorEl] = useState<SVGElement | null>(null);
     const [selectedEdge, setSelectedEdge] = useState<{ obj: string, mod: string, weight: number } | null>(null);
 
@@ -115,7 +119,11 @@ export function HeuristicNetwork({ data }: HeuristicNetworkProps) {
             newData.weights[selectedEdge.obj][selectedEdge.mod] = selectedEdge.weight;
             setLocalData(newData);
 
-            // Here you would also dispatch to backend
+            // Notify parent component of weight changes
+            if (onWeightsChange) {
+                onWeightsChange(newData.weights);
+            }
+            
             console.log('Saved weight:', selectedEdge);
             handleClose();
         }
@@ -129,6 +137,12 @@ export function HeuristicNetwork({ data }: HeuristicNetworkProps) {
             }
             newData.weights[newConnection.obj][newConnection.mod] = newConnection.weight;
             setLocalData(newData);
+            
+            // Notify parent component of weight changes
+            if (onWeightsChange) {
+                onWeightsChange(newData.weights);
+            }
+            
             setAddDialogOpen(false);
             // Reset form but keep weight
             setNewConnection(prev => ({ ...prev, obj: '', mod: '' }));
@@ -202,8 +216,8 @@ export function HeuristicNetwork({ data }: HeuristicNetworkProps) {
     const minSpacing = 60;
     const padding = 50;
     const nodeHeight = 55; // Increased to accommodate wrapped text
-    const objBoxWidth = 200; // Increased from 160
-    const modBoxWidth = 180; // Increased from 140
+    const objBoxWidth = 150; // Narrower blue boxes
+    const modBoxWidth = 130; // Narrower purple boxes
     
     // Calculate SVG dimensions first
     const baseHeight = Math.max(numObjectives, numModifiers) * minSpacing + 2 * padding;
@@ -392,17 +406,37 @@ export function HeuristicNetwork({ data }: HeuristicNetworkProps) {
                             displayLines[1] = displayLines[1].substring(0, Math.min(displayLines[1].length, maxCharsPerLine - 3)) + '..';
                         }
                         
+                        // Calculate vertical positions to center text in the box
+                        // Box center is at y=0 (rect spans from -27.5 to 27.5)
+                        // Adjust based on number of content lines
+                        let typeLabelY: number;
+                        let contentLineYs: number[];
+                        
+                        if (displayLines.length === 1) {
+                            // 1 line: typeLabel above, content below, centered
+                            typeLabelY = -6;
+                            contentLineYs = [6];
+                        } else if (displayLines.length === 2) {
+                            // 2 lines: typeLabel at top, two content lines below, centered
+                            typeLabelY = -10;
+                            contentLineYs = [0, 10];
+                        } else {
+                            // No content lines (shouldn't happen, but fallback)
+                            typeLabelY = 0;
+                            contentLineYs = [];
+                        }
+                        
                         return (
                             <g key={obj} transform={`translate(${leftX}, ${y})`}>
-                                <rect x="-100" y="-25" width={objBoxWidth} height={nodeHeight} rx="5" fill="#e3f2fd" stroke="#1976d2" strokeWidth="1" />
-                                <text x="0" y="-8" textAnchor="middle" fontSize="10" fill="#0d47a1" fontWeight="bold" dominantBaseline="middle">
+                                <rect x={-objBoxWidth / 2} y={-nodeHeight / 2} width={objBoxWidth} height={nodeHeight} rx="5" fill="#e3f2fd" stroke="#1976d2" strokeWidth="1" />
+                                <text x="0" y={typeLabelY} textAnchor="middle" fontSize="10" fill="#0d47a1" fontWeight="bold" dominantBaseline="middle">
                                     {typeLabel}
                                 </text>
                                 {displayLines.map((line, lineIdx) => (
                                     <text 
                                         key={lineIdx}
                                         x="0" 
-                                        y={2 + (lineIdx * 10)} 
+                                        y={contentLineYs[lineIdx]} 
                                         textAnchor="middle" 
                                         fontSize="9" 
                                         fill="#0d47a1" 

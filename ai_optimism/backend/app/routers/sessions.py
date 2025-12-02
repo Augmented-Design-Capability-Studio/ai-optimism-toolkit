@@ -9,6 +9,7 @@ from ..models.session import (
     CreateSessionRequest, UpdateSessionRequest,
     SessionResponse, MessageUpdateItem
 )
+from ..models.optimization import OptimizationProblemDB, OptimizationRunDB
 from ..utils.common import generate_id
 from ..utils.session_helpers import (
     session_to_response, get_msg_attr, is_valid_metadata
@@ -198,21 +199,32 @@ async def session_heartbeat(session_id: str, db: DBSession = Depends(get_session
 
 @router.delete("/{session_id}")
 async def delete_session(session_id: str, db: DBSession = Depends(get_session)):
-    """Delete a session"""
+    """Delete a session and all related optimization data"""
     session = db.get(Session, session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
     try:
-        # Delete dependent messages first to avoid FK issues
+        # Delete optimization runs first (they reference problems)
+        db.exec(delete(OptimizationRunDB).where(OptimizationRunDB.session_id == session_id))
+        
+        # Delete optimization problems
+        db.exec(delete(OptimizationProblemDB).where(OptimizationProblemDB.session_id == session_id))
+        
+        # Delete dependent messages
         db.exec(delete(Message).where(Message.sessionId == session_id))
+        
+        # Delete AI config
+        db.exec(delete(AISessionConfig).where(AISessionConfig.sessionId == session_id))
+        
+        # Finally delete the session
         db.delete(session)
         db.commit()
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to delete session: {exc}") from exc
     
-    return {"message": "Session deleted"}
+    return {"message": "Session and all related data deleted"}
 
 
 @router.get("/waiting/", response_model=List[SessionResponse])
@@ -227,6 +239,8 @@ async def clear_all_sessions(db: DBSession = Depends(get_session)):
     """Clear all sessions (for testing/development)"""
     try:
         # Remove dependent data first to avoid FK violations
+        db.exec(delete(OptimizationRunDB))
+        db.exec(delete(OptimizationProblemDB))
         db.exec(delete(AISessionConfig))
         db.exec(delete(Message))
         db.exec(delete(Session))
@@ -255,6 +269,8 @@ async def delete_sessions_by_ip(ip_address: str, db: DBSession = Depends(get_ses
         deleted_count = 0
         for session in sessions_to_delete:
             # Delete dependent data first
+            db.exec(delete(OptimizationRunDB).where(OptimizationRunDB.session_id == session.id))
+            db.exec(delete(OptimizationProblemDB).where(OptimizationProblemDB.session_id == session.id))
             db.exec(delete(Message).where(Message.sessionId == session.id))
             db.exec(delete(AISessionConfig).where(AISessionConfig.sessionId == session.id))
             db.delete(session)

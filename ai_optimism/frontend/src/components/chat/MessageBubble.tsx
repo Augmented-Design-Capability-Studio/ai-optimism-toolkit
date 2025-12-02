@@ -106,6 +106,7 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
   // Check if this is a formalization message
   const isFormalization = message.metadata?.type === 'formalization';
   const isControlsGeneration = message.metadata?.type === 'controls-generation';
+  const isOptimizationRun = message.metadata?.type === 'optimization-run';
   // Check for incomplete formalization in both metadata and content (fallback)
   const isIncomplete = message.metadata?.incomplete === true || 
     (isFormalization && textContent.toLowerCase().includes('incomplete formalization'));
@@ -121,6 +122,8 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
     ? '👤' 
     : isControlsGeneration
     ? '🎛️'  // Emoji for controls generation
+    : isOptimizationRun
+    ? '✨'  // Same emoji as formalization for consistency
     : messageRole === 'ai' 
     ? '✨'  // Special emoji for AI formalization
     : '🤖';
@@ -142,6 +145,8 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
             ? 'warning.main' // Amber for incomplete formalization
             : isFormalization
             ? 'success.main' // Green for complete formalization
+            : isOptimizationRun
+            ? 'info.main' // Blue for optimization runs
             : isControlsGeneration && controlsGenerated
             ? 'secondary.main' // Purple for successful generation
             : isControlsGeneration && controlsError
@@ -157,13 +162,15 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
         elevation={1}
         sx={{
           p: 2,
-          maxWidth: '80%',
+          maxWidth: '70%',
           bgcolor: displayRole === 'user' 
             ? 'primary.light' 
             : isFormalization && isIncomplete
             ? 'rgba(255, 152, 0, 0.15)' // Soft amber for incomplete formalization
             : isFormalization
             ? 'success.light' // Green for complete formalization
+            : isOptimizationRun
+            ? 'info.light' // Light blue for optimization runs
             : isControlsGeneration && controlsGenerated
             ? 'secondary.light' // Purple for successful generation
             : isControlsGeneration && controlsError
@@ -173,6 +180,10 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
           ...(isFormalization && {
             border: 2,
             borderColor: isIncomplete ? 'warning.main' : 'success.main',
+          }),
+          ...(isOptimizationRun && {
+            border: 2,
+            borderColor: message.metadata?.status === 'completed' ? 'info.main' : message.metadata?.status === 'failed' ? 'error.main' : 'default',
           }),
           ...(isControlsGeneration && controlsGenerated && {
             border: 2,
@@ -271,6 +282,138 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
                   Generate optimization controls from this problem definition
                 </Typography>
               </Box>
+            )}
+          </Box>
+        ) : isOptimizationRun ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {/* Optimization Report Accordion */}
+            <Accordion
+              disableGutters
+              elevation={0}
+              sx={{
+                bgcolor: 'transparent',
+                '&:before': { display: 'none' },
+              }}
+            >
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                sx={{
+                  px: 0,
+                  minHeight: 40,
+                  '& .MuiAccordionSummary-content': {
+                    my: 0.5,
+                  },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Chip
+                    label={message.metadata?.status === 'completed' ? '✅ Optimization Completed' : message.metadata?.status === 'failed' ? '❌ Optimization Failed' : '⏳ Optimization Running'}
+                    size="small"
+                    color={message.metadata?.status === 'completed' ? 'success' : message.metadata?.status === 'failed' ? 'error' : 'default'}
+                  />
+                  {message.metadata?.bestScore && (
+                    <Chip
+                      label={`Best Score: ${message.metadata.bestScore.toFixed(3)}`}
+                      size="small"
+                    />
+                  )}
+                  <Typography variant="caption" color="text.secondary">
+                    Click to expand report
+                  </Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ px: 0, pt: 1 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {textContent}
+                </Typography>
+                {message.metadata?.runId && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    Run ID: {message.metadata.runId}
+                  </Typography>
+                )}
+              </AccordionDetails>
+            </Accordion>
+            
+            {/* Optimization Packet Accordion */}
+            {message.metadata?.optimizationPacket && (
+              <Accordion
+                disableGutters
+                elevation={0}
+                sx={{
+                  bgcolor: 'transparent',
+                  '&:before': { display: 'none' },
+                }}
+              >
+                <AccordionSummary
+                  expandIcon={<ExpandMoreIcon />}
+                  sx={{
+                    px: 0,
+                    minHeight: 40,
+                    '& .MuiAccordionSummary-content': {
+                      my: 0.5,
+                    },
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Chip
+                      label="📦 Optimization Packet"
+                      size="small"
+                      color="info"
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      Click to expand packet sent to server
+                    </Typography>
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: 0, pt: 1 }}>
+                  <Box sx={{ bgcolor: 'grey.50', p: 1.5, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 'bold' }}>
+                      Full optimization packet sent to backend:
+                    </Typography>
+                    <Box
+                      component="pre"
+                      sx={{
+                        margin: 0,
+                        fontSize: '0.75rem',
+                        overflow: 'auto',
+                        maxHeight: '400px',
+                        fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {JSON.stringify(message.metadata.optimizationPacket, null, 2)}
+                    </Box>
+                    {message.metadata?.heuristic_map && (
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 'bold' }}>
+                          Heuristic Map:
+                        </Typography>
+                        <Box
+                          component="pre"
+                          sx={{
+                            margin: 0,
+                            fontSize: '0.75rem',
+                            overflow: 'auto',
+                            maxHeight: '300px',
+                            fontFamily: 'monospace',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {JSON.stringify(message.metadata.heuristic_map, null, 2)}
+                        </Box>
+                      </Box>
+                    )}
+                  </Box>
+                </AccordionDetails>
+              </Accordion>
             )}
           </Box>
         ) : (

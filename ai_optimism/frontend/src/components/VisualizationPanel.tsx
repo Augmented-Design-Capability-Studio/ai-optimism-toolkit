@@ -14,9 +14,10 @@ type VizType = 'chart' | 'table' | '3d' | 'weights';
 
 interface VisualizationPanelProps {
     data?: unknown;
+    onWeightsChange?: (weights: Record<string, Record<string, number>>) => void;
 }
 
-export function VisualizationPanel({ data }: VisualizationPanelProps) {
+export function VisualizationPanel({ data, onWeightsChange }: VisualizationPanelProps) {
     const [vizType, setVizType] = useState<VizType>('weights'); // Default to 'weights'
 
     return (
@@ -96,7 +97,7 @@ export function VisualizationPanel({ data }: VisualizationPanelProps) {
                     {vizType === '3d' && <ThreeDViz data={data} />}
                     {vizType === 'weights' && (
                         (data && (data as any)?.heuristic_map) ? (
-                            <HeuristicNetwork data={data} />
+                            <HeuristicNetwork data={data} onWeightsChange={onWeightsChange} />
                         ) : (
                             <Box sx={{
                                 display: 'flex',
