@@ -10,7 +10,7 @@ class EvaluationRequest(BaseModel):
 class EvaluationResult(BaseModel):
     """Result of expression evaluation"""
     expression: str
-    value: Optional[float]
+    value: Optional[Any]  # Can be float, int, dict, or other types
     error: Optional[str]
 
 

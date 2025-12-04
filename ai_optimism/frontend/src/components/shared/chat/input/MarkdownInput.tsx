@@ -70,7 +70,7 @@ export function MarkdownInput({
           position: 'relative',
         }}
       >
-        <Box sx={{ position: 'relative', flex: 1 }}>
+        <Box sx={{ flex: 1 }}>
           <TextField
             multiline
             maxRows={6}
@@ -92,66 +92,59 @@ export function MarkdownInput({
               },
             }}
           />
-          {/* Preview checkbox in bottom-right corner */}
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={showPreview}
-                onChange={handlePreviewChange}
-                size="small"
-                disabled={disabled || isLoading}
-                sx={{
-                  padding: '2px',
-                  '& .MuiSvgIcon-root': {
-                    fontSize: '1rem',
-                  },
-                }}
-              />
-            }
-            label="Formatted preview"
-            sx={{
-              position: 'absolute',
-              bottom: 4,
-              right: 8,
-              m: 0,
-              pointerEvents: 'auto',
-              backgroundColor: 'background.paper',
-              borderRadius: '4px',
-              px: 0.5,
-              py: 0.25,
-              '& .MuiFormControlLabel-label': {
-                fontSize: '0.7rem',
-                ml: 0.5,
-              },
-            }}
-          />
         </Box>
-          {showAIButton && onRequestAI && (
-            <Tooltip 
-              title={aiButtonTooltip || (isGeneratingAI ? 'Generating...' : 'Draft AI response')}
-              arrow
-            >
-              <span>
-                <IconButton
-                  color="secondary"
-                  onClick={onRequestAI}
-                  disabled={aiButtonDisabled || isGeneratingAI}
-                  sx={{
-                    opacity: isGeneratingAI ? 0.6 : 1,
-                  }}
-                >
-                  <AutoAwesomeIcon />
-                </IconButton>
-              </span>
-            </Tooltip>
-          )}
-          <IconButton 
-            type="submit" 
-            color="primary" 
-            disabled={!value.trim() || disabled || isLoading}
+        {/* Preview checkbox outside input box, next to action buttons */}
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={showPreview}
+              onChange={handlePreviewChange}
+              size="small"
+              disabled={disabled || isLoading}
+              sx={{
+                padding: '2px',
+                '& .MuiSvgIcon-root': {
+                  fontSize: '1rem',
+                },
+              }}
+            />
+          }
+          label="Preview"
+          sx={{
+            m: 0,
+            alignSelf: 'flex-end',
+            '& .MuiFormControlLabel-label': {
+              fontSize: '0.75rem',
+              ml: 0.5,
+            },
+          }}
+        />
+        {showAIButton && onRequestAI && (
+          <Tooltip 
+            title={aiButtonTooltip || (isGeneratingAI ? 'Generating...' : 'Draft AI response')}
+            arrow
           >
-            <SendIcon />
-          </IconButton>
+            <span>
+              <IconButton
+                color="secondary"
+                onClick={onRequestAI}
+                disabled={aiButtonDisabled || isGeneratingAI}
+                sx={{
+                  opacity: isGeneratingAI ? 0.6 : 1,
+                }}
+              >
+                <AutoAwesomeIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
+        <IconButton 
+          type="submit" 
+          color="primary" 
+          disabled={!value.trim() || disabled || isLoading}
+        >
+          <SendIcon />
+        </IconButton>
       </Box>
 
       {/* Floating preview */}

@@ -123,14 +123,30 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     
     // Only call callback if controls actually changed
     if (aggregatedControls) {
-      // Create a simple hash of the controls to compare
+      // Create a comprehensive hash that includes content, not just counts
+      // This ensures we detect changes in expressions, descriptions, etc.
       const controlsHash = JSON.stringify({
-        varCount: aggregatedControls.variables?.length || 0,
-        objCount: aggregatedControls.objectives?.length || 0,
-        conCount: aggregatedControls.constraints?.length || 0,
-        propCount: aggregatedControls.properties?.length || 0,
-        // Include a hash of variable names to detect changes
-        varNames: aggregatedControls.variables?.map(v => v.name).sort().join(',') || '',
+        variables: aggregatedControls.variables?.map(v => ({
+          name: v.name,
+          type: v.type,
+          min: v.min,
+          max: v.max,
+          default: v.default,
+          categories: v.categories,
+        })).sort((a, b) => a.name.localeCompare(b.name)) || [],
+        objectives: aggregatedControls.objectives?.map(o => ({
+          name: o.name,
+          expression: o.expression,
+          goal: o.goal,
+        })).sort((a, b) => a.name.localeCompare(b.name)) || [],
+        constraints: aggregatedControls.constraints?.map(c => ({
+          expression: c.expression,
+          title: c.title,
+        })).sort((a, b) => (a.expression || '').localeCompare(b.expression || '')) || [],
+        properties: aggregatedControls.properties?.map(p => ({
+          name: p.name,
+          expression: p.expression,
+        })).sort((a, b) => a.name.localeCompare(b.name)) || [],
       });
 
       if (lastAggregatedControlsRef.current !== controlsHash) {
@@ -199,32 +215,41 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
           return;
         }
 
-        const conversationText = formalizationText || getConversationText();
+        // First, check if we have a formalization with structured data
+        const aggregatedControls = aggregateControlsFromMessages(currentSession.messages || []);
+        if (aggregatedControls && aggregatedControls.variables && aggregatedControls.variables.length > 0) {
+          // Use existing formalization directly
+          console.log('[ChatPanel] Using existing formalization for controls');
+          controls = aggregatedControls;
+        } else {
+          // Generate from conversation text
+          const conversationText = formalizationText || getConversationText();
 
-        const response = await fetch('/api/generate', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            description: conversationText,
-            model: model || 'gemini-2.5-flash',
-            sessionId: currentSession.id,
-          }),
-        });
+          const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              description: conversationText,
+              model: model || 'gemini-2.5-flash',
+              sessionId: currentSession.id,
+            }),
+          });
 
-        if (!response.ok) {
-          let errorMessage = `Generation failed: ${response.statusText}`;
-          try {
-            const error = await response.json();
-            errorMessage = error.error || error.details || errorMessage;
-          } catch {
-            // If response is not JSON, use status text
+          if (!response.ok) {
+            let errorMessage = `Generation failed: ${response.statusText}`;
+            try {
+              const error = await response.json();
+              errorMessage = error.error || error.details || errorMessage;
+            } catch {
+              // If response is not JSON, use status text
+            }
+            throw new Error(errorMessage);
           }
-          throw new Error(errorMessage);
-        }
 
-        controls = await response.json();
+          controls = await response.json();
+        }
       }
 
       // Save controls to session and pass to parent
@@ -239,9 +264,13 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
             structuredData: controls, // Save controls for persistence
           }
         );
+        
+        // Force update by clearing the hash so the useEffect will detect the change
+        // This ensures controls update even if the hash comparison might miss it
+        lastAggregatedControlsRef.current = null;
       }
 
-      // Pass to parent component
+      // Pass to parent component immediately
       if (onControlsGenerated && controls) {
         onControlsGenerated(controls);
       }

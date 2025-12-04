@@ -22,6 +22,7 @@ export interface Variable {
   description: string;
   categories?: string[];
   currentCategory?: string;
+  attributes?: Record<string, Record<string, any>>; // Attributes for each category: { 'category1': { 'attr1': value, ... }, ... }
   modifierStrategy?: ModifierStrategy;
 }
 
@@ -35,7 +36,7 @@ export interface Objective {
 export interface Property {
   name: string;
   expression: string;
-  description: string;
+  description?: string; // Optional - omit for dictionary properties mapping categorical choices to attributes
 }
 
 export interface Constraint {

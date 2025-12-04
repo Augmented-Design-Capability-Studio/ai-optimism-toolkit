@@ -135,6 +135,11 @@ function normalizeVariable(v: any): Variable | null {
     if (Array.isArray(v.categories) && v.categories.length > 0) {
       variable.categories = v.categories.map((c: any) => String(c));
       variable.currentCategory = variable.categories![0];
+      
+      // Preserve attributes if provided
+      if (v.attributes && typeof v.attributes === 'object' && v.attributes !== null && !Array.isArray(v.attributes)) {
+        variable.attributes = v.attributes;
+      }
     } else {
       // Invalid categorical without categories
       return null;
@@ -145,6 +150,11 @@ function normalizeVariable(v: any): Variable | null {
     if (typeof v.max === 'number') variable.max = v.max;
     if (typeof v.default === 'number') variable.default = v.default;
     if (typeof v.unit === 'string') variable.unit = v.unit.trim();
+  }
+
+  // Preserve modifierStrategy if provided
+  if (v.modifierStrategy && typeof v.modifierStrategy === 'object') {
+    variable.modifierStrategy = v.modifierStrategy;
   }
 
   return variable;
@@ -198,11 +208,17 @@ function normalizeProperty(p: any): Property | null {
     return null;
   }
 
-  return {
+  const result: Property = {
     name: p.name.trim(),
     expression: p.expression.trim(),
-    description: typeof p.description === 'string' ? p.description.trim() : p.name.trim(),
   };
+  
+  // Only include description if provided (optional for dictionary properties)
+  if (typeof p.description === 'string' && p.description.trim()) {
+    result.description = p.description.trim();
+  }
+  
+  return result;
 }
 
 /**

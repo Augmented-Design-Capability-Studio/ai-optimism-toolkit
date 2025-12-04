@@ -19,6 +19,7 @@ class Variable(BaseModel):
     description: str
     categories: Optional[List[str]] = None
     currentCategory: Optional[str] = None
+    attributes: Optional[Dict[str, Dict[str, Any]]] = None  # Attributes for each category: { 'category1': { 'attr1': value, ... }, ... }
     modifierStrategy: Optional[ModifierStrategy] = None
 
 class Objective(BaseModel):
@@ -30,7 +31,7 @@ class Objective(BaseModel):
 class Property(BaseModel):
     name: str
     expression: str
-    description: str
+    description: Optional[str] = None  # Optional - omit for dictionary properties mapping categorical choices to attributes
 
 class Constraint(BaseModel):
     expression: str

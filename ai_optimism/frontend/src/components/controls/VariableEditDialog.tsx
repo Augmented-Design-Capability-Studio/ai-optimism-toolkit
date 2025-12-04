@@ -8,23 +8,18 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  TextField,
-  FormControl,
-  FormLabel,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
   Box,
   IconButton,
-  Chip,
   Stack,
-  Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useState, useEffect } from 'react';
 import type { Variable } from './types';
+import { VariableBasicInfoForm } from './VariableBasicInfoForm';
+import { VariableNumericalRanges } from './VariableNumericalRanges';
+import { VariableCategoriesEditor } from './VariableCategoriesEditor';
+import { VariableModifierStrategy } from './VariableModifierStrategy';
 
 interface VariableEditDialogProps {
   open: boolean;
@@ -42,7 +37,6 @@ export function VariableEditDialog({
   onDelete,
 }: VariableEditDialogProps) {
   const [editedVariable, setEditedVariable] = useState<Variable | null>(null);
-  const [newCategory, setNewCategory] = useState('');
 
   useEffect(() => {
     if (variable) {
@@ -67,6 +61,7 @@ export function VariableEditDialog({
     if (newType === 'categorical') {
       updated.categories = editedVariable.categories || ['Option 1', 'Option 2'];
       updated.currentCategory = editedVariable.currentCategory || 'Option 1';
+      updated.attributes = editedVariable.attributes || {};
       delete updated.min;
       delete updated.max;
       delete updated.default;
@@ -76,28 +71,10 @@ export function VariableEditDialog({
       updated.default = editedVariable.default ?? 0;
       delete updated.categories;
       delete updated.currentCategory;
+      delete updated.attributes;
     }
 
     setEditedVariable(updated);
-  };
-
-  const handleAddCategory = () => {
-    if (newCategory.trim() && editedVariable.categories) {
-      setEditedVariable({
-        ...editedVariable,
-        categories: [...editedVariable.categories, newCategory.trim()],
-      });
-      setNewCategory('');
-    }
-  };
-
-  const handleRemoveCategory = (index: number) => {
-    if (editedVariable.categories && editedVariable.categories.length > 2) {
-      setEditedVariable({
-        ...editedVariable,
-        categories: editedVariable.categories.filter((_, i) => i !== index),
-      });
-    }
   };
 
   return (
@@ -111,220 +88,26 @@ export function VariableEditDialog({
 
       <DialogContent dividers>
         <Stack spacing={2.5}>
-          {/* Name */}
-          <TextField
-            label="Name"
-            fullWidth
-            value={editedVariable.name}
-            onChange={(e) => setEditedVariable({ ...editedVariable, name: e.target.value })}
-            required
+          <VariableBasicInfoForm
+            variable={editedVariable}
+            onVariableChange={setEditedVariable}
+            onTypeChange={handleTypeChange}
           />
 
-          {/* Description */}
-          <TextField
-            label="Description"
-            fullWidth
-            multiline
-            rows={2}
-            value={editedVariable.description}
-            onChange={(e) => setEditedVariable({ ...editedVariable, description: e.target.value })}
+          <VariableNumericalRanges
+            variable={editedVariable}
+            onVariableChange={setEditedVariable}
           />
 
-          {/* Unit */}
-          <TextField
-            label="Unit"
-            fullWidth
-            value={editedVariable.unit || ''}
-            onChange={(e) => setEditedVariable({ ...editedVariable, unit: e.target.value })}
-            placeholder="e.g., mm, kg, °C"
+          <VariableCategoriesEditor
+            variable={editedVariable}
+            onVariableChange={setEditedVariable}
           />
 
-          {/* Type */}
-          <FormControl component="fieldset">
-            <FormLabel component="legend">Variable Type</FormLabel>
-            <RadioGroup
-              row
-              value={editedVariable.type}
-              onChange={(e) => handleTypeChange(e.target.value as any)}
-            >
-              <FormControlLabel value="continuous" control={<Radio />} label="Continuous" />
-              <FormControlLabel value="discrete" control={<Radio />} label="Discrete" />
-              <FormControlLabel value="categorical" control={<Radio />} label="Categorical" />
-            </RadioGroup>
-          </FormControl>
-
-          {/* Numerical ranges (continuous/discrete) */}
-          {(editedVariable.type === 'continuous' || editedVariable.type === 'discrete') && (
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                label="Minimum"
-                type="number"
-                value={editedVariable.min ?? 0}
-                onChange={(e) =>
-                  setEditedVariable({ ...editedVariable, min: parseFloat(e.target.value) })
-                }
-                fullWidth
-              />
-              <TextField
-                label="Maximum"
-                type="number"
-                value={editedVariable.max ?? 100}
-                onChange={(e) =>
-                  setEditedVariable({ ...editedVariable, max: parseFloat(e.target.value) })
-                }
-                fullWidth
-              />
-              <TextField
-                label="Default"
-                type="number"
-                value={editedVariable.default ?? 0}
-                onChange={(e) =>
-                  setEditedVariable({ ...editedVariable, default: parseFloat(e.target.value) })
-                }
-                fullWidth
-              />
-            </Box>
-          )}
-
-          {/* Categories (categorical) */}
-          {editedVariable.type === 'categorical' && (
-            <Box>
-              <FormLabel component="legend" sx={{ mb: 1 }}>
-                Categories
-              </FormLabel>
-              <Stack spacing={1}>
-                {editedVariable.categories?.map((cat, idx) => (
-                  <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Chip
-                      label={cat}
-                      onDelete={
-                        editedVariable.categories && editedVariable.categories.length > 2
-                          ? () => handleRemoveCategory(idx)
-                          : undefined
-                      }
-                      sx={{ flex: 1 }}
-                    />
-                  </Box>
-                ))}
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <TextField
-                    size="small"
-                    placeholder="New category"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
-                    fullWidth
-                  />
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<AddIcon />}
-                    onClick={handleAddCategory}
-                  >
-                    Add
-                  </Button>
-                </Box>
-              </Stack>
-            </Box>
-          )}
-
-          {/* Modifier Strategy Section */}
-          <Box sx={{ pt: 1, borderTop: 1, borderColor: 'divider' }}>
-            <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'primary.main' }}>
-              Optimization Modifier
-            </Typography>
-
-            <FormControl component="fieldset" fullWidth sx={{ mb: 2 }}>
-              <FormLabel component="legend" sx={{ fontSize: '0.85rem' }}>Strategy</FormLabel>
-              <RadioGroup
-                row
-                value={editedVariable.modifierStrategy?.type || (editedVariable.type === 'categorical' ? 'random_reset' : 'gaussian')}
-                onChange={(e) => {
-                  const newType = e.target.value as any;
-                  setEditedVariable({
-                    ...editedVariable,
-                    modifierStrategy: {
-                      type: newType,
-                      // Set reasonable defaults based on new type
-                      sigma: newType === 'gaussian' ? (editedVariable.max! - editedVariable.min!) * 0.1 : undefined,
-                      stepSize: newType === 'uniform' ? (editedVariable.max! - editedVariable.min!) * 0.1 : undefined,
-                      probability: 1.0,
-                    }
-                  });
-                }}
-              >
-                {editedVariable.type === 'categorical' ? (
-                  <>
-                    <FormControlLabel value="random_reset" control={<Radio size="small" />} label={<Typography variant="body2">Random Reset</Typography>} />
-                    <FormControlLabel value="neighbor_step" control={<Radio size="small" />} label={<Typography variant="body2">Neighbor Step</Typography>} />
-                  </>
-                ) : (
-                  <>
-                    <FormControlLabel value="gaussian" control={<Radio size="small" />} label={<Typography variant="body2">Gaussian</Typography>} />
-                    <FormControlLabel value="uniform" control={<Radio size="small" />} label={<Typography variant="body2">Uniform Step</Typography>} />
-                  </>
-                )}
-              </RadioGroup>
-            </FormControl>
-
-            {/* Strategy Parameters */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              {(editedVariable.modifierStrategy?.type === 'gaussian' || (!editedVariable.modifierStrategy && editedVariable.type !== 'categorical')) && (
-                <TextField
-                  label="Sigma (Std Dev)"
-                  type="number"
-                  size="small"
-                  fullWidth
-                  value={editedVariable.modifierStrategy?.sigma ?? ((editedVariable.max! - editedVariable.min!) * 0.1).toFixed(2)}
-                  onChange={(e) => setEditedVariable({
-                    ...editedVariable,
-                    modifierStrategy: {
-                      ...editedVariable.modifierStrategy,
-                      type: 'gaussian',
-                      sigma: parseFloat(e.target.value)
-                    }
-                  })}
-                  helperText="Spread of random changes"
-                />
-              )}
-
-              {editedVariable.modifierStrategy?.type === 'uniform' && (
-                <TextField
-                  label="Step Size"
-                  type="number"
-                  size="small"
-                  fullWidth
-                  value={editedVariable.modifierStrategy?.stepSize ?? ((editedVariable.max! - editedVariable.min!) * 0.1).toFixed(2)}
-                  onChange={(e) => setEditedVariable({
-                    ...editedVariable,
-                    modifierStrategy: {
-                      ...editedVariable.modifierStrategy,
-                      type: 'uniform',
-                      stepSize: parseFloat(e.target.value)
-                    }
-                  })}
-                  helperText="Max size of single step"
-                />
-              )}
-
-              <TextField
-                label="Probability"
-                type="number"
-                size="small"
-                fullWidth
-                inputProps={{ min: 0, max: 1, step: 0.1 }}
-                value={editedVariable.modifierStrategy?.probability ?? 1.0}
-                onChange={(e) => setEditedVariable({
-                  ...editedVariable,
-                  modifierStrategy: {
-                    ...editedVariable.modifierStrategy!,
-                    probability: parseFloat(e.target.value)
-                  }
-                })}
-                helperText="Chance to modify (0-1)"
-              />
-            </Box>
-          </Box>
+          <VariableModifierStrategy
+            variable={editedVariable}
+            onVariableChange={setEditedVariable}
+          />
         </Stack>
       </DialogContent>
 

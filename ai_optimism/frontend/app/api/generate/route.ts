@@ -136,7 +136,7 @@ const controlsSchema = z.object({
   properties: z.array(z.object({
     name: z.string().describe('Property name'),
     expression: z.string().describe('Python expression to calculate this property'),
-    description: z.string().describe('What this property represents'),
+    description: z.string().optional().describe('What this property represents (optional - omit for dictionary properties mapping categorical choices to their attributes. Note: "Attributes" are properties of categorical choices, distinct from "Properties" which are derived/computed values)'),
   })).optional(),
   constraints: z.array(z.object({
     expression: z.string().describe('Python expression for constraint (e.g., "x + y <= 100")'),

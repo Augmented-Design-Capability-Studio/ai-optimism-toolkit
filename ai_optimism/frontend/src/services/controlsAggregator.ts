@@ -8,33 +8,68 @@ import type { Message } from './sessionManager';
 
 /**
  * Aggregate Controls from session messages
- * Priority: Full formalization > Aggregated incremental updates
+ * Priority: Latest controls-generation > Latest formalization > Aggregated incremental updates
  */
 export function aggregateControlsFromMessages(messages: Message[]): Controls | null {
   if (!messages || messages.length === 0) {
     return null;
   }
 
-  // First, check for full formalization (highest priority)
-  const formalizationMessage = messages.find(
-    (m) => m.metadata?.type === 'formalization' && m.metadata?.structuredData
-  );
+  // First, check for latest controls-generation (highest priority - these are complete replacements)
+  const controlsGenerationMessages = messages
+    .filter((m) => m.metadata?.type === 'controls-generation' && m.metadata?.structuredData)
+    .sort((a, b) => b.timestamp - a.timestamp); // Most recent first
 
-  if (formalizationMessage?.metadata?.structuredData) {
-    const formalizedControls = formalizationMessage.metadata.structuredData as Controls;
+  if (controlsGenerationMessages.length > 0) {
+    const latestControls = controlsGenerationMessages[0].metadata!.structuredData as Controls;
     // Validate that it has at least variables
-    if (formalizedControls && Array.isArray(formalizedControls.variables) && formalizedControls.variables.length > 0) {
-      return formalizedControls;
+    if (latestControls && Array.isArray(latestControls.variables) && latestControls.variables.length > 0) {
+      return migrateControls(latestControls);
     }
   }
 
-  // Otherwise, aggregate from incremental updates
-  return aggregateIncrementalUpdates(messages);
+  // Second, check for latest formalization with structuredData
+  const formalizationMessages = messages
+    .filter((m) => m.metadata?.type === 'formalization' && m.metadata?.structuredData)
+    .sort((a, b) => b.timestamp - a.timestamp); // Most recent first
+
+  if (formalizationMessages.length > 0) {
+    const latestFormalization = formalizationMessages[0].metadata!.structuredData as Controls;
+    // Validate that it has at least variables
+    if (latestFormalization && Array.isArray(latestFormalization.variables) && latestFormalization.variables.length > 0) {
+      return migrateControls(latestFormalization);
+    }
+  }
+
+  // Otherwise, aggregate from incremental updates (only if no full formalization/controls exist)
+  // But exclude any incremental updates that came before the latest formalization/controls-generation
+  const aggregated = aggregateIncrementalUpdates(messages);
+  return aggregated ? migrateControls(aggregated) : null;
+}
+
+/**
+ * Get the timestamp of the latest formalization or controls-generation message
+ * This helps us know where to start aggregating incremental updates from
+ */
+function getLatestFormalizationTimestamp(messages: Message[]): number | null {
+  const allFormalizations = [
+    ...messages.filter((m) => m.metadata?.type === 'controls-generation'),
+    ...messages.filter((m) => m.metadata?.type === 'formalization'),
+  ];
+
+  if (allFormalizations.length === 0) {
+    return null;
+  }
+
+  // Get the most recent one
+  const latest = allFormalizations.sort((a, b) => b.timestamp - a.timestamp)[0];
+  return latest.timestamp;
 }
 
 /**
  * Aggregate Controls from incremental update messages
  * Merges variables, objectives, constraints, and properties intelligently
+ * Only processes messages after the latest formalization/controls-generation
  */
 function aggregateIncrementalUpdates(messages: Message[]): Controls | null {
   const aggregated: Partial<Controls> = {
@@ -44,8 +79,29 @@ function aggregateIncrementalUpdates(messages: Message[]): Controls | null {
     properties: [],
   };
 
+  // Get timestamp of latest formalization/controls-generation
+  const latestFormalizationTime = getLatestFormalizationTimestamp(messages);
+
+  // Filter to only incremental updates after the latest formalization
+  // If there's no formalization, process all incremental updates
+  const incrementalMessages = messages.filter((m) => {
+    const updateType = m.metadata?.type;
+    // Only process incremental update types
+    if (!updateType || 
+        updateType === 'formalization' || 
+        updateType === 'controls-generation' ||
+        updateType === 'optimization-run') {
+      return false;
+    }
+    // If there's a formalization, only include updates after it
+    if (latestFormalizationTime !== null) {
+      return m.timestamp > latestFormalizationTime;
+    }
+    return true;
+  });
+
   // Process messages in chronological order (oldest first)
-  const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp);
+  const sortedMessages = [...incrementalMessages].sort((a, b) => a.timestamp - b.timestamp);
 
   for (const message of sortedMessages) {
     const metadata = message.metadata;
@@ -126,6 +182,10 @@ function mergeVariables(existing: Variable[], newVars: Variable[]): Variable[] {
         description: newVar.description || existingVar.description,
         categories: newVar.categories || existingVar.categories,
         currentCategory: newVar.currentCategory || existingVar.currentCategory,
+        // Merge attributes: prefer new attributes, but merge category-level attributes
+        attributes: newVar.attributes 
+          ? { ...(existingVar.attributes || {}), ...newVar.attributes }
+          : existingVar.attributes,
         modifierStrategy: newVar.modifierStrategy || existingVar.modifierStrategy,
       };
     } else {
@@ -317,6 +377,112 @@ function mergeProperties(existing: Property[], newProps: Property[]): Property[]
   }
 
   return merged;
+}
+
+/**
+ * Migrate controls from old format (dictionary properties) to new format (attributes on variables)
+ * This converts dictionary properties like dish_attributes to variable.attributes
+ */
+function migrateControls(controls: Controls): Controls {
+  if (!controls.properties || !controls.variables) {
+    return controls;
+  }
+
+  const migratedControls = { ...controls };
+  const propertiesToRemove: string[] = [];
+  const updatedVariables = [...controls.variables];
+  const updatedProperties = [...(controls.properties || [])];
+  const updatedObjectives = [...(controls.objectives || [])];
+  const updatedConstraints = [...(controls.constraints || [])];
+
+  // Find dictionary properties that contain attributes for categorical variables
+  for (const property of controls.properties) {
+    try {
+      // Try to parse as JSON dictionary
+      const parsed = JSON.parse(property.expression);
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+        // Check if values are objects (attributes)
+        const values = Object.values(parsed);
+        if (values.length > 0 && values.every(v => typeof v === 'object' && v !== null && !Array.isArray(v))) {
+          // This looks like a dictionary property containing attributes
+          // Find which categorical variable it belongs to by checking expressions
+          const allExpressions = [
+            ...(controls.objectives?.map(obj => obj.expression) || []),
+            ...(controls.constraints?.map(con => con.expression) || []),
+          ];
+
+          // Look for patterns like property_name[variable_name] in expressions
+          for (const variable of controls.variables) {
+            if (variable.type === 'categorical' && variable.categories) {
+              const pattern = new RegExp(
+                `${property.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\[\\s*${variable.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\]`,
+                'g'
+              );
+              
+              const isUsed = allExpressions.some(expr => pattern.test(expr));
+              
+              if (isUsed) {
+                // This property contains attributes for this variable
+                // Migrate attributes to variable (only if variable doesn't already have attributes)
+                const variableIndex = updatedVariables.findIndex(v => v.name === variable.name);
+                if (variableIndex >= 0 && !updatedVariables[variableIndex].attributes) {
+                  updatedVariables[variableIndex] = {
+                    ...updatedVariables[variableIndex],
+                    attributes: parsed,
+                  };
+
+                  // Mark property for removal
+                  propertiesToRemove.push(property.name);
+
+                  // Update expressions to use new syntax: {variable_name}_attributes[{variable_name}]
+                  const newPattern = new RegExp(
+                    `${property.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\[\\s*${variable.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\]`,
+                    'g'
+                  );
+                  const replacement = `${variable.name}_attributes[${variable.name}]`;
+
+                  // Update objectives
+                  updatedObjectives.forEach((obj, idx) => {
+                    if (newPattern.test(obj.expression)) {
+                      updatedObjectives[idx] = {
+                        ...obj,
+                        expression: obj.expression.replace(newPattern, replacement),
+                      };
+                    }
+                  });
+
+                  // Update constraints
+                  updatedConstraints.forEach((con, idx) => {
+                    if (newPattern.test(con.expression)) {
+                      updatedConstraints[idx] = {
+                        ...con,
+                        expression: con.expression.replace(newPattern, replacement),
+                      };
+                    }
+                  });
+
+                  break; // Found the variable, move to next property
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // Not JSON, skip
+    }
+  }
+
+  // Remove migrated properties
+  const finalProperties = updatedProperties.filter(prop => !propertiesToRemove.includes(prop.name));
+
+  return {
+    ...migratedControls,
+    variables: updatedVariables,
+    properties: finalProperties.length > 0 ? finalProperties : undefined,
+    objectives: updatedObjectives.length > 0 ? updatedObjectives : undefined,
+    constraints: updatedConstraints.length > 0 ? updatedConstraints : undefined,
+  };
 }
 
 /**

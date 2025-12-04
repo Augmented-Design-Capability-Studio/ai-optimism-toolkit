@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { getFormalizationPrompt } from '../../../../../src/config/prompts';
+import { extractJSONBlocks } from '../../../../../src/components/shared/chat/messages/utils/jsonExtractors';
+import { aggregateControlsFromMessages } from '../../../../../src/services/controlsAggregator';
 
 export const runtime = 'edge';
 
@@ -96,13 +98,110 @@ export async function POST(
       })
       .join('\n\n');
 
+    // Extract JSON structures from messages
+    // Convert messages to the format expected by aggregateControlsFromMessages
+    const formattedMessages = messages.map((m: any) => ({
+      id: m.id || '',
+      sessionId: sessionId,
+      sender: m.sender,
+      content: m.content,
+      timestamp: m.timestamp || Date.now(),
+      metadata: m.metadata || {},
+    }));
+
+    // Try to aggregate controls from messages (handles both metadata.structuredData and JSON blocks)
+    let jsonStructures: {
+      variables?: Array<Record<string, unknown>>;
+      objectives?: Array<Record<string, unknown>>;
+      constraints?: Array<Record<string, unknown>>;
+      properties?: Array<Record<string, unknown>>;
+    } | null = null;
+
+    try {
+      const aggregatedControls = aggregateControlsFromMessages(formattedMessages);
+      
+      if (aggregatedControls) {
+        jsonStructures = {
+          variables: aggregatedControls.variables as Array<Record<string, unknown>> | undefined,
+          objectives: aggregatedControls.objectives as Array<Record<string, unknown>> | undefined,
+          constraints: aggregatedControls.constraints as Array<Record<string, unknown>> | undefined,
+          properties: aggregatedControls.properties as Array<Record<string, unknown>> | undefined,
+        };
+      } else {
+        // Fallback: Try to extract JSON blocks directly from AI/researcher message content
+        const jsonBlocks: Array<{ json: string }> = [];
+        for (const msg of messages) {
+          if (msg.sender === 'ai' || msg.sender === 'researcher') {
+            const blocks = extractJSONBlocks(msg.content || '');
+            jsonBlocks.push(...blocks);
+          }
+        }
+
+        // If we found JSON blocks, try to parse and aggregate them
+        if (jsonBlocks.length > 0) {
+          const parsedStructures: {
+            variables?: Array<Record<string, unknown>>;
+            objectives?: Array<Record<string, unknown>>;
+            constraints?: Array<Record<string, unknown>>;
+            properties?: Array<Record<string, unknown>>;
+          } = {};
+
+          for (const block of jsonBlocks) {
+            try {
+              const parsed = JSON.parse(block.json);
+              if (parsed.variables && Array.isArray(parsed.variables)) {
+                parsedStructures.variables = [
+                  ...(parsedStructures.variables || []),
+                  ...parsed.variables,
+                ];
+              }
+              if (parsed.objectives && Array.isArray(parsed.objectives)) {
+                parsedStructures.objectives = [
+                  ...(parsedStructures.objectives || []),
+                  ...parsed.objectives,
+                ];
+              }
+              if (parsed.constraints && Array.isArray(parsed.constraints)) {
+                parsedStructures.constraints = [
+                  ...(parsedStructures.constraints || []),
+                  ...parsed.constraints,
+                ];
+              }
+              if (parsed.properties && Array.isArray(parsed.properties)) {
+                parsedStructures.properties = [
+                  ...(parsedStructures.properties || []),
+                  ...parsed.properties,
+                ];
+              }
+            } catch (e) {
+              // Skip invalid JSON blocks
+              console.warn('[Formalize API] Failed to parse JSON block:', e);
+            }
+          }
+
+          // Only use parsed structures if we found at least one valid structure
+          if (
+            parsedStructures.variables?.length ||
+            parsedStructures.objectives?.length ||
+            parsedStructures.constraints?.length ||
+            parsedStructures.properties?.length
+          ) {
+            jsonStructures = parsedStructures;
+          }
+        }
+      }
+    } catch (error) {
+      // If JSON extraction fails, continue without JSON structures (will use conversation-only mode)
+      console.warn('[Formalize API] Error extracting JSON structures, continuing with conversation-only mode:', error);
+    }
+
     // Initialize Google AI with API key from backend
     const google = createGoogleGenerativeAI({
       apiKey: aiConfig.apiKey,
     });
 
-    // Use centralized formalization prompt
-    const formalizationPrompt = getFormalizationPrompt(conversationText);
+    // Use centralized formalization prompt with JSON structures if available
+    const formalizationPrompt = getFormalizationPrompt(conversationText, jsonStructures);
 
     // Generate formalization
     const modelName = aiConfig.model || 'gemini-2.5-flash';
@@ -116,27 +215,64 @@ export async function POST(
     let structuredData = null;
     let summary = text;
 
-    // Look for JSON block in response
-    const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      try {
-        structuredData = JSON.parse(jsonMatch[1]);
-        // Extract summary (everything before the JSON)
-        summary = text.substring(0, text.indexOf('```json')).trim();
-      } catch (e) {
-        console.error('[Formalize] Failed to parse JSON:', e);
+    // Look for JSON block in response (multiple patterns)
+    // Pattern 1: ```json ... ```
+    let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+    
+    // Pattern 2: ``` ... ``` (might be JSON without json label)
+    if (!jsonMatch) {
+      const codeBlockMatch = text.match(/```\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch) {
+        try {
+          // Try to parse as JSON
+          JSON.parse(codeBlockMatch[1].trim());
+          jsonMatch = codeBlockMatch;
+        } catch {
+          // Not JSON, ignore
+        }
+      }
+    }
+    
+    // Pattern 3: Look for JSON object at the end of the text
+    if (!jsonMatch) {
+      // Try to find a JSON object pattern { ... } at the end
+      const jsonObjectMatch = text.match(/\{[\s\S]*"variables"[\s\S]*\}/);
+      if (jsonObjectMatch) {
+        jsonMatch = { 1: jsonObjectMatch[0] };
       }
     }
 
-    // If no JSON found, try to parse the entire response
+    if (jsonMatch) {
+      try {
+        const jsonText = jsonMatch[1].trim();
+        structuredData = JSON.parse(jsonText);
+        // Extract summary (everything before the JSON)
+        const jsonStartIndex = text.indexOf(jsonMatch[0]);
+        summary = text.substring(0, jsonStartIndex).trim();
+        console.log('[Formalize API] Successfully extracted JSON from response');
+      } catch (e) {
+        console.error('[Formalize API] Failed to parse JSON block:', e);
+        console.error('[Formalize API] JSON text:', jsonMatch[1].substring(0, 200));
+      }
+    }
+
+    // If no JSON found, try to parse the entire response as JSON
     if (!structuredData) {
       try {
-        structuredData = JSON.parse(text);
+        structuredData = JSON.parse(text.trim());
         summary = 'Problem formalized from conversation';
+        console.log('[Formalize API] Parsed entire response as JSON');
       } catch (e) {
         // No structured data available, use full text as summary
-        console.warn('[Formalize] No structured data extracted');
+        console.warn('[Formalize API] No structured data extracted from response');
+        console.warn('[Formalize API] Response preview:', text.substring(0, 500));
       }
+    }
+
+    // Validate that structuredData has required fields
+    if (structuredData && (!structuredData.variables || !Array.isArray(structuredData.variables) || structuredData.variables.length === 0)) {
+      console.warn('[Formalize API] Extracted JSON missing required variables array');
+      structuredData = null;
     }
 
     return NextResponse.json({

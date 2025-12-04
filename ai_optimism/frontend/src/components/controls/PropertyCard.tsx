@@ -2,9 +2,10 @@
  * Tile card for displaying and editing properties
  */
 
-import { Box, Card, Typography, Chip, IconButton, Tooltip } from '@mui/material';
+import { Box, Card, Typography, Chip, IconButton, Tooltip, Button } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import FunctionsIcon from '@mui/icons-material/Functions';
+import { useState } from 'react';
 import type { Property } from './types';
 
 interface PropertyCardProps {
@@ -16,6 +17,8 @@ interface PropertyCardProps {
   onVariableClick?: (variableName: string) => void;
 }
 
+const MAX_EXPRESSION_LENGTH = 100; // Characters to show before truncating
+
 export function PropertyCard({
   property,
   currentValue,
@@ -24,6 +27,12 @@ export function PropertyCard({
   onEdit,
   onVariableClick,
 }: PropertyCardProps) {
+  const [showFullExpression, setShowFullExpression] = useState(false);
+  
+  const displayExpression = property.expression.length > MAX_EXPRESSION_LENGTH && !showFullExpression
+    ? property.expression.substring(0, MAX_EXPRESSION_LENGTH) + '...'
+    : property.expression;
+
   return (
     <Card
       sx={{
@@ -76,7 +85,7 @@ export function PropertyCard({
               />
             )}
           </Box>
-          {property.description && (
+          {property.description && property.description.trim() && (
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', mt: 0.25 }}>
               {property.description}
             </Typography>
@@ -101,17 +110,35 @@ export function PropertyCard({
 
       {/* Expression and Value */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, flex: 1 }}>
-        <Typography
-          sx={{
-            fontFamily: 'monospace',
-            fontSize: '0.7rem',
-            color: 'text.secondary',
-            wordBreak: 'break-word',
-            lineHeight: 1.4,
-          }}
-        >
-          {property.expression}
-        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Typography
+            sx={{
+              fontFamily: 'monospace',
+              fontSize: '0.7rem',
+              color: 'text.secondary',
+              wordBreak: 'break-word',
+              lineHeight: 1.4,
+            }}
+          >
+            {displayExpression}
+          </Typography>
+          {property.expression.length > MAX_EXPRESSION_LENGTH && (
+            <Button
+              size="small"
+              onClick={() => setShowFullExpression(!showFullExpression)}
+              sx={{
+                minWidth: 'auto',
+                p: 0.25,
+                fontSize: '0.65rem',
+                textTransform: 'none',
+                alignSelf: 'flex-start',
+                color: 'primary.main',
+              }}
+            >
+              {showFullExpression ? 'Show Less' : 'Show Full'}
+            </Button>
+          )}
+        </Box>
         {currentValue !== undefined && (
           <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.75rem', color: 'primary.main' }}>
             = {currentValue.toFixed(2)}

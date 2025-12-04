@@ -122,6 +122,41 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
                 # Tuple literal
                 return tuple(eval_node(elem) for elem in node.elts)
             
+            elif isinstance(node, ast.Dict):
+                # Dictionary literal
+                keys = [eval_node(k) for k in node.keys]
+                values = [eval_node(v) for v in node.values]
+                return dict(zip(keys, values))
+            
+            elif isinstance(node, ast.Subscript):
+                # Dictionary/array subscript (obj[key] or obj[key1][key2])
+                value = eval_node(node.value)
+                
+                # Handle slice node - can be Index (old Python) or direct value (new Python)
+                if isinstance(node.slice, ast.Index):
+                    # Python < 3.9: slice is wrapped in Index
+                    slice_val = eval_node(node.slice.value)
+                elif isinstance(node.slice, ast.Slice):
+                    # Slice notation [a:b:c] - not commonly used in our expressions
+                    raise ValueError("Slice notation [a:b] not supported in expressions")
+                else:
+                    # Python 3.9+: slice is directly the value
+                    slice_val = eval_node(node.slice)
+                
+                # Handle both dict and list/array access
+                if isinstance(value, dict):
+                    if slice_val not in value:
+                        raise KeyError(f"Key '{slice_val}' not found in dictionary")
+                    return value[slice_val]
+                elif isinstance(value, (list, tuple)):
+                    if not isinstance(slice_val, int):
+                        raise TypeError(f"List index must be integer, got {type(slice_val)}")
+                    if slice_val < 0 or slice_val >= len(value):
+                        raise IndexError(f"List index {slice_val} out of range")
+                    return value[slice_val]
+                else:
+                    raise TypeError(f"Cannot subscript type {type(value)}")
+            
             else:
                 raise ValueError(f"Unsupported AST node: {type(node)}")
         

@@ -6,6 +6,8 @@ import { streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { Message } from './sessionManager';
 import { getFormalizationPrompt, isIncompleteFormalization } from '../config/prompts';
+import { extractJSONBlocks } from '../components/shared/chat/messages/utils/jsonExtractors';
+import { aggregateControlsFromMessages } from './controlsAggregator';
 
 export interface FormalizationConfig {
   sessionId: string;
@@ -23,12 +25,105 @@ export async function executeFormalization(config: FormalizationConfig): Promise
   const { sessionId, apiKey, model, messages } = config;
 
   try {
-    // Build conversation context
+    // Build conversation context with proper role labels
     const conversationContext = messages
-      .map(msg => `${msg.sender === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
+      .map(msg => {
+        let role = 'Assistant';
+        if (msg.sender === 'user') {
+          role = 'User';
+        } else if (msg.sender === 'researcher') {
+          role = 'Researcher';
+        } else if (msg.sender === 'ai') {
+          role = 'AI';
+        }
+        return `${role}: ${msg.content}`;
+      })
       .join('\n\n');
 
-    const formalizationPrompt = getFormalizationPrompt(conversationContext);
+    // Extract JSON structures from messages
+    // First, try to aggregate from incremental updates (which may have structuredData in metadata)
+    let jsonStructures: {
+      variables?: Array<Record<string, unknown>>;
+      objectives?: Array<Record<string, unknown>>;
+      constraints?: Array<Record<string, unknown>>;
+      properties?: Array<Record<string, unknown>>;
+    } | null = null;
+
+    // Check for aggregated controls from messages (handles both metadata.structuredData and JSON blocks)
+    const aggregatedControls = aggregateControlsFromMessages(messages);
+    
+    if (aggregatedControls) {
+      jsonStructures = {
+        variables: aggregatedControls.variables as Array<Record<string, unknown>> | undefined,
+        objectives: aggregatedControls.objectives as Array<Record<string, unknown>> | undefined,
+        constraints: aggregatedControls.constraints as Array<Record<string, unknown>> | undefined,
+        properties: aggregatedControls.properties as Array<Record<string, unknown>> | undefined,
+      };
+    } else {
+      // Fallback: Try to extract JSON blocks directly from AI/researcher message content
+      const jsonBlocks: Array<{ json: string }> = [];
+      for (const msg of messages) {
+        if (msg.sender === 'ai' || msg.sender === 'researcher') {
+          const blocks = extractJSONBlocks(msg.content);
+          jsonBlocks.push(...blocks);
+        }
+      }
+
+      // If we found JSON blocks, try to parse and aggregate them
+      if (jsonBlocks.length > 0) {
+        const parsedStructures: {
+          variables?: Array<Record<string, unknown>>;
+          objectives?: Array<Record<string, unknown>>;
+          constraints?: Array<Record<string, unknown>>;
+          properties?: Array<Record<string, unknown>>;
+        } = {};
+
+        for (const block of jsonBlocks) {
+          try {
+            const parsed = JSON.parse(block.json);
+            if (parsed.variables && Array.isArray(parsed.variables)) {
+              parsedStructures.variables = [
+                ...(parsedStructures.variables || []),
+                ...parsed.variables,
+              ];
+            }
+            if (parsed.objectives && Array.isArray(parsed.objectives)) {
+              parsedStructures.objectives = [
+                ...(parsedStructures.objectives || []),
+                ...parsed.objectives,
+              ];
+            }
+            if (parsed.constraints && Array.isArray(parsed.constraints)) {
+              parsedStructures.constraints = [
+                ...(parsedStructures.constraints || []),
+                ...parsed.constraints,
+              ];
+            }
+            if (parsed.properties && Array.isArray(parsed.properties)) {
+              parsedStructures.properties = [
+                ...(parsedStructures.properties || []),
+                ...parsed.properties,
+              ];
+            }
+          } catch (e) {
+            // Skip invalid JSON blocks
+            console.warn('[Formalization Helper] Failed to parse JSON block:', e);
+          }
+        }
+
+        // Only use parsed structures if we found at least one valid structure
+        if (
+          parsedStructures.variables?.length ||
+          parsedStructures.objectives?.length ||
+          parsedStructures.constraints?.length ||
+          parsedStructures.properties?.length
+        ) {
+          jsonStructures = parsedStructures;
+        }
+      }
+    }
+
+    const formalizationPrompt = getFormalizationPrompt(conversationContext, jsonStructures);
 
     // Initialize Google AI
     const google = createGoogleGenerativeAI({ apiKey });
