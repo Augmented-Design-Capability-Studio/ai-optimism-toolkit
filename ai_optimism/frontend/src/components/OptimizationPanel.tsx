@@ -10,11 +10,19 @@ import {
   Stack,
   Divider,
   TextField,
+  Tooltip,
+  IconButton,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import StopIcon from '@mui/icons-material/Stop';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import InfoIcon from '@mui/icons-material/Info';
 import { useState, type ChangeEvent } from 'react';
 import { useBackend } from '../contexts/BackendContext';
 import { useSessionManager } from '../services/sessionManager';
@@ -49,6 +57,7 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
   const [bestScore, setBestScore] = useState<number | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [results, setResults] = useState<OptimizationResult[]>([]);
+  const [logsExpanded, setLogsExpanded] = useState(false);
 
   const { backendApi } = useBackend();
 
@@ -286,18 +295,53 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
           borderTopColor: 'success.main',
           bgcolor: 'white',
           color: 'text.primary',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
         }}
       >
-        <Typography variant="h6" fontWeight="bold">
-          ⚡ Optimization
-        </Typography>
-        <Typography variant="caption">
-          Status & monitoring
-        </Typography>
+        <Box>
+          <Typography variant="h6" fontWeight="bold">
+            ⚡ Optimization
+          </Typography>
+          <Typography variant="caption">
+            Status & monitoring
+          </Typography>
+        </Box>
+        {bestScore !== null && (
+          <Box
+            sx={{
+              textAlign: 'right',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
+              <Typography variant="caption" color="text.secondary">
+                Best Score
+              </Typography>
+              <Tooltip title="Normalized weighted sum of objective scores (0-1 scale, higher is better). This is different from cost function evaluation.">
+                <InfoIcon sx={{ fontSize: 14, color: 'text.secondary', cursor: 'help' }} />
+              </Tooltip>
+            </Box>
+            <Typography variant="h6" color="success.main" fontWeight="bold">
+              {bestScore.toFixed(4)}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
+              (normalized)
+            </Typography>
+          </Box>
+        )}
       </Box>
 
       {/* Status - Scrollable content area */}
-      <Box sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', p: 2 }}>
+      <Box sx={{ 
+        flex: 1, 
+        overflowY: 'auto', 
+        overflowX: 'hidden', 
+        p: 2,
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0, // Important for flex scrolling
+      }}>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
           <Typography variant="subtitle2">Status:</Typography>
           <Chip
@@ -340,30 +384,12 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
           />
         </Box>
 
-        {bestScore !== null && (
-          <Box
-            sx={{
-              p: 2,
-              bgcolor: 'success.light',
-              borderRadius: 1,
-              mb: 2,
-            }}
-          >
-            <Typography variant="caption" color="success.dark">
-              Best Score
-            </Typography>
-            <Typography variant="h4" color="success.dark" fontWeight="bold">
-              {bestScore.toFixed(4)}
-            </Typography>
-          </Box>
-        )}
-
-        {/* Best Solution Display */}
+        {/* Solutions Display */}
         {results.length > 0 && (
           <Box sx={{ mb: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
               <Typography variant="subtitle2" fontWeight="bold">
-                🏆 Best Solution
+                🏆 Solutions ({results.length})
               </Typography>
               <Button
                 size="small"
@@ -372,61 +398,159 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
                 onClick={() => onResultsUpdate?.(results)}
                 sx={{ fontSize: '0.75rem', py: 0.5 }}
               >
-                Apply to Controls
+                Apply Best
               </Button>
             </Box>
-            <Box
-              sx={{
-                p: 1.5,
-                bgcolor: 'grey.100',
-                borderRadius: 1,
-                maxHeight: '30vh', // Use viewport height for better responsiveness
-                overflowY: 'auto',
-                overflowX: 'hidden',
-              }}
-            >
-              {Object.entries(results[0].variables).map(([key, value]) => {
-                // For categorical variables, display category name if available
-                let displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
-                if (controls && typeof controls === 'object' && 'variables' in controls) {
-                  const vars = (controls as any).variables || [];
-                  const varDef = vars.find((v: any) => v.name === key);
-                  if (varDef?.type === 'categorical' && varDef.categories) {
-                    if (typeof value === 'string') {
-                      // Already a category name from backend
-                      displayValue = value;
-                    } else if (typeof value === 'number') {
-                      // Convert index to category name for display
-                      const idx = Math.round(value);
-                      if (idx >= 0 && idx < varDef.categories.length) {
-                        displayValue = varDef.categories[idx];
+            
+            {results.length === 1 ? (
+              // Single solution - show as before
+              <Box
+                sx={{
+                  p: 1.5,
+                  bgcolor: 'grey.100',
+                  borderRadius: 1,
+                  maxHeight: '25vh',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                }}
+              >
+                {Object.entries(results[0].variables).map(([key, value]) => {
+                  // For categorical variables, display category name if available
+                  let displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
+                  if (controls && typeof controls === 'object' && 'variables' in controls) {
+                    const vars = (controls as any).variables || [];
+                    const varDef = vars.find((v: any) => v.name === key);
+                    if (varDef?.type === 'categorical' && varDef.categories) {
+                      if (typeof value === 'string') {
+                        // Already a category name from backend
+                        displayValue = value;
+                      } else if (typeof value === 'number') {
+                        // Convert index to category name for display
+                        const idx = Math.round(value);
+                        if (idx >= 0 && idx < varDef.categories.length) {
+                          displayValue = varDef.categories[idx];
+                        }
                       }
                     }
                   }
-                }
-                
-                return (
-                  <Box
-                    key={key}
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      py: 0.5,
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      '&:last-child': { borderBottom: 'none' },
-                    }}
-                  >
-                    <Typography variant="body2" fontWeight="medium" sx={{ flex: 1, mr: 1 }}>
-                      {key}:
+                  
+                  return (
+                    <Box
+                      key={key}
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        py: 0.5,
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        '&:last-child': { borderBottom: 'none' },
+                      }}
+                    >
+                      <Typography variant="body2" fontWeight="medium" sx={{ flex: 1, mr: 1 }}>
+                        {key}:
+                      </Typography>
+                      <Typography variant="body2" color="primary" sx={{ flex: 1, textAlign: 'right' }}>
+                        {displayValue}
+                      </Typography>
+                    </Box>
+                  );
+                })}
+                {results[0].objectives && Object.keys(results[0].objectives).length > 0 && (
+                  <Box sx={{ mt: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
+                    <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                      Objectives:
                     </Typography>
-                    <Typography variant="body2" color="primary" sx={{ flex: 1, textAlign: 'right' }}>
-                      {displayValue}
-                    </Typography>
+                    {Object.entries(results[0].objectives).map(([objName, objScore]) => (
+                      <Typography key={objName} variant="caption" display="block">
+                        {objName}: {typeof objScore === 'number' ? objScore.toFixed(4) : objScore}
+                      </Typography>
+                    ))}
                   </Box>
-                );
-              })}
-            </Box>
+                )}
+              </Box>
+            ) : (
+              // Multiple solutions - use accordion
+              <Box sx={{ maxHeight: '35vh', overflowY: 'auto' }}>
+                {results.map((result, idx) => (
+                  <Accordion key={idx} defaultExpanded={idx === 0} sx={{ mb: 0.5 }}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', pr: 2 }}>
+                        <Typography variant="body2" fontWeight="medium">
+                          Solution #{idx + 1}
+                        </Typography>
+                        <Typography variant="body2" color="primary">
+                          Score: {result.score.toFixed(4)}
+                        </Typography>
+                      </Box>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Box sx={{ p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
+                        {Object.entries(result.variables).map(([key, value]) => {
+                          // For categorical variables, display category name if available
+                          let displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
+                          if (controls && typeof controls === 'object' && 'variables' in controls) {
+                            const vars = (controls as any).variables || [];
+                            const varDef = vars.find((v: any) => v.name === key);
+                            if (varDef?.type === 'categorical' && varDef.categories) {
+                              if (typeof value === 'string') {
+                                displayValue = value;
+                              } else if (typeof value === 'number') {
+                                const idx = Math.round(value);
+                                if (idx >= 0 && idx < varDef.categories.length) {
+                                  displayValue = varDef.categories[idx];
+                                }
+                              }
+                            }
+                          }
+                          
+                          return (
+                            <Box
+                              key={key}
+                              sx={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                py: 0.5,
+                                borderBottom: '1px solid',
+                                borderColor: 'divider',
+                                '&:last-child': { borderBottom: 'none' },
+                              }}
+                            >
+                              <Typography variant="body2" fontWeight="medium" sx={{ flex: 1, mr: 1 }}>
+                                {key}:
+                              </Typography>
+                              <Typography variant="body2" color="primary" sx={{ flex: 1, textAlign: 'right' }}>
+                                {displayValue}
+                              </Typography>
+                            </Box>
+                          );
+                        })}
+                        {result.objectives && Object.keys(result.objectives).length > 0 && (
+                          <Box sx={{ mt: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
+                            <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                              Objectives:
+                            </Typography>
+                            {Object.entries(result.objectives).map(([objName, objScore]) => (
+                              <Typography key={objName} variant="caption" display="block">
+                                {objName}: {typeof objScore === 'number' ? objScore.toFixed(4) : objScore}
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => onResultsUpdate?.([result])}
+                          sx={{ mt: 1, fontSize: '0.7rem' }}
+                          fullWidth
+                        >
+                          Apply This Solution
+                        </Button>
+                      </Box>
+                    </AccordionDetails>
+                  </Accordion>
+                ))}
+              </Box>
+            )}
           </Box>
         )}
 
@@ -478,34 +602,67 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
 
       <Divider />
 
-      {/* Logs */}
-      <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>
-          📋 Logs
-        </Typography>
+      {/* Logs - Collapsible */}
+      <Box sx={{ borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper', flexShrink: 0 }}>
         <Box
           sx={{
-            fontFamily: 'monospace',
-            fontSize: 12,
-            bgcolor: 'grey.100',
-            p: 1,
-            borderRadius: 1,
-            maxHeight: 200,
-            overflowY: 'auto',
+            p: 1.5,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            cursor: 'pointer',
+            '&:hover': { bgcolor: 'action.hover' },
           }}
+          onClick={() => setLogsExpanded(!logsExpanded)}
         >
-          {logs.length === 0 ? (
-            <Typography variant="caption" color="text.secondary">
-              No logs yet. Start optimization to see progress.
-            </Typography>
-          ) : (
-            logs.slice(-20).map((log, idx) => (
-              <Box key={idx} sx={{ mb: 0.5 }}>
-                {log}
-              </Box>
-            ))
-          )}
+          <Typography variant="subtitle2">
+            📋 Logs {logs.length > 0 && `(${logs.length})`}
+          </Typography>
+          <IconButton size="small" onClick={(e) => { e.stopPropagation(); setLogsExpanded(!logsExpanded); }}>
+            {logsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </IconButton>
         </Box>
+        {logsExpanded ? (
+          <Box
+            sx={{
+              fontFamily: 'monospace',
+              fontSize: 12,
+              bgcolor: 'grey.100',
+              p: 1,
+              maxHeight: 200,
+              overflowY: 'auto',
+            }}
+          >
+            {logs.length === 0 ? (
+              <Typography variant="caption" color="text.secondary">
+                No logs yet. Start optimization to see progress.
+              </Typography>
+            ) : (
+              logs.map((log, idx) => (
+                <Box key={idx} sx={{ mb: 0.5 }}>
+                  {log}
+                </Box>
+              ))
+            )}
+          </Box>
+        ) : (
+          logs.length > 0 && (
+            <Box
+              sx={{
+                px: 1.5,
+                pb: 1.5,
+                fontFamily: 'monospace',
+                fontSize: 11,
+                color: 'text.secondary',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {logs[logs.length - 1]}
+            </Box>
+          )
+        )}
       </Box>
     </Paper>
   );
