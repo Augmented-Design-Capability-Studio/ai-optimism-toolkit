@@ -77,9 +77,9 @@ export function FormalizationMessage({
         <AccordionDetails sx={{ px: 0, pt: 1 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <MarkdownContent content={content} variant={variant} />
-            {structuredData && !isIncomplete && (
+            {structuredData && !isIncomplete ? (
               <JSONBlockCollapsible jsonContent={JSON.stringify(structuredData, null, 2)} />
-            )}
+            ) : null}
           </Box>
         </AccordionDetails>
       </Accordion>
