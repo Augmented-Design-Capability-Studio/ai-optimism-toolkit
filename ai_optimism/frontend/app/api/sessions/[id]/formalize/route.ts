@@ -122,10 +122,10 @@ export async function POST(
       
       if (aggregatedControls) {
         jsonStructures = {
-          variables: aggregatedControls.variables as Array<Record<string, unknown>> | undefined,
-          objectives: aggregatedControls.objectives as Array<Record<string, unknown>> | undefined,
-          constraints: aggregatedControls.constraints as Array<Record<string, unknown>> | undefined,
-          properties: aggregatedControls.properties as Array<Record<string, unknown>> | undefined,
+          variables: aggregatedControls.variables as unknown as Array<Record<string, unknown>> | undefined,
+          objectives: aggregatedControls.objectives as unknown as Array<Record<string, unknown>> | undefined,
+          constraints: aggregatedControls.constraints as unknown as Array<Record<string, unknown>> | undefined,
+          properties: aggregatedControls.properties as unknown as Array<Record<string, unknown>> | undefined,
         };
       } else {
         // Fallback: Try to extract JSON blocks directly from AI/researcher message content
