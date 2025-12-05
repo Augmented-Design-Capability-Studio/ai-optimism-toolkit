@@ -149,9 +149,12 @@ export function VariableCategoriesEditor({
                   </AccordionSummary>
                 <AccordionDetails sx={{ pt: 1, pb: 1 }}>
                   <Stack spacing={1}>
-                    {/* Editable attributes */}
+                    {/* Editable attributes - primitives only (string, number, boolean) */}
                     {Object.entries(categoryAttributes).map(([key, value]) => {
-                      const isNumeric = typeof value === 'number';
+                      const valueType = typeof value;
+                      const isNumeric = valueType === 'number';
+                      const isBoolean = valueType === 'boolean';
+                      const isString = valueType === 'string';
 
                       return (
                         <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -200,28 +203,38 @@ export function VariableCategoriesEditor({
                                 },
                               }}
                             />
+                          ) : isBoolean ? (
+                            <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Button
+                                size="small"
+                                variant={value ? 'contained' : 'outlined'}
+                                onClick={() => handleAttributeChange(cat, key, true)}
+                                sx={{ minWidth: 60, fontSize: '0.7rem' }}
+                              >
+                                True
+                              </Button>
+                              <Button
+                                size="small"
+                                variant={!value ? 'contained' : 'outlined'}
+                                onClick={() => handleAttributeChange(cat, key, false)}
+                                sx={{ minWidth: 60, fontSize: '0.7rem' }}
+                              >
+                                False
+                              </Button>
+                            </Box>
                           ) : (
                             <TextField
                               size="small"
-                              value={typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                              value={String(value)}
                               onChange={(e) => {
-                                let newValue: any = e.target.value;
-                                // Try to parse as JSON if it looks like JSON
-                                try {
-                                  if (e.target.value.trim().startsWith('{') || e.target.value.trim().startsWith('[')) {
-                                    newValue = JSON.parse(e.target.value);
-                                  }
-                                } catch {
-                                  // Keep as string if parsing fails
-                                }
-                                handleAttributeChange(cat, key, newValue);
+                                // Keep as string - no JSON parsing for nested objects
+                                handleAttributeChange(cat, key, e.target.value);
                               }}
                               sx={{
                                 flex: 1,
                                 '& .MuiInputBase-input': {
                                   py: 0.5,
                                   fontSize: '0.7rem',
-                                  fontFamily: 'monospace',
                                 },
                               }}
                             />

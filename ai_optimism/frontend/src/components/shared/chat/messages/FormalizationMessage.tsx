@@ -7,6 +7,7 @@ import { Box, Accordion, AccordionSummary, AccordionDetails, Chip, Typography, B
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import { MarkdownContent } from './MarkdownContent';
+import { JSONBlockCollapsible } from './JSONBlockCollapsible';
 
 interface FormalizationMessageProps {
   content: string;
@@ -14,6 +15,7 @@ interface FormalizationMessageProps {
   onGenerateControls?: (formalizationText: string) => void;
   isGeneratingControls?: boolean;
   variant?: 'default' | 'light';
+  structuredData?: unknown; // Complete JSON data from metadata
 }
 
 export function FormalizationMessage({
@@ -22,7 +24,21 @@ export function FormalizationMessage({
   onGenerateControls,
   isGeneratingControls = false,
   variant = 'default',
+  structuredData,
 }: FormalizationMessageProps) {
+  // Create complete description with JSON for generation
+  const getCompleteFormalizationText = (): string => {
+    if (structuredData) {
+      try {
+        const jsonString = JSON.stringify(structuredData, null, 2);
+        return `${content}\n\n\`\`\`json\n${jsonString}\n\`\`\``;
+      } catch {
+        return content;
+      }
+    }
+    return content;
+  };
+
   return (
     <Box>
       <Accordion
@@ -59,7 +75,12 @@ export function FormalizationMessage({
           </Box>
         </AccordionSummary>
         <AccordionDetails sx={{ px: 0, pt: 1 }}>
-          <MarkdownContent content={content} variant={variant} />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <MarkdownContent content={content} variant={variant} />
+            {structuredData && !isIncomplete && (
+              <JSONBlockCollapsible jsonContent={JSON.stringify(structuredData, null, 2)} />
+            )}
+          </Box>
         </AccordionDetails>
       </Accordion>
 
@@ -75,7 +96,7 @@ export function FormalizationMessage({
               e.preventDefault();
               e.stopPropagation();
               if (!isGeneratingControls && onGenerateControls) {
-                onGenerateControls(content);
+                onGenerateControls(getCompleteFormalizationText());
               }
             }}
             disabled={isGeneratingControls}

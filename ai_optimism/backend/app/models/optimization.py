@@ -37,6 +37,8 @@ class Constraint(BaseModel):
     expression: str
     description: str
     title: Optional[str] = None
+    type: Optional[Literal["hard", "soft"]] = "hard"  # Hard: must be satisfied, Soft: preferred but can be violated
+    weight: Optional[float] = 10.0  # For soft constraints: penalty weight
 
 class OptimizationProblem(BaseModel):
     name: str

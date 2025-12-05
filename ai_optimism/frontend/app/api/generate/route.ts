@@ -2,162 +2,17 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 import { z } from 'zod';
 import { getGenerateControlsPrompt } from '../../../src/config/prompts';
+import {
+  mergeSimpleBoundConstraints,
+  isValidProperty,
+  extractAttributesFromFormalization,
+} from '../../../src/services/controlsGenerationUtils';
+import {
+  processCategoricalVariables,
+  transformAllExpressions,
+} from '../../../src/services/controlsPostProcessing';
 
 export const runtime = 'edge';
-
-/**
- * Merge simple bound constraints into variable min/max values
- * Returns updated variables and filtered constraints
- * Preserves all properties from input variables and constraints
- */
-function mergeSimpleBoundConstraints<
-  TVar extends { name: string; type: string; min?: number; max?: number; [key: string]: any },
-  TConstraint extends { expression: string; [key: string]: any }
->(
-  variables: TVar[],
-  constraints: TConstraint[]
-): { variables: TVar[]; constraints: TConstraint[] } {
-  // Create a copy to avoid mutating the original - spread preserves all properties
-  const updatedVars: TVar[] = variables.map(v => ({ ...v }));
-  const remainingConstraints: TConstraint[] = [];
-
-  for (const constraint of constraints) {
-    const expr = constraint.expression.replace(/\s/g, ''); // Remove whitespace
-    let merged = false;
-
-    // Check each variable to see if this is a simple bound constraint
-    for (const variable of updatedVars) {
-      if (variable.type === 'categorical') continue; // Skip categorical variables
-
-      const varName = variable.name;
-      const currentMin = variable.min;
-      const currentMax = variable.max;
-
-      // Patterns: varName >= value, varName > value, varName <= value, varName < value
-      // Also: value <= varName, value < varName, value >= varName, value > varName
-      
-      // Match patterns like "varName>=value" or "varName>value"
-      const geMatch = expr.match(new RegExp(`^${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}>=(-?\\d+(?:\\.\\d+)?)$`));
-      const gtMatch = expr.match(new RegExp(`^${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}>(-?\\d+(?:\\.\\d+)?)$`));
-      const leMatch = expr.match(new RegExp(`^${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}<=(-?\\d+(?:\\.\\d+)?)$`));
-      const ltMatch = expr.match(new RegExp(`^${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}<(-?\\d+(?:\\.\\d+)?)$`));
-      
-      // Match reverse patterns like "value<=varName" or "value<varName"
-      const revGeMatch = expr.match(new RegExp(`^(-?\\d+(?:\\.\\d+)?)<=${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
-      const revGtMatch = expr.match(new RegExp(`^(-?\\d+(?:\\.\\d+)?)<${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
-      const revLeMatch = expr.match(new RegExp(`^(-?\\d+(?:\\.\\d+)?)<=${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
-      const revLtMatch = expr.match(new RegExp(`^(-?\\d+(?:\\.\\d+)?)<${varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
-
-      if (geMatch) {
-        // varName >= value -> update min
-        const value = parseFloat(geMatch[1]);
-        if (currentMin === undefined || value > currentMin) {
-          variable.min = value;
-          merged = true;
-          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.min = ${value}`);
-        }
-      } else if (gtMatch) {
-        // varName > value -> update min (with small epsilon for strict inequality)
-        const value = parseFloat(gtMatch[1]);
-        const minValue = value + 0.0001; // Small epsilon for strict >
-        if (currentMin === undefined || minValue > currentMin) {
-          variable.min = minValue;
-          merged = true;
-          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.min = ${minValue}`);
-        }
-      } else if (leMatch) {
-        // varName <= value -> update max
-        const value = parseFloat(leMatch[1]);
-        if (currentMax === undefined || value < currentMax) {
-          variable.max = value;
-          merged = true;
-          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.max = ${value}`);
-        }
-      } else if (ltMatch) {
-        // varName < value -> update max (with small epsilon for strict inequality)
-        const value = parseFloat(ltMatch[1]);
-        const maxValue = value - 0.0001; // Small epsilon for strict <
-        if (currentMax === undefined || maxValue < currentMax) {
-          variable.max = maxValue;
-          merged = true;
-          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.max = ${maxValue}`);
-        }
-      } else if (revGeMatch || revLeMatch) {
-        // value <= varName -> same as varName >= value
-        const value = parseFloat((revGeMatch || revLeMatch)![1]);
-        if (currentMin === undefined || value > currentMin) {
-          variable.min = value;
-          merged = true;
-          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.min = ${value}`);
-        }
-      } else if (revGtMatch || revLtMatch) {
-        // value < varName -> same as varName > value
-        const value = parseFloat((revGtMatch || revLtMatch)![1]);
-        const minValue = value + 0.0001;
-        if (currentMin === undefined || minValue > currentMin) {
-          variable.min = minValue;
-          merged = true;
-          console.log(`[Generate] Merged constraint "${constraint.expression}" into ${varName}.min = ${minValue}`);
-        }
-      }
-
-      if (merged) break;
-    }
-
-    if (!merged) {
-      // Keep constraint if it wasn't merged into a variable bound
-      remainingConstraints.push(constraint);
-    }
-  }
-
-  return { variables: updatedVars, constraints: remainingConstraints };
-}
-
-/**
- * Validate that a property is not a static data structure (dictionary/list)
- * Properties should be computed expressions, not data storage
- */
-function isValidProperty(property: { name: string; expression: string }): boolean {
-  const expr = property.expression.trim();
-  
-  // Allow simple numeric constants (weights)
-  if (/^-?\d+(\.\d+)?$/.test(expr)) {
-    return true;
-  }
-  
-  // Try to parse as JSON to detect static data structures
-  try {
-    const parsed = JSON.parse(expr);
-    
-    // If it's a number or boolean, it's fine (weight constants)
-    if (typeof parsed === 'number' || typeof parsed === 'boolean') {
-      return true;
-    }
-    
-    // If it parses as an object or array, it's likely a data structure
-    if (typeof parsed === 'object' && parsed !== null) {
-      // Check if it's a nested dictionary (category data structure)
-      if (!Array.isArray(parsed)) {
-        const values = Object.values(parsed);
-        // If all values are objects, it's likely category data (should be in attributes)
-        if (values.length > 0 && values.every(v => typeof v === 'object' && v !== null && !Array.isArray(v))) {
-          return false; // This is category data - should be in variable attributes
-        }
-      }
-      // If it's an array, it's likely a static list (shouldn't be a property)
-      if (Array.isArray(parsed)) {
-        return false; // Static lists shouldn't be properties
-      }
-      // Reject object literals - they should be in attributes or computed
-      return false;
-    }
-  } catch {
-    // If it doesn't parse as JSON, it's likely a valid expression (contains variables, functions, etc.)
-    return true;
-  }
-  
-  return true; // Default to valid if we can't determine
-}
 
 // Schema for optimization problem controls
 const controlsSchema = z.object({
@@ -170,9 +25,8 @@ const controlsSchema = z.object({
     unit: z.string().optional().describe('Unit of measurement (e.g., "°C", "rpm")'),
     description: z.string().describe('Brief description of what this variable represents'),
     categories: z.array(z.string()).optional().describe('List of category names (for categorical variables only, e.g., ["red", "blue", "green"])'),
-    attributes: z.record(z.string(), z.record(z.string(), z.any())).optional().describe('Attributes for categorical variables: mapping each category to its data (e.g., {"category1": {"cost": 10, "time": 5}, "category2": {"cost": 20, "time": 10}})'),
     currentCategory: z.string().optional().describe('Currently selected category (for categorical variables only)'),
-  })),
+  }).passthrough()), // Use passthrough to allow attributes field without schema validation
   // Require at least one objective; generation should fail fast if none are provided
   objectives: z.array(z.object({
     name: z.string().describe('Objective name (e.g., "Minimize Cost", "Maximize Efficiency")'),
@@ -260,6 +114,9 @@ export async function POST(req: Request) {
       apiKey: aiConfig.apiKey,
     });
 
+    // Extract attributes from formalization JSON in description
+    const attributesFromFormalization = extractAttributesFromFormalization(description);
+
     const finalModel = aiConfig.model || modelName || 'gemini-2.5-flash';
     const result = await generateObject({
       model: google(finalModel),
@@ -307,10 +164,8 @@ export async function POST(req: Request) {
 
     // Merge simple bound constraints into variable min/max values
     if (filteredObject.constraints && filteredObject.constraints.length > 0 && filteredObject.variables) {
-      // Create a typed reference to preserve the exact variable type
       const variables = filteredObject.variables;
       const merged = mergeSimpleBoundConstraints(variables, filteredObject.constraints);
-      // Type assertion: spread operator preserves all properties including required ones
       filteredObject.variables = merged.variables as typeof variables;
       filteredObject.constraints = merged.constraints.length > 0 ? merged.constraints : undefined;
     }
@@ -342,46 +197,25 @@ export async function POST(req: Request) {
       }
     }
 
-    // Validate categorical variables have complete attributes
+    // Get all variable names for expression transformation
+    const variableNames = filteredObject.variables?.map(v => v.name) || [];
+    
+    // Process categorical variables - validate and preserve attributes
     if (filteredObject.variables) {
+      processCategoricalVariables(filteredObject.variables, attributesFromFormalization);
+      
+      // Validate continuous/discrete variables
       for (const variable of filteredObject.variables) {
-        if (variable.type === 'categorical') {
-          // Check if categories are defined
-          if (!variable.categories || variable.categories.length === 0) {
-            console.warn(`[Generate] Categorical variable "${variable.name}" missing categories array`);
-          } else {
-            // Check if attributes are defined
-            if (!variable.attributes || Object.keys(variable.attributes).length === 0) {
-              console.warn(`[Generate] Categorical variable "${variable.name}" missing attributes object`);
-            } else {
-              // Check that all categories have attributes
-              const missingCategories = variable.categories.filter(
-                cat => !variable.attributes || !variable.attributes[cat]
-              );
-              if (missingCategories.length > 0) {
-                console.warn(`[Generate] Variable "${variable.name}" missing attributes for categories: ${missingCategories.join(', ')}`);
-              }
-            }
-          }
-          
-          // Check if attributes are referenced but missing
-          const allExpressions = [
-            ...(filteredObject.objectives?.map(obj => obj.expression) || []),
-            ...(filteredObject.constraints?.map(con => con.expression) || []),
-          ];
-          const attrPattern = new RegExp(`${variable.name}_attributes\\[${variable.name}\\]`, 'g');
-          const needsAttributes = allExpressions.some(expr => attrPattern.test(expr));
-          if (needsAttributes && (!variable.attributes || Object.keys(variable.attributes).length === 0)) {
-            console.warn(`[Generate] Variable "${variable.name}" is referenced with attributes but has none defined.`);
-          }
-        } else {
-          // For continuous/discrete, check that min/max/default are provided
+        if (variable.type !== 'categorical') {
           if (variable.min === undefined || variable.max === undefined || variable.default === undefined) {
             console.warn(`[Generate] Variable "${variable.name}" missing required bounds (min, max, or default)`);
           }
         }
       }
     }
+    
+    // Transform expressions to use correct attribute syntax
+    transformAllExpressions(filteredObject, variableNames);
 
     return Response.json(filteredObject);
   } catch (error) {

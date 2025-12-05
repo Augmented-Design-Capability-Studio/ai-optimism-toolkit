@@ -7,6 +7,7 @@ import { VariableEditDialog } from './controls/VariableEditDialog';
 import { ObjectiveCard } from './controls/ObjectiveCard';
 import { PropertyCard } from './controls/PropertyCard';
 import { ConstraintCard } from './controls/ConstraintCard';
+import { ConstraintEditDialog } from './controls/ConstraintEditDialog';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { AdvancedCodeView } from './controls/AdvancedCodeView';
@@ -20,6 +21,7 @@ import { useVariableManagement } from './controls/hooks/useVariableManagement';
 import { getSortedVariables, extractDependencies } from './controls/utils/variableHelpers';
 import { getUsedProperties, getPropertyUsageCount } from './controls/utils/propertyHelpers';
 import { evaluateExpression, parseConstraintForDisplay } from './controls/utils/expressionHelpers';
+import type { Controls } from './controls/types';
 
 interface ControlsPanelProps {
   controls?: unknown;
@@ -32,6 +34,8 @@ interface ControlsPanelProps {
 export const ControlsPanel = memo(function ControlsPanel({ controls, initialValues, onVariablesChange, onControlsUpdate, onClearControls }: ControlsPanelProps) {
   const [showAllVariables, setShowAllVariables] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
+  const [editingConstraint, setEditingConstraint] = useState<number | null>(null);
+  const [constraintEditDialogOpen, setConstraintEditDialogOpen] = useState(false);
 
   // Use custom hooks for state management
   const {
@@ -465,6 +469,10 @@ export const ControlsPanel = memo(function ControlsPanel({ controls, initialValu
                       operator={evalResult.operator}
                       isSatisfied={evalResult.isSatisfied}
                       dependencies={getDependencies(evalResult.constraint.expression)}
+                      onEdit={() => {
+                        setEditingConstraint(idx);
+                        setConstraintEditDialogOpen(true);
+                      }}
                       onVariableClick={(varName) => {
                         console.log('Navigate to variable:', varName);
                       }}
@@ -496,7 +504,7 @@ export const ControlsPanel = memo(function ControlsPanel({ controls, initialValu
         )}
       </Box>
 
-      {/* Edit Dialog */}
+      {/* Edit Dialogs */}
       <VariableEditDialog
         open={editDialogOpen}
         variable={editingVariable}
@@ -504,42 +512,56 @@ export const ControlsPanel = memo(function ControlsPanel({ controls, initialValu
         onSave={handleSaveVariable}
         onDelete={handleDeleteVariable}
       />
+      <ConstraintEditDialog
+        open={constraintEditDialogOpen}
+        constraint={editingConstraint !== null && parsedControls?.constraints ? parsedControls.constraints[editingConstraint] : null}
+        onClose={() => {
+          setConstraintEditDialogOpen(false);
+          setEditingConstraint(null);
+        }}
+        onSave={(updatedConstraint) => {
+          if (editingConstraint !== null && parsedControls?.constraints) {
+            const updatedConstraints = [...parsedControls.constraints];
+            updatedConstraints[editingConstraint] = updatedConstraint;
+            const updatedControls: Controls = {
+              ...parsedControls,
+              variables: parsedControls.variables || [],
+              constraints: updatedConstraints,
+            };
+            setParsedControls(updatedControls);
+            onControlsUpdate?.(updatedControls);
+          }
+          setConstraintEditDialogOpen(false);
+          setEditingConstraint(null);
+        }}
+        onDelete={() => {
+          if (editingConstraint !== null && parsedControls?.constraints) {
+            const updatedConstraints = parsedControls.constraints.filter((_, idx) => idx !== editingConstraint);
+            const updatedControls: Controls = {
+              ...parsedControls,
+              variables: parsedControls.variables || [],
+              constraints: updatedConstraints.length > 0 ? updatedConstraints : undefined,
+            };
+            setParsedControls(updatedControls);
+            onControlsUpdate?.(updatedControls);
+          }
+          setConstraintEditDialogOpen(false);
+          setEditingConstraint(null);
+        }}
+      />
     </Paper>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison: only re-render if controls or initialValues actually changed
-  // Compare by reference first (fast path)
-  if (prevProps.controls === nextProps.controls && 
-      prevProps.initialValues === nextProps.initialValues) {
-    return true; // Skip re-render
-  }
-  
-  // Deep comparison for controls (only if references differ)
+  // Always re-render if controls reference changed
   if (prevProps.controls !== nextProps.controls) {
-    const prev = prevProps.controls as any;
-    const next = nextProps.controls as any;
-    if (!prev && !next) return true;
-    if (!prev || !next) return false;
-    
-    // Quick check: compare lengths of arrays
-    if (prev.variables?.length !== next.variables?.length ||
-        prev.objectives?.length !== next.objectives?.length ||
-        prev.constraints?.length !== next.constraints?.length) {
-      return false; // Re-render
-    }
+    return false; // Re-render
   }
   
-  // For initialValues, do a shallow comparison
+  // Always re-render if initialValues reference changed (optimization results applied)
   if (prevProps.initialValues !== nextProps.initialValues) {
-    const prev = prevProps.initialValues || {};
-    const next = nextProps.initialValues || {};
-    const prevKeys = Object.keys(prev);
-    const nextKeys = Object.keys(next);
-    if (prevKeys.length !== nextKeys.length) return false;
-    for (const key of prevKeys) {
-      if (prev[key] !== next[key]) return false;
-    }
+    return false; // Re-render
   }
   
-  return true; // Skip re-render if deep comparison passes
+  // Skip re-render only if both references are the same
+  return true;
 });

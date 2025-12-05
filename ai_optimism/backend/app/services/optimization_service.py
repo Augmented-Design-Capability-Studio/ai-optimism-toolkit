@@ -197,7 +197,46 @@ class OptimizationService:
                 library.add_modifier(mod_func, mod_name, deep_copy=True)
                 registered_modifiers.append(library.get_modifier(mod_name))
 
-        # Helper function to convert categorical indices to category names for evaluation
+        # Helper function to build complete evaluation context with variables, attributes, and properties
+        def build_evaluation_context(design_dict):
+            """
+            Build complete evaluation context including:
+            1. Variables (with categorical indices converted to category names)
+            2. Attribute dictionaries (e.g., outbound_flight_attributes)
+            3. Properties (evaluated and added to context)
+            """
+            from ..utils.evaluation import safe_eval
+            
+            # Step 1: Convert categorical indices to category names
+            eval_dict = design_dict.copy()
+            for var in problem.variables:
+                if var.type == 'categorical' and var.categories and var.name in eval_dict:
+                    idx = eval_dict[var.name]
+                    # If it's an index (integer), convert to category name
+                    if isinstance(idx, (int, float)) and 0 <= int(idx) < len(var.categories):
+                        eval_dict[var.name] = var.categories[int(idx)]
+            
+            # Step 2: Add attribute dictionaries for categorical variables
+            for var in problem.variables:
+                if var.type == 'categorical' and var.attributes:
+                    # Add attributes dictionary as {var_name}_attributes
+                    attributes_key = f"{var.name}_attributes"
+                    eval_dict[attributes_key] = var.attributes
+            
+            # Step 3: Evaluate properties and add them to the evaluation context
+            if problem.properties:
+                for prop in problem.properties:
+                    try:
+                        prop_value = safe_eval(prop.expression, eval_dict)
+                        eval_dict[prop.name] = prop_value
+                    except Exception as e:
+                        # If property evaluation fails, skip it (will cause error in constraint if referenced)
+                        print(f"Warning: Failed to evaluate property '{prop.name}': {e}")
+                        pass
+            
+            return eval_dict
+        
+        # Helper function to convert categorical indices to category names for evaluation (legacy, for backward compatibility)
         def convert_categorical_for_eval(design_dict):
             """Convert categorical variable indices to category names for expression evaluation"""
             eval_dict = design_dict.copy()
@@ -232,12 +271,13 @@ class OptimizationService:
                 all_constraints_satisfied = True
                 for constraint in (problem.constraints or []):
                     try:
-                        # Convert categorical indices to category names for constraint evaluation
-                        eval_dict = convert_categorical_for_eval(design)
+                        # Build complete evaluation context with variables, attributes, and properties
+                        eval_dict = build_evaluation_context(design)
                         if not safe_eval(constraint.expression, eval_dict):
                             all_constraints_satisfied = False
                             break
-                    except Exception:
+                    except Exception as e:
+                        # If evaluation fails, treat as constraint violation
                         all_constraints_satisfied = False
                         break
                 
@@ -287,15 +327,16 @@ class OptimizationService:
                 sample = {}
                 for v in variables:
                     if v.type == 'categorical' and v.categories:
-                        # Use category name (string) directly for evaluation
-                        sample[v.name] = random.choice(v.categories)
+                        # Use category index - will be converted by build_evaluation_context
+                        sample[v.name] = random.randint(0, len(v.categories) - 1)
                     else:
                         min_val = v.min if v.min is not None else 0
                         max_val = v.max if v.max is not None else 100
                         sample[v.name] = random.uniform(min_val, max_val)
                 try:
-                    # Sample already has category names, no conversion needed
-                    val = float(safe_eval(expr, sample))
+                    # Build complete evaluation context with variables, attributes, and properties
+                    eval_dict = build_evaluation_context(sample)
+                    val = float(safe_eval(expr, eval_dict))
                     lo = min(lo, val)
                     hi = max(hi, val)
                 except Exception:
@@ -366,15 +407,16 @@ class OptimizationService:
             def make_violation_evaluator(expr):
                 def evaluate(design):
                     d = dict(design) if isinstance(design, tuple) else design
-                    # Convert categorical indices to category names for constraint evaluation
-                    eval_dict = convert_categorical_for_eval(d)
+                    # Build complete evaluation context with variables, attributes, and properties
+                    eval_dict = build_evaluation_context(d)
                     try:
                         if safe_eval(expr, eval_dict):
-                            return 0.0 # Satisfied
+                            return 1.0 # Satisfied - contributes to score (higher is better)
                         else:
-                            return 1.0 # Violated (Binary for now, could be continuous distance)
-                    except:
-                        return 1.0
+                            return 0.0 # Violated - contributes nothing (penalty)
+                    except Exception as e:
+                        print(f"Warning: Error evaluating constraint '{expr}': {e}")
+                        return 0.0 # On error, treat as violated
                 return evaluate
                 
             # Register this as a MINIMIZE objective
@@ -411,8 +453,19 @@ class OptimizationService:
             # Add the objective to the system
             # We use a custom evaluator that wraps the constraint
             library.add_objective(make_violation_evaluator(constraint.expression), violation_name)
-            # Add to main objective function with high importance (e.g. 10x normal objectives)
-            objective_function.add_objective_by_weight(library.get_objective(violation_name), 10.0)
+            
+            # Determine constraint type and weight
+            constraint_type = getattr(constraint, 'type', 'hard')  # Default to hard for backward compatibility
+            # For hard constraints, use extremely high weight to ensure they dominate
+            # For soft constraints, use user-specified weight (default 10.0)
+            constraint_weight = getattr(constraint, 'weight', 10.0) if constraint_type == 'soft' else 100000.0
+            
+            # Hard constraints: use extremely high weight (100000.0) to ensure they're absolutely prioritized
+            # Soft constraints: use user-specified weight (default 10.0)
+            objective_function.add_objective_by_weight(
+                library.get_objective(violation_name), 
+                constraint_weight
+            )
 
 
         for obj_config in problem.objectives:
@@ -425,7 +478,9 @@ class OptimizationService:
                 for ex in seed_designs:
                     d = dict(ex) if isinstance(ex, tuple) else ex
                     try:
-                        v = float(safe_eval(obj_config.expression, d))
+                        # Build complete evaluation context with variables, attributes, and properties
+                        eval_dict = build_evaluation_context(d)
+                        v = float(safe_eval(obj_config.expression, eval_dict))
                         est_min = min(est_min, v)
                         est_max = max(est_max, v)
                     except Exception:
@@ -441,8 +496,8 @@ class OptimizationService:
                     # Note: We no longer hard-fail on constraints here because 
                     # constraints are now their own objectives!
                     
-                    # Convert categorical indices to category names for evaluation
-                    eval_dict = convert_categorical_for_eval(design_dict)
+                    # Build complete evaluation context with variables, attributes, and properties
+                    eval_dict = build_evaluation_context(design_dict)
                     
                     try:
                         raw_val = float(safe_eval(expr, eval_dict))
@@ -531,12 +586,38 @@ class OptimizationService:
             population_cap=config.population_size
         )
 
-        # 6. Format Results
-        top_iterations = final_population.top_N_iterations(5)
+        # 6. Format Results - Filter out designs that violate hard constraints
+        # Get more iterations to filter from (up to 50 to ensure we find valid solutions)
+        top_iterations = final_population.top_N_iterations(50)
         results = []
+        hard_constraints = [c for c in (problem.constraints or []) if getattr(c, 'type', 'hard') == 'hard']
+        
+        print(f"Filtering results: {len(hard_constraints)} hard constraints, {len(top_iterations)} top iterations")
+        
         for iter in top_iterations:
             # Convert tuple design back to dict
             design_dict = dict(iter.design) if isinstance(iter.design, tuple) else iter.design
+            
+            # Check if design violates any hard constraints
+            violates_hard_constraint = False
+            if hard_constraints:
+                # Build complete evaluation context with variables, attributes, and properties
+                eval_dict = build_evaluation_context(design_dict)
+                for constraint in hard_constraints:
+                    try:
+                        constraint_result = safe_eval(constraint.expression, eval_dict)
+                        if not constraint_result:
+                            violates_hard_constraint = True
+                            print(f"Design violates hard constraint '{constraint.title or constraint.expression}': {constraint.expression}")
+                            break
+                    except Exception as e:
+                        print(f"Error evaluating hard constraint '{constraint.title or constraint.expression}' ({constraint.expression}): {e}")
+                        violates_hard_constraint = True
+                        break
+            
+            # Skip designs that violate hard constraints
+            if violates_hard_constraint:
+                continue
             
             # Convert categorical indices to category names for frontend
             formatted_vars = {}
@@ -556,6 +637,34 @@ class OptimizationService:
                 "variables": formatted_vars,  # Use formatted_vars with category names
                 "score": iter.score,
                 "objectives": {o.name: s for o, s in iter.objective_scores.items()}
+            })
+            
+            # Limit to top 5 valid results
+            if len(results) >= 5:
+                break
+        
+        # If no valid results found (all violate hard constraints), use best available with warning
+        if not results and top_iterations:
+            print("WARNING: No solutions satisfy all hard constraints. Returning best solution with constraint violations.")
+            iter = top_iterations[0]
+            design_dict = dict(iter.design) if isinstance(iter.design, tuple) else iter.design
+            formatted_vars = {}
+            for var in problem.variables:
+                if var.name in design_dict:
+                    if var.type == 'categorical' and var.categories:
+                        idx = design_dict[var.name]
+                        if isinstance(idx, (int, float)) and 0 <= int(idx) < len(var.categories):
+                            formatted_vars[var.name] = var.categories[int(idx)]
+                        else:
+                            formatted_vars[var.name] = design_dict[var.name]
+                    else:
+                        formatted_vars[var.name] = design_dict[var.name]
+            
+            results.append({
+                "variables": formatted_vars,
+                "score": iter.score,
+                "objectives": {o.name: s for o, s in iter.objective_scores.items()},
+                "warning": "This solution violates hard constraints"
             })
 
         # Format heuristic map for frontend

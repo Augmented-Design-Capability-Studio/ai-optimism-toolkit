@@ -6,6 +6,8 @@ import { Box, Card, Typography, Chip, IconButton, LinearProgress, Tooltip } from
 import EditIcon from '@mui/icons-material/Edit';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
+import LockIcon from '@mui/icons-material/Lock';
+import TuneIcon from '@mui/icons-material/Tune';
 import type { Constraint } from './types';
 
 interface ConstraintCardProps {
@@ -53,6 +55,14 @@ export function ConstraintCard({
       })()
     : undefined;
 
+  const isHard = constraint.type !== 'soft'; // Default to hard for backward compatibility
+  const constraintTypeColor = isHard 
+    ? (isSatisfied ? 'success.main' : 'error.main')
+    : (isSatisfied ? 'success.light' : 'warning.main');
+  const constraintTypeBg = isHard
+    ? (isSatisfied ? 'success.50' : 'error.50')
+    : (isSatisfied ? 'success.25' : 'warning.50');
+
   return (
     <Card
       sx={{
@@ -67,8 +77,8 @@ export function ConstraintCard({
         gridRow: 'span 2',
         boxSizing: 'border-box',
         border: 2,
-        borderColor: isSatisfied ? 'success.main' : 'error.main',
-        bgcolor: isSatisfied ? 'success.50' : 'error.50',
+        borderColor: constraintTypeColor,
+        bgcolor: constraintTypeBg,
         '&:hover': {
           boxShadow: 4,
           '& .edit-button': {
@@ -80,22 +90,33 @@ export function ConstraintCard({
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 0.25 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25, flexWrap: 'wrap' }}>
             {isSatisfied ? (
-              <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />
+              <CheckCircleIcon sx={{ fontSize: 14, color: constraintTypeColor }} />
             ) : (
-              <WarningIcon sx={{ fontSize: 14, color: 'error.main' }} />
+              <WarningIcon sx={{ fontSize: 14, color: constraintTypeColor }} />
             )}
             <Typography
               variant="caption"
               fontWeight="bold"
               sx={{
                 fontSize: '0.7rem',
-                color: isSatisfied ? 'success.dark' : 'error.dark',
+                color: constraintTypeColor,
               }}
             >
               {isSatisfied ? 'SATISFIED' : 'VIOLATED'}
             </Typography>
+            <Chip
+              label={isHard ? 'HARD' : 'SOFT'}
+              size="small"
+              sx={{
+                height: 18,
+                fontSize: '0.65rem',
+                bgcolor: isHard ? 'error.main' : 'warning.main',
+                color: 'white',
+                fontWeight: 'bold',
+              }}
+            />
           </Box>
           {constraint.title && (
             <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 'bold', display: 'block', mb: 0.25 }}>

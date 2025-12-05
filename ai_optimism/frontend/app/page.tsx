@@ -91,8 +91,10 @@ export default function HomePage() {
   };
 
   const handleOptimizationResults = (results: any[], fullData?: any) => {
-    if (results && results.length > 0) {
-      const bestSolution = results[0].variables;
+    // Use best_design from fullData if available, otherwise use first result
+    const bestSolution = fullData?.best_design?.variables || (results && results.length > 0 ? results[0].variables : null);
+    
+    if (bestSolution) {
       console.log('[HomePage] Applying optimization results:', bestSolution);
       
       // Convert categorical category names to indices for the frontend
@@ -101,10 +103,17 @@ export default function HomePage() {
         const vars = (generatedControls as any).variables || [];
         for (const [varName, value] of Object.entries(bestSolution)) {
           const varDef = vars.find((v: any) => v.name === varName);
-          if (varDef?.type === 'categorical' && varDef.categories && typeof value === 'string') {
-            // Convert category name to index
-            const idx = varDef.categories.indexOf(value);
-            convertedValues[varName] = idx >= 0 ? idx : 0;
+          if (varDef?.type === 'categorical' && varDef.categories) {
+            // Check if value is a category name (string) and convert to index
+            if (typeof value === 'string') {
+              const idx = varDef.categories.indexOf(value);
+              convertedValues[varName] = idx >= 0 ? idx : 0;
+            } else if (typeof value === 'number') {
+              // Already an index, use it directly (ensure it's within bounds)
+              convertedValues[varName] = Math.max(0, Math.min(Math.floor(value), varDef.categories.length - 1));
+            } else {
+              convertedValues[varName] = 0;
+            }
           } else {
             convertedValues[varName] = value as number;
           }
@@ -114,7 +123,9 @@ export default function HomePage() {
         Object.assign(convertedValues, bestSolution);
       }
       
-      setVariableValues(convertedValues);
+      console.log('[HomePage] Converted values for control panel:', convertedValues);
+      // Always create a new object to ensure React detects the change
+      setVariableValues({ ...convertedValues });
     }
 
     if (fullData) {

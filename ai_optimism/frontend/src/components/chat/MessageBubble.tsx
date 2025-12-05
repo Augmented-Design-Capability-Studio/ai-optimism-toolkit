@@ -3,7 +3,7 @@
 import { memo, useMemo } from 'react';
 import { Box, Paper, Typography, Avatar, Chip } from '@mui/material';
 import { SessionMode } from '../../services/sessionManager';
-import { FormalizationMessage, OptimizationRunMessage, MarkdownContent, splitTextWithJSON, JSONBlockCollapsible } from '../shared/chat';
+import { FormalizationMessage, OptimizationRunMessage, MarkdownContent, splitTextWithJSON, JSONBlockCollapsible, ErrorDisplay } from '../shared/chat';
 
 interface MessageBubbleProps {
   message: any;
@@ -148,6 +148,7 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
             onGenerateControls={onGenerateControls}
             isGeneratingControls={isGeneratingControls}
             variant="light"
+            structuredData={message.metadata?.structuredData}
           />
         ) : isOptimizationRun ? (
           <OptimizationRunMessage
@@ -181,6 +182,16 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
                   />
                 )}
               </Box>
+            )}
+            
+            {/* Show error display for controls generation errors */}
+            {isControlsGeneration && controlsError && (
+              <ErrorDisplay
+                error={typeof controlsError === 'string' ? controlsError : 'Generation failed'}
+                details={message.metadata?.errorDetails as string | undefined}
+                title="Error Details"
+                variant="error"
+              />
             )}
             
             {/* Hide "Generating optimization controls..." messages completely */}

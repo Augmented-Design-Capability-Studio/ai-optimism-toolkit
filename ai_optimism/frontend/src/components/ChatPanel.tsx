@@ -267,13 +267,21 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
 
           if (!response.ok) {
             let errorMessage = `Generation failed: ${response.statusText}`;
+            let errorDetails: string | undefined;
             try {
               const error = await response.json();
               errorMessage = error.error || error.details || errorMessage;
+              errorDetails = typeof error.details === 'string' 
+                ? error.details 
+                : error.message 
+                  ? String(error.message)
+                  : JSON.stringify(error, null, 2);
             } catch {
               // If response is not JSON, use status text
             }
-            throw new Error(errorMessage);
+            const error = new Error(errorMessage) as Error & { details?: string };
+            error.details = errorDetails;
+            throw error;
           }
 
           controls = await response.json();
@@ -306,6 +314,12 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     } catch (error) {
       console.error('[ChatPanel] Generation error:', error);
 
+      // Extract error message and details
+      const errorMessage = error instanceof Error ? error.message : 'Generation failed';
+      const errorDetails = (error as any)?.details || 
+                          (error instanceof Error && error.stack ? error.stack : undefined) ||
+                          (typeof error === 'string' ? error : JSON.stringify(error, null, 2));
+
       // Add error message after generation fails
       if (currentSession) {
         await sessionManager.addMessage(
@@ -314,12 +328,13 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
           'Failed to generate controls. Please try again or check your formalization.',
           {
             type: 'controls-generation',
-            controlsError: 'Generation failed',
+            controlsError: errorMessage,
+            errorDetails: errorDetails,
           }
         );
       }
 
-      alert('Failed to generate controls. Please try again.');
+      // No need for alert - error is displayed in the UI
     } finally {
       setIsGenerating(false);
     }

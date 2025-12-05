@@ -45,8 +45,9 @@ export function useControlsState({
   // Apply optimization results when initialValues change
   useEffect(() => {
     if (initialValues && Object.keys(initialValues).length > 0) {
-      console.log('[ControlsPanel] Applying optimization results:', initialValues);
-      setValues(prev => ({ ...prev, ...initialValues }));
+      console.log('[useControlsState] Applying optimization results:', initialValues);
+      // Always update values when initialValues changes - create new object reference to force update
+      setValues({ ...initialValues });
     }
   }, [initialValues]);
 

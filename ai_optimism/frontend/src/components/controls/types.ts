@@ -22,7 +22,7 @@ export interface Variable {
   description: string;
   categories?: string[];
   currentCategory?: string;
-  attributes?: Record<string, Record<string, any>>; // Attributes for each category: { 'category1': { 'attr1': value, ... }, ... }
+  attributes?: Record<string, Record<string, string | number | boolean>>; // Attributes for each category: primitive values only (string, number, boolean). Example: { 'category1': { 'cost': 10, 'unit': 'USD' }, ... }
   modifierStrategy?: ModifierStrategy;
 }
 
@@ -43,6 +43,8 @@ export interface Constraint {
   expression: string;
   description: string;
   title?: string;
+  type?: 'hard' | 'soft'; // Hard: must be satisfied, Soft: preferred but can be violated
+  weight?: number; // For soft constraints: penalty weight (default: 10.0)
 }
 
 export interface Algorithm {

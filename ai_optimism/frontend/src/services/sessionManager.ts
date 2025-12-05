@@ -22,6 +22,7 @@ export interface Message {
     incomplete?: boolean;
     controlsGenerated?: boolean;
     controlsError?: string;
+    errorDetails?: string;
     structuredData?: unknown;
     // Optimization run metadata
     runId?: string;

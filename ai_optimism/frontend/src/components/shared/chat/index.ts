@@ -15,6 +15,7 @@ export { MarkdownContent } from './messages/MarkdownContent';
 export { FormalizationMessage } from './messages/FormalizationMessage';
 export { OptimizationRunMessage } from './messages/OptimizationRunMessage';
 export { JSONBlockCollapsible } from './messages/JSONBlockCollapsible';
+export { ErrorDisplay } from './messages/ErrorDisplay';
 export { markdownStyles, markdownStylesLight } from './messages/utils/markdownStyles';
 export { extractJSONBlocks, splitTextWithJSON } from './messages/utils/jsonExtractors';
 
