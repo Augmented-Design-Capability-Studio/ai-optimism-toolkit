@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Paper, CircularProgress, Typography, Avatar } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo, useCallback } from 'react';
 import { SessionMode } from '../../services/sessionManager';
 import { MessageBubble } from './MessageBubble';
 import { WelcomeMessage } from './WelcomeMessage';
@@ -18,7 +18,7 @@ interface MessagesListProps {
   onGenerateControls?: (formalizationText: string) => void;
 }
 
-export function MessagesList({ 
+export const MessagesList = memo(function MessagesList({ 
   messages, 
   mode, 
   apiKey, 
@@ -111,4 +111,26 @@ export function MessagesList({
       <div ref={messagesEndRef} />
     </Box>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if messages actually changed
+  // This prevents re-renders when only input state changes
+  if (prevProps.messages.length !== nextProps.messages.length) return false;
+  
+  // Check if any message IDs changed
+  for (let i = 0; i < prevProps.messages.length; i++) {
+    if (prevProps.messages[i]?.id !== nextProps.messages[i]?.id) return false;
+    // Check if message content changed
+    if (prevProps.messages[i]?.content !== nextProps.messages[i]?.content) return false;
+  }
+  
+  // Check other props that should trigger re-render
+  if (prevProps.mode !== nextProps.mode) return false;
+  if (prevProps.isLoading !== nextProps.isLoading) return false;
+  if (prevProps.isWaitingForResearcher !== nextProps.isWaitingForResearcher) return false;
+  if (prevProps.isGenerating !== nextProps.isGenerating) return false;
+  
+  // Refs and functions are stable, so we don't need to compare them
+  
+  // All props are the same, skip re-render
+  return true;
+});

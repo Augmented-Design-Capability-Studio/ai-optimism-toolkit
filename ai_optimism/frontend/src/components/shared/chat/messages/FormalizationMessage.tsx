@@ -71,13 +71,19 @@ export function FormalizationMessage({
             variant="contained"
             color="secondary"
             startIcon={isGeneratingControls ? <CircularProgress size={16} /> : <AutoFixHighIcon />}
-            onClick={() => onGenerateControls(content)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!isGeneratingControls && onGenerateControls) {
+                onGenerateControls(content);
+              }
+            }}
             disabled={isGeneratingControls}
           >
             {isGeneratingControls ? 'Generating Controls...' : '✨ Generate Controls Panel'}
           </Button>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block', textAlign: 'center' }}>
-            Generate optimization controls from this problem definition
+            {isGeneratingControls ? 'Generating controls...' : 'Generate optimization controls from this problem definition'}
           </Typography>
         </Box>
       )}

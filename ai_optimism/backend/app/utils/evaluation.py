@@ -36,29 +36,35 @@ SAFE_FUNCTIONS = {
     'sin': math.sin,
     'cos': math.cos,
     'tan': math.tan,
+    'all': all,
+    'any': any,
 }
 
 
 def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
     """
     Safely evaluate a Python expression using AST
-    Supports arithmetic, comparisons, conditionals, and common math functions
+    Supports arithmetic, comparisons, conditionals, common math functions, list comprehensions,
+    generator expressions, and attribute access (including dictionary key access via dot notation)
     """
     try:
         # Parse the expression into an AST
         tree = ast.parse(expression, mode='eval')
         
-        def eval_node(node):
+        def eval_node(node, local_vars: Dict[str, Any] = None):
+            if local_vars is None:
+                local_vars = variables
+            
             if isinstance(node, ast.Expression):
-                return eval_node(node.body)
+                return eval_node(node.body, local_vars)
             
             elif isinstance(node, ast.Constant):
                 return node.value
             
             elif isinstance(node, ast.Name):
                 # Variable lookup
-                if node.id in variables:
-                    return variables[node.id]
+                if node.id in local_vars:
+                    return local_vars[node.id]
                 elif node.id in SAFE_FUNCTIONS:
                     return SAFE_FUNCTIONS[node.id]
                 else:
@@ -66,8 +72,8 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
             
             elif isinstance(node, ast.BinOp):
                 # Binary operations (+ - * / etc)
-                left = eval_node(node.left)
-                right = eval_node(node.right)
+                left = eval_node(node.left, local_vars)
+                right = eval_node(node.right, local_vars)
                 op_type = type(node.op)
                 if op_type in SAFE_OPERATORS:
                     return SAFE_OPERATORS[op_type](left, right)
@@ -76,7 +82,7 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
             
             elif isinstance(node, ast.UnaryOp):
                 # Unary operations (- +)
-                operand = eval_node(node.operand)
+                operand = eval_node(node.operand, local_vars)
                 op_type = type(node.op)
                 if op_type in SAFE_OPERATORS:
                     return SAFE_OPERATORS[op_type](operand)
@@ -85,9 +91,9 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
             
             elif isinstance(node, ast.Compare):
                 # Comparison operations (< <= > >= == !=)
-                left = eval_node(node.left)
+                left = eval_node(node.left, local_vars)
                 for op, comparator in zip(node.ops, node.comparators):
-                    right = eval_node(comparator)
+                    right = eval_node(comparator, local_vars)
                     op_type = type(op)
                     if op_type in SAFE_OPERATORS:
                         if not SAFE_OPERATORS[op_type](left, right):
@@ -99,16 +105,16 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
             
             elif isinstance(node, ast.IfExp):
                 # Ternary/conditional expression (a if condition else b)
-                condition = eval_node(node.test)
+                condition = eval_node(node.test, local_vars)
                 if condition:
-                    return eval_node(node.body)
+                    return eval_node(node.body, local_vars)
                 else:
-                    return eval_node(node.orelse)
+                    return eval_node(node.orelse, local_vars)
             
             elif isinstance(node, ast.Call):
                 # Function calls
-                func = eval_node(node.func)
-                args = [eval_node(arg) for arg in node.args]
+                func = eval_node(node.func, local_vars)
+                args = [eval_node(arg, local_vars) for arg in node.args]
                 if callable(func):
                     return func(*args)
                 else:
@@ -116,32 +122,137 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
             
             elif isinstance(node, ast.List):
                 # List literal
-                return [eval_node(elem) for elem in node.elts]
+                return [eval_node(elem, local_vars) for elem in node.elts]
             
             elif isinstance(node, ast.Tuple):
                 # Tuple literal
-                return tuple(eval_node(elem) for elem in node.elts)
+                return tuple(eval_node(elem, local_vars) for elem in node.elts)
             
             elif isinstance(node, ast.Dict):
                 # Dictionary literal
-                keys = [eval_node(k) for k in node.keys]
-                values = [eval_node(v) for v in node.values]
+                keys = [eval_node(k, local_vars) for k in node.keys]
+                values = [eval_node(v, local_vars) for v in node.values]
                 return dict(zip(keys, values))
+            
+            elif isinstance(node, ast.ListComp):
+                # List comprehension: [expr for target in iterable if condition]
+                # Only support single generator (no nested comprehensions for safety)
+                if len(node.generators) != 1:
+                    raise ValueError("Only single generator list comprehensions are supported")
+                
+                generator = node.generators[0]
+                
+                # Only support simple variable targets (no tuple unpacking for safety)
+                if not isinstance(generator.target, ast.Name):
+                    raise ValueError("List comprehension target must be a simple variable name")
+                
+                # Evaluate the iterable
+                iterable = eval_node(generator.iter, local_vars)
+                
+                if not isinstance(iterable, (list, tuple)):
+                    raise TypeError(f"List comprehension iterable must be a list or tuple, got {type(iterable)}")
+                
+                result = []
+                var_name = generator.target.id
+                
+                for item in iterable:
+                    # Create new scope with loop variable
+                    new_vars = local_vars.copy()
+                    new_vars[var_name] = item
+                    
+                    # Check condition if present
+                    if generator.ifs:
+                        condition_met = True
+                        for if_node in generator.ifs:
+                            if not eval_node(if_node, new_vars):
+                                condition_met = False
+                                break
+                        if not condition_met:
+                            continue
+                    
+                    # Evaluate expression and add to result
+                    expr_value = eval_node(node.elt, new_vars)
+                    result.append(expr_value)
+                
+                return result
+            
+            elif isinstance(node, ast.GeneratorExp):
+                # Generator expression: (expr for target in iterable if condition)
+                # Convert to list comprehension logic for evaluation
+                # Only support single generator (no nested comprehensions for safety)
+                if len(node.generators) != 1:
+                    raise ValueError("Only single generator generator expressions are supported")
+                
+                generator = node.generators[0]
+                
+                # Only support simple variable targets (no tuple unpacking for safety)
+                if not isinstance(generator.target, ast.Name):
+                    raise ValueError("Generator expression target must be a simple variable name")
+                
+                # Evaluate the iterable
+                iterable = eval_node(generator.iter, local_vars)
+                
+                if not isinstance(iterable, (list, tuple)):
+                    raise TypeError(f"Generator expression iterable must be a list or tuple, got {type(iterable)}")
+                
+                # For generator expressions, we evaluate lazily but return a list
+                # This allows sum() and other functions to consume them
+                result = []
+                var_name = generator.target.id
+                
+                for item in iterable:
+                    # Create new scope with loop variable
+                    new_vars = local_vars.copy()
+                    new_vars[var_name] = item
+                    
+                    # Check condition if present
+                    if generator.ifs:
+                        condition_met = True
+                        for if_node in generator.ifs:
+                            if not eval_node(if_node, new_vars):
+                                condition_met = False
+                                break
+                        if not condition_met:
+                            continue
+                    
+                    # Evaluate expression and add to result
+                    expr_value = eval_node(node.elt, new_vars)
+                    result.append(expr_value)
+                
+                # Return as a generator-like object (but as a list for simplicity)
+                # Functions like sum() can consume it
+                return result
+            
+            elif isinstance(node, ast.Attribute):
+                # Attribute access: obj.attr or obj[key].attr
+                value = eval_node(node.value, local_vars)
+                attr_name = node.attr
+                
+                # Handle attribute access on dictionaries (for nested dict access)
+                if isinstance(value, dict):
+                    if attr_name not in value:
+                        raise AttributeError(f"Attribute '{attr_name}' not found in dictionary")
+                    return value[attr_name]
+                # Handle attribute access on objects (for dict-like objects)
+                elif hasattr(value, attr_name):
+                    return getattr(value, attr_name)
+                else:
+                    raise AttributeError(f"Attribute '{attr_name}' not found on {type(value)}")
             
             elif isinstance(node, ast.Subscript):
                 # Dictionary/array subscript (obj[key] or obj[key1][key2])
-                value = eval_node(node.value)
+                value = eval_node(node.value, local_vars)
                 
                 # Handle slice node - can be Index (old Python) or direct value (new Python)
                 if isinstance(node.slice, ast.Index):
                     # Python < 3.9: slice is wrapped in Index
-                    slice_val = eval_node(node.slice.value)
+                    slice_val = eval_node(node.slice.value, local_vars)
                 elif isinstance(node.slice, ast.Slice):
                     # Slice notation [a:b:c] - not commonly used in our expressions
                     raise ValueError("Slice notation [a:b] not supported in expressions")
                 else:
                     # Python 3.9+: slice is directly the value
-                    slice_val = eval_node(node.slice)
+                    slice_val = eval_node(node.slice, local_vars)
                 
                 # Handle both dict and list/array access
                 if isinstance(value, dict):

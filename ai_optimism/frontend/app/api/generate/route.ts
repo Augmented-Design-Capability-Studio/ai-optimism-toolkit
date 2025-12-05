@@ -118,12 +118,13 @@ const controlsSchema = z.object({
   variables: z.array(z.object({
     name: z.string().describe('Variable name (e.g., "temperature", "speed", "material_type")'),
     type: z.enum(['continuous', 'discrete', 'categorical']).describe('Type of variable: continuous (real numbers), discrete (integers), or categorical (named options)'),
-    min: z.number().describe('Minimum value (for continuous/discrete only)'),
-    max: z.number().describe('Maximum value (for continuous/discrete only)'),
-    default: z.number().describe('Default/initial value (for continuous/discrete only)'),
+    min: z.number().optional().describe('Minimum value (for continuous/discrete only)'),
+    max: z.number().optional().describe('Maximum value (for continuous/discrete only)'),
+    default: z.number().optional().describe('Default/initial value (for continuous/discrete only)'),
     unit: z.string().optional().describe('Unit of measurement (e.g., "°C", "rpm")'),
     description: z.string().describe('Brief description of what this variable represents'),
     categories: z.array(z.string()).optional().describe('List of category names (for categorical variables only, e.g., ["red", "blue", "green"])'),
+    attributes: z.record(z.record(z.any())).optional().describe('Attributes for categorical variables: mapping each category to its data (e.g., {"category1": {"cost": 10, "time": 5}, "category2": {"cost": 20, "time": 10}})'),
     currentCategory: z.string().optional().describe('Currently selected category (for categorical variables only)'),
   })),
   // Require at least one objective; generation should fail fast if none are provided
@@ -266,6 +267,36 @@ export async function POST(req: Request) {
         { error: 'Generated controls missing objectives' },
         { status: 500 }
       );
+    }
+
+    // Validate that objectives don't define dictionaries (attributes should be in variables)
+    for (const objective of filteredObject.objectives) {
+      const expr = objective.expression;
+      // Check for dictionary assignments like "dict = {...}" or "meta_data_dict = {...}"
+      if (/\w+\s*=\s*\{/.test(expr)) {
+        console.warn(`[Generate] Objective "${objective.name}" contains dictionary assignment. Attributes should be in variable "attributes" field.`);
+      }
+    }
+
+    // Validate that categorical variables with attributes have them properly set
+    if (filteredObject.variables) {
+      for (const variable of filteredObject.variables) {
+        if (variable.type === 'categorical' && variable.categories && variable.categories.length > 0) {
+          // Check if attributes are missing but might be needed (based on objective expressions)
+          if (!variable.attributes) {
+            const allExpressions = [
+              ...(filteredObject.objectives?.map(obj => obj.expression) || []),
+              ...(filteredObject.constraints?.map(con => con.expression) || []),
+            ];
+            // Check if any expression references this variable's attributes
+            const attrPattern = new RegExp(`${variable.name}_attributes\\[${variable.name}\\]`, 'g');
+            const needsAttributes = allExpressions.some(expr => attrPattern.test(expr));
+            if (needsAttributes) {
+              console.warn(`[Generate] Variable "${variable.name}" is referenced with attributes but has none defined.`);
+            }
+          }
+        }
+      }
     }
 
     return Response.json(filteredObject);

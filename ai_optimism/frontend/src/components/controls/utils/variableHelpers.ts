@@ -63,7 +63,10 @@ export function getSortedVariables(controls: Controls | null): { important: Vari
 /**
  * Extract variable dependencies from an expression
  */
-export function extractDependencies(expression: string, controls: Controls | null): string[] {
+export function extractDependencies(expression: string | undefined | null, controls: Controls | null): string[] {
+  if (!expression || typeof expression !== 'string') {
+    return [];
+  }
   const variablePattern = /[a-zA-Z_][a-zA-Z0-9_]*/g;
   const matches = expression.match(variablePattern) || [];
   // Only keep variable names that exist in controls.variables

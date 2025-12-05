@@ -16,6 +16,16 @@ export function evaluateExpression(
     return evaluatedExpressions[expression];
   }
 
+  // Quick check: if expression contains Python-specific syntax, skip client-side eval
+  // This avoids expensive regex work for expressions we know will fail
+  const hasPythonSyntax = /(if|else|==|!=|in|for|\[.*\]|".*"|'.*')/.test(expression);
+  if (hasPythonSyntax) {
+    // For complex expressions, return undefined if backend hasn't evaluated yet
+    // Backend evaluation is debounced (400ms), so this is expected during typing
+    // No need to log warnings - backend will evaluate shortly
+    return undefined;
+  }
+
   // Fallback to client-side eval for simple numeric expressions only
   // This is safe for basic arithmetic with known variables
   try {
@@ -32,8 +42,6 @@ export function evaluateExpression(
       return eval(expr);
     }
 
-    // For complex expressions, return undefined if backend hasn't evaluated yet
-    console.warn('[ControlsPanel] Complex expression needs backend evaluation:', expression);
     return undefined;
   } catch (error) {
     console.error('[ControlsPanel] Evaluation error:', expression, error);

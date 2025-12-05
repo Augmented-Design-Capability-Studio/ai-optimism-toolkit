@@ -3,7 +3,7 @@
  * Used by both client and researcher chat interfaces
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, memo, useCallback } from 'react';
 import { Box, IconButton, Tooltip, TextField, Checkbox, FormControlLabel, Paper, Popper } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
@@ -24,7 +24,7 @@ interface MarkdownInputProps {
   aiButtonTooltip?: string;
 }
 
-export function MarkdownInput({
+export const MarkdownInput = memo(function MarkdownInput({
   value,
   onChange,
   onSubmit,
@@ -40,15 +40,19 @@ export function MarkdownInput({
   const [showPreview, setShowPreview] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (!value.trim() || disabled || isLoading) return;
     onSubmit(e);
-  };
+  }, [value, disabled, isLoading, onSubmit]);
 
-  const handlePreviewChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePreviewChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     setShowPreview(event.target.checked);
-  };
+  }, []);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    onChange(e.target.value);
+  }, [onChange]);
 
   return (
     <Box
@@ -75,7 +79,7 @@ export function MarkdownInput({
             multiline
             maxRows={6}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -185,4 +189,4 @@ export function MarkdownInput({
       )}
     </Box>
   );
-}
+});

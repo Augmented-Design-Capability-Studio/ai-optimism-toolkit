@@ -27,10 +27,20 @@ export default function HomePage() {
   const hasRestoredForSessionRef = useRef<string | null>(null);
 
   // Load and monitor current session
+  // Use ref to track previous session to avoid unnecessary state updates
+  const prevSessionRef = useRef<Session | null>(null);
+  
   useEffect(() => {
     const loadSession = async () => {
       const session = await sessionManager.getCurrentSession();
-      setCurrentSession(session);
+      // Only update state if session actually changed (by ID or key properties)
+      if (!prevSessionRef.current || 
+          prevSessionRef.current.id !== session?.id ||
+          prevSessionRef.current.status !== session?.status ||
+          prevSessionRef.current.messages?.length !== session?.messages?.length) {
+        prevSessionRef.current = session;
+        setCurrentSession(session);
+      }
     };
     
     loadSession();
@@ -234,7 +244,11 @@ export default function HomePage() {
                 <Box sx={{ height: '100%', overflow: 'hidden' }}>
                   <ControlsPanel 
                     controls={generatedControls} 
-                    initialValues={variableValues} 
+                    initialValues={variableValues}
+                    onClearControls={() => {
+                      setGeneratedControls(null);
+                      setVariableValues({});
+                    }}
                   />
                 </Box>
 

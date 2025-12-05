@@ -1,7 +1,7 @@
 'use client';
 
 import { Paper, Alert, Box, Typography, Button } from '@mui/material';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   useChatSession,
   ChatHeader,
@@ -109,6 +109,12 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     onControlsGeneratedRef.current = onControlsGenerated;
   }, [onControlsGenerated]);
 
+  // Track messages to avoid unnecessary aggregations
+  const messagesRef = useRef<Message[]>([]);
+  const messagesHashRef = useRef<string>('');
+  
+  // Debounce expensive aggregation to avoid blocking input
+  // Only run when messages actually change (not on every render)
   useEffect(() => {
     if (!currentSession?.messages || !onControlsGeneratedRef.current) {
       // If no messages or no callback, clear controls if we had them before
@@ -116,40 +122,50 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
         lastAggregatedControlsRef.current = null;
         onControlsGeneratedRef.current(null);
       }
+      messagesRef.current = [];
+      messagesHashRef.current = '';
       return;
     }
 
-    const aggregatedControls = aggregateControlsFromMessages(currentSession.messages);
+    const messages = currentSession.messages;
+    
+    // Quick check: only process if messages actually changed
+    // Create a simple hash from message IDs and timestamps (much faster than full JSON.stringify)
+    // Only check last 10 messages for hash (most recent changes) to avoid expensive computation
+    const recentMessages = messages.slice(-10);
+    const messagesHash = recentMessages
+      .map(m => `${m.id}:${m.timestamp}`)
+      .join('|');
+    
+    // Skip if nothing changed (compare both length and hash of recent messages)
+    if (
+      messagesRef.current.length === messages.length &&
+      messagesHashRef.current === messagesHash
+    ) {
+      return;
+    }
+    
+    messagesRef.current = messages;
+    messagesHashRef.current = messagesHash;
+
+    // Use setTimeout to defer expensive computation and avoid blocking input
+    const timeoutId = setTimeout(() => {
+      const aggregatedControls = aggregateControlsFromMessages(messages);
     
     // Only call callback if controls actually changed
     if (aggregatedControls) {
-      // Create a comprehensive hash that includes content, not just counts
-      // This ensures we detect changes in expressions, descriptions, etc.
-      const controlsHash = JSON.stringify({
-        variables: aggregatedControls.variables?.map(v => ({
-          name: v.name,
-          type: v.type,
-          min: v.min,
-          max: v.max,
-          default: v.default,
-          categories: v.categories,
-        })).sort((a, b) => a.name.localeCompare(b.name)) || [],
-        objectives: aggregatedControls.objectives?.map(o => ({
-          name: o.name,
-          expression: o.expression,
-          goal: o.goal,
-        })).sort((a, b) => a.name.localeCompare(b.name)) || [],
-        constraints: aggregatedControls.constraints?.map(c => ({
-          expression: c.expression,
-          title: c.title,
-        })).sort((a, b) => (a.expression || '').localeCompare(b.expression || '')) || [],
-        properties: aggregatedControls.properties?.map(p => ({
-          name: p.name,
-          expression: p.expression,
-        })).sort((a, b) => a.name.localeCompare(b.name)) || [],
-      });
+        // Create a lightweight hash using only essential fields (avoid expensive JSON.stringify of full objects)
+        const controlsHash = [
+          aggregatedControls.variables?.length || 0,
+          aggregatedControls.objectives?.length || 0,
+          aggregatedControls.constraints?.length || 0,
+          aggregatedControls.properties?.length || 0,
+          // Add a hash of just the names/expressions (much faster than full objects)
+          aggregatedControls.variables?.map(v => v.name).join(',') || '',
+          aggregatedControls.objectives?.map(o => `${o.name}:${o.expression.substring(0, 50)}`).join(',') || '',
+        ].join('|');
 
-      if (lastAggregatedControlsRef.current !== controlsHash) {
+        if (lastAggregatedControlsRef.current !== controlsHash && onControlsGeneratedRef.current) {
         lastAggregatedControlsRef.current = controlsHash;
         onControlsGeneratedRef.current(aggregatedControls);
       }
@@ -158,6 +174,9 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
       lastAggregatedControlsRef.current = null;
       onControlsGeneratedRef.current(null); // Explicitly clear controls in parent
     }
+    }, 500); // Increased debounce to 500ms to reduce frequency during typing
+
+    return () => clearTimeout(timeoutId);
   }, [currentSession?.messages, currentSession?.id]);
 
   // Handle formalization
@@ -215,13 +234,22 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
           return;
         }
 
-        // First, check if we have a formalization with structured data
-        const aggregatedControls = aggregateControlsFromMessages(currentSession.messages || []);
+        // If formalizationText is explicitly provided (button click), always generate new controls
+        // Otherwise, check for existing aggregated controls first
+        const shouldUseAggregated = !formalizationText;
+        let aggregatedControls = null;
+        
+        if (shouldUseAggregated) {
+          aggregatedControls = aggregateControlsFromMessages(currentSession.messages || []);
         if (aggregatedControls && aggregatedControls.variables && aggregatedControls.variables.length > 0) {
           // Use existing formalization directly
           console.log('[ChatPanel] Using existing formalization for controls');
           controls = aggregatedControls;
-        } else {
+          }
+        }
+
+        // Generate new controls if we don't have aggregated ones or if explicitly requested
+        if (!controls) {
           // Generate from conversation text
           const conversationText = formalizationText || getConversationText();
 
@@ -346,7 +374,13 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
       )}
 
       <MessagesList
-        messages={displayMessages.map(msg => {
+        messages={useMemo(() => {
+          // Only transform if locallyCompletedMessages has items (avoid unnecessary work)
+          if (locallyCompletedMessages.size === 0) {
+            return displayMessages;
+          }
+          
+          return displayMessages.map(msg => {
           // Apply local state overrides for messages that completed locally
           if (locallyCompletedMessages.has(msg.id) && msg.metadata?.type === 'controls-generation') {
             return {
@@ -359,7 +393,8 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
             };
           }
           return msg;
-        })}
+          });
+        }, [displayMessages, locallyCompletedMessages])}
         mode={mode}
         apiKey={apiKey}
         isLoading={isLoading}

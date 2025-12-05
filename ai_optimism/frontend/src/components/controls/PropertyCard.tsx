@@ -29,9 +29,10 @@ export function PropertyCard({
 }: PropertyCardProps) {
   const [showFullExpression, setShowFullExpression] = useState(false);
   
-  const displayExpression = property.expression.length > MAX_EXPRESSION_LENGTH && !showFullExpression
-    ? property.expression.substring(0, MAX_EXPRESSION_LENGTH) + '...'
-    : property.expression;
+  const expression = property.expression || '';
+  const displayExpression = expression.length > MAX_EXPRESSION_LENGTH && !showFullExpression
+    ? expression.substring(0, MAX_EXPRESSION_LENGTH) + '...'
+    : expression;
 
   return (
     <Card
@@ -122,7 +123,7 @@ export function PropertyCard({
           >
             {displayExpression}
           </Typography>
-          {property.expression.length > MAX_EXPRESSION_LENGTH && (
+          {expression.length > MAX_EXPRESSION_LENGTH && (
             <Button
               size="small"
               onClick={() => setShowFullExpression(!showFullExpression)}

@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { MarkdownInput } from '../shared/chat';
 
 interface ChatInputProps {
@@ -10,7 +11,7 @@ interface ChatInputProps {
   disabled?: boolean;
 }
 
-export function ChatInput({ 
+export const ChatInput = memo(function ChatInput({ 
   input, 
   onInputChange, 
   onSubmit, 
@@ -28,4 +29,4 @@ export function ChatInput({
       showAIButton={false}
     />
   );
-}
+});

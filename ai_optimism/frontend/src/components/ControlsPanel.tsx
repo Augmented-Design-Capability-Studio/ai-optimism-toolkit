@@ -1,7 +1,7 @@
 'use client';
 
-import { Box, Paper, Typography, Chip, Switch, FormControlLabel } from '@mui/material';
-import { useState, useMemo } from 'react';
+import { Box, Paper, Typography, Chip, Switch, FormControlLabel, IconButton, Tooltip } from '@mui/material';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { VariableWidget } from './controls/VariableWidget';
 import { VariableEditDialog } from './controls/VariableEditDialog';
 import { ObjectiveCard } from './controls/ObjectiveCard';
@@ -12,6 +12,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { AdvancedCodeView } from './controls/AdvancedCodeView';
 import CodeIcon from '@mui/icons-material/Code';
 import TuneIcon from '@mui/icons-material/Tune';
+import ClearIcon from '@mui/icons-material/Clear';
 import { getControlsSummary } from '../services/controlsAggregator';
 import { useControlsState } from './controls/hooks/useControlsState';
 import { useExpressionEvaluation } from './controls/hooks/useExpressionEvaluation';
@@ -25,9 +26,10 @@ interface ControlsPanelProps {
   initialValues?: Record<string, number>;
   onVariablesChange?: (variables: Record<string, number>) => void;
   onControlsUpdate?: (controls: unknown) => void;
+  onClearControls?: () => void;
 }
 
-export function ControlsPanel({ controls, initialValues, onVariablesChange, onControlsUpdate }: ControlsPanelProps) {
+export const ControlsPanel = memo(function ControlsPanel({ controls, initialValues, onVariablesChange, onControlsUpdate, onClearControls }: ControlsPanelProps) {
   const [showAllVariables, setShowAllVariables] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
 
@@ -73,12 +75,38 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
     };
   }, [parsedControls]);
 
-  // Helper functions using utilities
-  const evaluateExpr = (expression: string) =>
-    evaluateExpression(expression, values, evaluatedExpressions);
+  // Helper functions using utilities - memoize to avoid re-creating on every render
+  const evaluateExpr = useCallback((expression: string) =>
+    evaluateExpression(expression, values, evaluatedExpressions),
+    [values, evaluatedExpressions]
+  );
 
-  const getDependencies = (expression: string) =>
+  const getDependencies = (expression: string | undefined) =>
     extractDependencies(expression, parsedControls);
+
+  // Memoize constraint evaluations to avoid re-rendering on every keystroke
+  const constraintEvaluations = useMemo(() => {
+    if (!parsedControls?.constraints) return [];
+    
+    return parsedControls.constraints
+      .filter(constraint => constraint.expression) // Filter out constraints without expressions
+      .map((constraint) => {
+        const result = evaluateExpr(constraint.expression);
+        const isSatisfied = result !== undefined && result > 0.5;
+        const parsed = parseConstraintForDisplay(constraint.expression);
+        const currentValue = parsed ? evaluateExpr(parsed.lhs) : undefined;
+        const limit = parsed ? evaluateExpr(parsed.rhs) : undefined;
+        const operator = parsed ? parsed.operator : undefined;
+        
+        return {
+          constraint,
+          isSatisfied,
+          currentValue,
+          limit,
+          operator,
+        };
+      });
+  }, [parsedControls?.constraints, evaluateExpr]);
 
   return (
     <Paper
@@ -110,10 +138,34 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
         }}
       >
         <Box sx={{ flex: 1 }}>
-          <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {advancedMode ? <CodeIcon /> : <TuneIcon />}
-            {advancedMode ? 'Advanced Code' : 'Controls'}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {advancedMode ? <CodeIcon /> : <TuneIcon />}
+              {advancedMode ? 'Advanced Code' : 'Controls'}
+            </Typography>
+            {parsedControls && onClearControls && (
+              <Tooltip title="Clear controls">
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    if (window.confirm('Clear all generated controls? This cannot be undone.')) {
+                      onClearControls();
+                    }
+                  }}
+                  sx={{ 
+                    ml: 1,
+                    color: 'text.secondary',
+                    '&:hover': {
+                      color: 'error.main',
+                      bgcolor: 'error.light',
+                    }
+                  }}
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5, flexWrap: 'wrap' }}>
             <Typography variant="caption">
               {advancedMode ? 'View generated Python configuration' : 'Adjust optimization parameters'}
@@ -371,34 +423,20 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
                     gap: 1.5,
                   }}
                 >
-                  {parsedControls.constraints.map((constraint, idx) => {
-                    // Simply evaluate the full constraint expression
-                    // Backend handles all operators: <=, >=, <, >, ==, !=, and complex logic
-                    const result = evaluateExpr(constraint.expression);
-
-                    // Constraint is satisfied if result is truthy (>0 or true)
-                    const isSatisfied = result !== undefined && result > 0.5; // Use 0.5 threshold for boolean-like values
-
-                    const parsed = parseConstraintForDisplay(constraint.expression);
-                    const currentValue = parsed ? evaluateExpr(parsed.lhs) : undefined;
-                    const limit = parsed ? evaluateExpr(parsed.rhs) : undefined;
-                    const operator = parsed ? parsed.operator : undefined;
-
-                    return (
-                      <ConstraintCard
-                        key={idx}
-                        constraint={constraint}
-                        currentValue={currentValue}
-                        limit={limit}
-                        operator={operator}
-                        isSatisfied={isSatisfied}
-                        dependencies={getDependencies(constraint.expression)}
-                        onVariableClick={(varName) => {
-                          console.log('Navigate to variable:', varName);
-                        }}
-                      />
-                    );
-                  })}
+                  {constraintEvaluations.map((evalResult, idx) => (
+                    <ConstraintCard
+                      key={idx}
+                      constraint={evalResult.constraint}
+                      currentValue={evalResult.currentValue}
+                      limit={evalResult.limit}
+                      operator={evalResult.operator}
+                      isSatisfied={evalResult.isSatisfied}
+                      dependencies={getDependencies(evalResult.constraint.expression)}
+                      onVariableClick={(varName) => {
+                        console.log('Navigate to variable:', varName);
+                      }}
+                    />
+                  ))}
                 </Box>
                 </>
               ) : (
@@ -435,4 +473,40 @@ export function ControlsPanel({ controls, initialValues, onVariablesChange, onCo
       />
     </Paper>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if controls or initialValues actually changed
+  // Compare by reference first (fast path)
+  if (prevProps.controls === nextProps.controls && 
+      prevProps.initialValues === nextProps.initialValues) {
+    return true; // Skip re-render
+  }
+  
+  // Deep comparison for controls (only if references differ)
+  if (prevProps.controls !== nextProps.controls) {
+    const prev = prevProps.controls as any;
+    const next = nextProps.controls as any;
+    if (!prev && !next) return true;
+    if (!prev || !next) return false;
+    
+    // Quick check: compare lengths of arrays
+    if (prev.variables?.length !== next.variables?.length ||
+        prev.objectives?.length !== next.objectives?.length ||
+        prev.constraints?.length !== next.constraints?.length) {
+      return false; // Re-render
+    }
+  }
+  
+  // For initialValues, do a shallow comparison
+  if (prevProps.initialValues !== nextProps.initialValues) {
+    const prev = prevProps.initialValues || {};
+    const next = nextProps.initialValues || {};
+    const prevKeys = Object.keys(prev);
+    const nextKeys = Object.keys(next);
+    if (prevKeys.length !== nextKeys.length) return false;
+    for (const key of prevKeys) {
+      if (prev[key] !== next[key]) return false;
+    }
+  }
+  
+  return true; // Skip re-render if deep comparison passes
+});

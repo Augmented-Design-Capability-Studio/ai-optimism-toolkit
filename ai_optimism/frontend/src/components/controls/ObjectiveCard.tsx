@@ -3,6 +3,7 @@
  */
 
 import { Box, Card, Typography, Chip, IconButton, Tooltip } from '@mui/material';
+import { useMemo, memo } from 'react';
 import EditIcon from '@mui/icons-material/Edit';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
@@ -16,7 +17,30 @@ interface ObjectiveCardProps {
   onVariableClick?: (variableName: string) => void;
 }
 
-export function ObjectiveCard({
+// Parse expression to identify variable names for clickable chips
+// Moved outside component to avoid recreating on every render
+const parseExpression = (expr: string): (string | { type: 'variable'; name: string })[] => {
+  const tokens: (string | { type: 'variable'; name: string })[] = [];
+  const variablePattern = /[a-zA-Z_][a-zA-Z0-9_]*/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = variablePattern.exec(expr)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push(expr.slice(lastIndex, match.index));
+    }
+    tokens.push({ type: 'variable', name: match[0] });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < expr.length) {
+    tokens.push(expr.slice(lastIndex));
+  }
+
+  return tokens;
+};
+
+export const ObjectiveCard = memo(function ObjectiveCard({
   objective,
   currentValue,
   dependencies,
@@ -25,29 +49,9 @@ export function ObjectiveCard({
 }: ObjectiveCardProps) {
   const isMaximize = objective.goal === 'maximize';
 
-  // Parse expression to identify variable names for clickable chips
-  const parseExpression = (expr: string): (string | { type: 'variable'; name: string })[] => {
-    const tokens: (string | { type: 'variable'; name: string })[] = [];
-    const variablePattern = /[a-zA-Z_][a-zA-Z0-9_]*/g;
-    let lastIndex = 0;
-    let match;
-
-    while ((match = variablePattern.exec(expr)) !== null) {
-      if (match.index > lastIndex) {
-        tokens.push(expr.slice(lastIndex, match.index));
-      }
-      tokens.push({ type: 'variable', name: match[0] });
-      lastIndex = match.index + match[0].length;
-    }
-
-    if (lastIndex < expr.length) {
-      tokens.push(expr.slice(lastIndex));
-    }
-
-    return tokens;
-  };
-
-  const expressionTokens = parseExpression(objective.expression);
+  // Memoize expression parsing and dependency set for O(1) lookups
+  const expressionTokens = useMemo(() => parseExpression(objective.expression), [objective.expression]);
+  const dependenciesSet = useMemo(() => new Set(dependencies), [dependencies]);
 
   return (
     <Card
@@ -177,7 +181,7 @@ export function ObjectiveCard({
             if (typeof token === 'string') {
               return <span key={idx}>{token}</span>;
             }
-            const isVariable = dependencies.includes(token.name);
+            const isVariable = dependenciesSet.has(token.name);
             return (
               <Chip
                 key={idx}
@@ -203,4 +207,15 @@ export function ObjectiveCard({
       {/* Dependencies - removed since they're now shown inline in formula */}
     </Card>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if props actually changed
+  return (
+    prevProps.objective.name === nextProps.objective.name &&
+    prevProps.objective.expression === nextProps.objective.expression &&
+    prevProps.objective.goal === nextProps.objective.goal &&
+    prevProps.objective.description === nextProps.objective.description &&
+    prevProps.currentValue === nextProps.currentValue &&
+    prevProps.dependencies.length === nextProps.dependencies.length &&
+    prevProps.dependencies.every((dep, i) => dep === nextProps.dependencies[i])
+  );
+});

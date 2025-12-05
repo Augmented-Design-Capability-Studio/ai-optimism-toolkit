@@ -120,15 +120,17 @@ export function useDisplayMessages({
       return true;
     });
     
+    // Create a timestamp map for O(1) lookup instead of O(n) find() calls
+    const timestampMap = new Map<string, number>();
+    sessionMessages.forEach(m => {
+      timestampMap.set(m.id, m.timestamp);
+    });
+    
     return filtered.sort((a, b) => {
       const aMeta = a.metadata as any;
       const bMeta = b.metadata as any;
-      const aTime =
-        aMeta?.timestamp ||
-        (sessionMessages.find((m) => m.id === a.id)?.timestamp || 0);
-      const bTime =
-        bMeta?.timestamp ||
-        (sessionMessages.find((m) => m.id === b.id)?.timestamp || 0);
+      const aTime = aMeta?.timestamp || timestampMap.get(a.id) || 0;
+      const bTime = bMeta?.timestamp || timestampMap.get(b.id) || 0;
       return aTime - bTime;
     });
   }, [

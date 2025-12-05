@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useMemo } from 'react';
 import { Box, Paper, Typography, Avatar, Chip } from '@mui/material';
 import { SessionMode } from '../../services/sessionManager';
 import { FormalizationMessage, OptimizationRunMessage, MarkdownContent, splitTextWithJSON, JSONBlockCollapsible } from '../shared/chat';
@@ -11,35 +12,45 @@ interface MessageBubbleProps {
   onGenerateControls?: (formalizationText: string) => void;
 }
 
-export function MessageBubble({ message, mode, isGeneratingControls = false, onGenerateControls }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ message, mode, isGeneratingControls = false, onGenerateControls }: MessageBubbleProps) {
+  // Memoize expensive text processing
+  const { messageRole, textContent, contentParts, hasJSON } = useMemo(() => {
   // Determine message role and content based on mode
-  let messageRole = message.role;
-  let textContent = '';
+    let role = message.role;
+    let content = '';
   
   if (mode === 'experimental') {
     // Experimental mode: messages have {id, role, content}
-    messageRole = message.role;
-    textContent = message.content;
+      role = message.role;
+      content = message.content;
   } else {
     // AI mode: extract text from AI SDK format
     if (message.parts && Array.isArray(message.parts)) {
-      textContent = message.parts
+        content = message.parts
         .filter((p: any) => p.type === 'text')
         .map((p: any) => p.text)
         .join('');
     } else if (typeof message.content === 'string') {
-      textContent = message.content;
+        content = message.content;
     } else if (message.text) {
-      textContent = message.text;
+        content = message.text;
     } else {
       console.warn('[MessageBubble] Unknown message format:', message);
-      textContent = JSON.stringify(message);
+        content = JSON.stringify(message);
     }
   }
   
   // Split content into parts with JSON blocks
-  const contentParts = splitTextWithJSON(textContent);
-  const hasJSON = contentParts.some(p => p.type === 'json');
+    const parts = splitTextWithJSON(content);
+    const hasJson = parts.some(p => p.type === 'json');
+    
+    return {
+      messageRole: role,
+      textContent: content,
+      contentParts: parts,
+      hasJSON: hasJson,
+    };
+  }, [message, mode]);
   
   // Map researcher to assistant for display
   const displayRole = messageRole === 'researcher' ? 'assistant' : messageRole;
@@ -208,4 +219,28 @@ export function MessageBubble({ message, mode, isGeneratingControls = false, onG
       </Paper>
     </Box>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison function for memo - only re-render if props actually changed
+  if (prevProps.message.id !== nextProps.message.id) return false;
+  if (prevProps.message.content !== nextProps.message.content) return false;
+  if (prevProps.mode !== nextProps.mode) return false;
+  if (prevProps.isGeneratingControls !== nextProps.isGeneratingControls) return false;
+  if (prevProps.onGenerateControls !== nextProps.onGenerateControls) return false;
+  
+  // Deep compare metadata
+  const prevMeta = prevProps.message.metadata;
+  const nextMeta = nextProps.message.metadata;
+  if (prevMeta !== nextMeta) {
+    if (!prevMeta || !nextMeta) return false;
+    if (JSON.stringify(prevMeta) !== JSON.stringify(nextMeta)) return false;
+  }
+  
+  // Compare message parts if they exist
+  if (prevProps.message.parts !== nextProps.message.parts) {
+    if (JSON.stringify(prevProps.message.parts) !== JSON.stringify(nextProps.message.parts)) {
+      return false;
+    }
+  }
+  
+  return true; // Props are equal, skip re-render
+});
