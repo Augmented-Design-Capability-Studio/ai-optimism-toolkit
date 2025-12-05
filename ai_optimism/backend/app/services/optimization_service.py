@@ -197,6 +197,18 @@ class OptimizationService:
                 library.add_modifier(mod_func, mod_name, deep_copy=True)
                 registered_modifiers.append(library.get_modifier(mod_name))
 
+        # Helper function to convert categorical indices to category names for evaluation
+        def convert_categorical_for_eval(design_dict):
+            """Convert categorical variable indices to category names for expression evaluation"""
+            eval_dict = design_dict.copy()
+            for var in problem.variables:
+                if var.type == 'categorical' and var.categories and var.name in eval_dict:
+                    idx = eval_dict[var.name]
+                    # If it's an index (integer), convert to category name
+                    if isinstance(idx, (int, float)) and 0 <= int(idx) < len(var.categories):
+                        eval_dict[var.name] = var.categories[int(idx)]
+            return eval_dict
+
         # 4. Prepare Seed Designs
         # Generate constraint-aware seed designs
         seed_designs = []
@@ -220,7 +232,9 @@ class OptimizationService:
                 all_constraints_satisfied = True
                 for constraint in (problem.constraints or []):
                     try:
-                        if not safe_eval(constraint.expression, design):
+                        # Convert categorical indices to category names for constraint evaluation
+                        eval_dict = convert_categorical_for_eval(design)
+                        if not safe_eval(constraint.expression, eval_dict):
                             all_constraints_satisfied = False
                             break
                     except Exception:
@@ -273,14 +287,14 @@ class OptimizationService:
                 sample = {}
                 for v in variables:
                     if v.type == 'categorical' and v.categories:
-                        # choose a random category representation; use numeric index if categories are strings
-                        # try to evaluate as string if expression expects strings
+                        # Use category name (string) directly for evaluation
                         sample[v.name] = random.choice(v.categories)
                     else:
                         min_val = v.min if v.min is not None else 0
                         max_val = v.max if v.max is not None else 100
                         sample[v.name] = random.uniform(min_val, max_val)
                 try:
+                    # Sample already has category names, no conversion needed
                     val = float(safe_eval(expr, sample))
                     lo = min(lo, val)
                     hi = max(hi, val)
@@ -352,8 +366,10 @@ class OptimizationService:
             def make_violation_evaluator(expr):
                 def evaluate(design):
                     d = dict(design) if isinstance(design, tuple) else design
+                    # Convert categorical indices to category names for constraint evaluation
+                    eval_dict = convert_categorical_for_eval(d)
                     try:
-                        if safe_eval(expr, d):
+                        if safe_eval(expr, eval_dict):
                             return 0.0 # Satisfied
                         else:
                             return 1.0 # Violated (Binary for now, could be continuous distance)
@@ -425,8 +441,11 @@ class OptimizationService:
                     # Note: We no longer hard-fail on constraints here because 
                     # constraints are now their own objectives!
                     
+                    # Convert categorical indices to category names for evaluation
+                    eval_dict = convert_categorical_for_eval(design_dict)
+                    
                     try:
-                        raw_val = float(safe_eval(expr, design_dict))
+                        raw_val = float(safe_eval(expr, eval_dict))
                     except Exception:
                         return 0.0
 
@@ -519,8 +538,22 @@ class OptimizationService:
             # Convert tuple design back to dict
             design_dict = dict(iter.design) if isinstance(iter.design, tuple) else iter.design
             
+            # Convert categorical indices to category names for frontend
+            formatted_vars = {}
+            for var in problem.variables:
+                if var.name in design_dict:
+                    if var.type == 'categorical' and var.categories:
+                        idx = design_dict[var.name]
+                        # Convert index to category name
+                        if isinstance(idx, (int, float)) and 0 <= int(idx) < len(var.categories):
+                            formatted_vars[var.name] = var.categories[int(idx)]
+                        else:
+                            formatted_vars[var.name] = design_dict[var.name]
+                    else:
+                        formatted_vars[var.name] = design_dict[var.name]
+            
             results.append({
-                "variables": design_dict,
+                "variables": formatted_vars,  # Use formatted_vars with category names
                 "score": iter.score,
                 "objectives": {o.name: s for o, s in iter.objective_scores.items()}
             })

@@ -94,7 +94,27 @@ export default function HomePage() {
     if (results && results.length > 0) {
       const bestSolution = results[0].variables;
       console.log('[HomePage] Applying optimization results:', bestSolution);
-      setVariableValues(bestSolution);
+      
+      // Convert categorical category names to indices for the frontend
+      const convertedValues: Record<string, number> = {};
+      if (generatedControls && typeof generatedControls === 'object' && 'variables' in generatedControls) {
+        const vars = (generatedControls as any).variables || [];
+        for (const [varName, value] of Object.entries(bestSolution)) {
+          const varDef = vars.find((v: any) => v.name === varName);
+          if (varDef?.type === 'categorical' && varDef.categories && typeof value === 'string') {
+            // Convert category name to index
+            const idx = varDef.categories.indexOf(value);
+            convertedValues[varName] = idx >= 0 ? idx : 0;
+          } else {
+            convertedValues[varName] = value as number;
+          }
+        }
+      } else {
+        // Fallback: use values as-is
+        Object.assign(convertedValues, bestSolution);
+      }
+      
+      setVariableValues(convertedValues);
     }
 
     if (fullData) {

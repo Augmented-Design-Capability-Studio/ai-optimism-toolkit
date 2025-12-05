@@ -170,7 +170,7 @@ const controlsSchema = z.object({
     unit: z.string().optional().describe('Unit of measurement (e.g., "°C", "rpm")'),
     description: z.string().describe('Brief description of what this variable represents'),
     categories: z.array(z.string()).optional().describe('List of category names (for categorical variables only, e.g., ["red", "blue", "green"])'),
-    attributes: z.record(z.record(z.any())).optional().describe('Attributes for categorical variables: mapping each category to its data (e.g., {"category1": {"cost": 10, "time": 5}, "category2": {"cost": 20, "time": 10}})'),
+    attributes: z.record(z.string(), z.record(z.string(), z.any())).optional().describe('Attributes for categorical variables: mapping each category to its data (e.g., {"category1": {"cost": 10, "time": 5}, "category2": {"cost": 20, "time": 10}})'),
     currentCategory: z.string().optional().describe('Currently selected category (for categorical variables only)'),
   })),
   // Require at least one objective; generation should fail fast if none are provided

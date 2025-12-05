@@ -266,8 +266,8 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
         </Typography>
       </Box>
 
-      {/* Status */}
-      <Box sx={{ p: 2 }}>
+      {/* Status - Scrollable content area */}
+      <Box sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', p: 2 }}>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
           <Typography variant="subtitle2">Status:</Typography>
           <Chip
@@ -350,30 +350,52 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
                 p: 1.5,
                 bgcolor: 'grey.100',
                 borderRadius: 1,
-                maxHeight: 200,
+                maxHeight: '30vh', // Use viewport height for better responsiveness
                 overflowY: 'auto',
+                overflowX: 'hidden',
               }}
             >
-              {Object.entries(results[0].variables).map(([key, value]) => (
-                <Box
-                  key={key}
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    py: 0.5,
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                    '&:last-child': { borderBottom: 'none' },
-                  }}
-                >
-                  <Typography variant="body2" fontWeight="medium">
-                    {key}:
-                  </Typography>
-                  <Typography variant="body2" color="primary">
-                    {typeof value === 'number' ? value.toFixed(2) : value}
-                  </Typography>
-                </Box>
-              ))}
+              {Object.entries(results[0].variables).map(([key, value]) => {
+                // For categorical variables, display category name if available
+                let displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
+                if (controls && typeof controls === 'object' && 'variables' in controls) {
+                  const vars = (controls as any).variables || [];
+                  const varDef = vars.find((v: any) => v.name === key);
+                  if (varDef?.type === 'categorical' && varDef.categories) {
+                    if (typeof value === 'string') {
+                      // Already a category name from backend
+                      displayValue = value;
+                    } else if (typeof value === 'number') {
+                      // Convert index to category name for display
+                      const idx = Math.round(value);
+                      if (idx >= 0 && idx < varDef.categories.length) {
+                        displayValue = varDef.categories[idx];
+                      }
+                    }
+                  }
+                }
+                
+                return (
+                  <Box
+                    key={key}
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      py: 0.5,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      '&:last-child': { borderBottom: 'none' },
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight="medium" sx={{ flex: 1, mr: 1 }}>
+                      {key}:
+                    </Typography>
+                    <Typography variant="body2" color="primary" sx={{ flex: 1, textAlign: 'right' }}>
+                      {displayValue}
+                    </Typography>
+                  </Box>
+                );
+              })}
             </Box>
           </Box>
         )}
@@ -381,8 +403,8 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
         <Divider />
       </Box>
 
-      {/* Controls */}
-      <Box sx={{ p: 2 }}>
+      {/* Controls - Fixed at bottom */}
+      <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper', flexShrink: 0 }}>
         <Stack direction="row" spacing={1}>
           {status === 'idle' || status === 'paused' || status === 'completed' ? (
             <Button
