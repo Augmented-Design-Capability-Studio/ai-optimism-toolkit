@@ -23,7 +23,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import InfoIcon from '@mui/icons-material/Info';
-import { useState, type ChangeEvent } from 'react';
+import { useState, type ChangeEvent, type FocusEvent } from 'react';
 import { useBackend } from '../contexts/BackendContext';
 import { useSessionManager } from '../services/sessionManager';
 import type { Controls } from './controls/types';
@@ -367,12 +367,12 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
                 onChange={(e: ChangeEvent<HTMLInputElement>) => {
                   setMaxIterationsInput(e.target.value);
                 }}
-                onBlur={(e: ChangeEvent<HTMLInputElement>) => {
-                  const parsed = parseInt(e.target.value);
+                onBlur={(e: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+                  const parsed = parseInt((e.target as HTMLInputElement).value);
                   if (!isNaN(parsed) && parsed >= 1) {
                     setMaxIterations(parsed);
                     setMaxIterationsInput(parsed.toString());
-                  } else if (e.target.value === '') {
+                  } else if ((e.target as HTMLInputElement).value === '') {
                     // Keep empty temporarily, but set to 1 on blur if still empty
                     setMaxIterations(1);
                     setMaxIterationsInput('1');
