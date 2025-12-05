@@ -41,10 +41,12 @@ export function ConstraintEditDialog({
   onDelete,
 }: ConstraintEditDialogProps) {
   const [editedConstraint, setEditedConstraint] = useState<Constraint | null>(null);
+  const [weightInput, setWeightInput] = useState<string>('');
 
   useEffect(() => {
     if (constraint) {
       setEditedConstraint({ ...constraint });
+      setWeightInput((constraint.weight ?? 10.0).toString());
     }
   }, [constraint]);
 
@@ -64,6 +66,7 @@ export function ConstraintEditDialog({
     // Set default weight for soft constraints
     if (newType === 'soft' && updated.weight === undefined) {
       updated.weight = 10.0;
+      setWeightInput('10.0');
     }
 
     setEditedConstraint(updated);
@@ -166,13 +169,32 @@ export function ConstraintEditDialog({
             <TextField
               label="Penalty Weight"
               type="number"
-              value={editedConstraint.weight || 10.0}
-              onChange={(e) =>
-                setEditedConstraint({
-                  ...editedConstraint,
-                  weight: parseFloat(e.target.value) || 10.0,
-                })
-              }
+              value={weightInput}
+              onChange={(e) => {
+                setWeightInput(e.target.value);
+              }}
+              onBlur={(e) => {
+                const parsed = parseFloat(e.target.value);
+                if (!isNaN(parsed) && parsed >= 0) {
+                  setEditedConstraint({
+                    ...editedConstraint,
+                    weight: parsed,
+                  });
+                  setWeightInput(parsed.toString());
+                } else if (e.target.value === '') {
+                  // Empty input, set to default
+                  const defaultWeight = 10.0;
+                  setEditedConstraint({
+                    ...editedConstraint,
+                    weight: defaultWeight,
+                  });
+                  setWeightInput(defaultWeight.toString());
+                } else {
+                  // Invalid input, reset to last valid value
+                  const lastValid = editedConstraint?.weight ?? 10.0;
+                  setWeightInput(lastValid.toString());
+                }
+              }}
               helperText="Higher weight = stronger preference to satisfy this constraint"
               InputProps={{ inputProps: { min: 0, step: 0.1 } }}
               fullWidth

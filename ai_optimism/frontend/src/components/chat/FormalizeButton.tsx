@@ -2,6 +2,7 @@
 
 import { Box, Button, Typography, CircularProgress } from '@mui/material';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import { memo } from 'react';
 import { SessionMode, Session } from '../../services/sessionManager';
 
 interface FormalizeButtonProps {
@@ -13,7 +14,7 @@ interface FormalizeButtonProps {
   onFormalize: () => void;
 }
 
-export function FormalizeButton({
+export const FormalizeButton = memo(function FormalizeButton({
   mode,
   apiKey,
   currentSession,
@@ -73,4 +74,4 @@ export function FormalizeButton({
       </Typography>
     </Box>
   );
-}
+});

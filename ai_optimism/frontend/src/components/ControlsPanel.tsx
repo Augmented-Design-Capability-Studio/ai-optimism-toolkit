@@ -8,6 +8,7 @@ import { ObjectiveCard } from './controls/ObjectiveCard';
 import { PropertyCard } from './controls/PropertyCard';
 import { ConstraintCard } from './controls/ConstraintCard';
 import { ConstraintEditDialog } from './controls/ConstraintEditDialog';
+import { ObjectiveEditDialog } from './controls/ObjectiveEditDialog';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { AdvancedCodeView } from './controls/AdvancedCodeView';
@@ -18,6 +19,7 @@ import { getControlsSummary } from '../services/controlsAggregator';
 import { useControlsState } from './controls/hooks/useControlsState';
 import { useExpressionEvaluation } from './controls/hooks/useExpressionEvaluation';
 import { useVariableManagement } from './controls/hooks/useVariableManagement';
+import { useObjectiveManagement } from './controls/hooks/useObjectiveManagement';
 import { getSortedVariables, extractDependencies } from './controls/utils/variableHelpers';
 import { getUsedProperties, getPropertyUsageCount } from './controls/utils/propertyHelpers';
 import { evaluateExpression, parseConstraintForDisplay } from './controls/utils/expressionHelpers';
@@ -67,6 +69,19 @@ export const ControlsPanel = memo(function ControlsPanel({ controls, initialValu
     setParsedControls,
     values,
     setValues,
+    onControlsUpdate,
+  });
+
+  const {
+    editingObjective,
+    editDialogOpen: objectiveEditDialogOpen,
+    setEditDialogOpen: setObjectiveEditDialogOpen,
+    handleEditObjective,
+    handleSaveObjective,
+    handleDeleteObjective,
+  } = useObjectiveManagement({
+    parsedControls,
+    setParsedControls,
     onControlsUpdate,
   });
 
@@ -381,6 +396,7 @@ export const ControlsPanel = memo(function ControlsPanel({ controls, initialValu
                       objective={objective}
                       currentValue={evaluateExpr(objective.expression)}
                       dependencies={getDependencies(objective.expression)}
+                      onEdit={() => handleEditObjective(idx)}
                       onVariableClick={(varName) => {
                         // Scroll to variable card - implementation TBD
                         console.log('Navigate to variable:', varName);
@@ -548,6 +564,13 @@ export const ControlsPanel = memo(function ControlsPanel({ controls, initialValu
           setConstraintEditDialogOpen(false);
           setEditingConstraint(null);
         }}
+      />
+      <ObjectiveEditDialog
+        open={objectiveEditDialogOpen}
+        objective={editingObjective}
+        onClose={() => setObjectiveEditDialogOpen(false)}
+        onSave={handleSaveObjective}
+        onDelete={parsedControls?.objectives && parsedControls.objectives.length > 1 ? handleDeleteObjective : undefined}
       />
     </Paper>
   );

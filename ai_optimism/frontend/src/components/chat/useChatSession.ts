@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { useSessionManager, SessionMode } from '../../services/sessionManager';
 import { useBackend } from '../../contexts/BackendContext';
@@ -16,7 +16,24 @@ export function useChatSession() {
   const { state: backendState } = useBackend();
   const sessionManager = useSessionManager();
 
-  const [input, setInput] = useState('');
+  // Use ref for input to avoid causing re-renders in parent components
+  // We expose a setter that updates the ref, but don't use state to avoid re-renders
+  const inputRef = useRef('');
+  const clearCounterRef = useRef(0);
+  const [clearCounter, setClearCounter] = useState(0);
+  
+  const setInput = (value: string) => {
+    inputRef.current = value;
+    // When clearing, increment counter to signal ChatInput to reset
+    if (value === '') {
+      clearCounterRef.current += 1;
+      setClearCounter(clearCounterRef.current);
+    }
+  };
+  
+  // Expose clear counter as "input" prop - ChatInput will reset when this changes
+  // This avoids re-renders on every keystroke while still allowing reset after submit
+  const input = clearCounter;
   const [sessionProvider, setSessionProvider] = useState<string>('google');
   const [sessionModel, setSessionModel] = useState<string>('gemini-2.5-flash');
 
@@ -76,14 +93,17 @@ export function useChatSession() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!input.trim() || !currentSession?.id) {
+    // Read from ref to avoid dependency on state
+    const currentInput = inputRef.current;
+    if (!currentInput.trim() || !currentSession?.id) {
       if (sessionDeleted) {
         alert('Your session has been deleted. Please create a new session.');
       }
       return;
     }
 
-    const userMessageText = input.trim();
+    const userMessageText = currentInput.trim();
+    inputRef.current = '';
     setInput('');
 
     const optimisticId = `optimistic-${Date.now()}-${Math.random()}`;

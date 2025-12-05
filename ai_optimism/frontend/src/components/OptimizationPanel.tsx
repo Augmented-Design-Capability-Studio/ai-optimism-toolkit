@@ -53,6 +53,7 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
   const [status, setStatus] = useState<OptimizationStatus>('idle');
   const [iteration, setIteration] = useState(0);
   const [maxIterations, setMaxIterations] = useState(100);
+  const [maxIterationsInput, setMaxIterationsInput] = useState<string>('100');
   const [populationSize, setPopulationSize] = useState(50);
   const [bestScore, setBestScore] = useState<number | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
@@ -254,6 +255,8 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
   const handleReset = () => {
     setStatus('idle');
     setIteration(0);
+    setMaxIterations(100);
+    setMaxIterationsInput('100');
     setBestScore(null);
     setLogs([]);
     setResults([]);
@@ -301,12 +304,12 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
         }}
       >
         <Box>
-          <Typography variant="h6" fontWeight="bold">
-            ⚡ Optimization
-          </Typography>
-          <Typography variant="caption">
-            Status & monitoring
-          </Typography>
+        <Typography variant="h6" fontWeight="bold">
+          ⚡ Optimization
+        </Typography>
+        <Typography variant="caption">
+          Status & monitoring
+        </Typography>
         </Box>
         {bestScore !== null && (
           <Box
@@ -318,7 +321,7 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
               <Typography variant="caption" color="text.secondary">
                 Best Score
               </Typography>
-              <Tooltip title="Normalized weighted sum of objective scores (0-1 scale, higher is better). This is different from cost function evaluation.">
+              <Tooltip title="Weighted sum of objective scores. Each objective is normalized to 0-1, then multiplied by its weight. Hard constraints: weight 100000, soft constraints: user-specified weight, objectives: user-specified weight (default 1.0). Higher is better.">
                 <InfoIcon sx={{ fontSize: 14, color: 'text.secondary', cursor: 'help' }} />
               </Tooltip>
             </Box>
@@ -360,8 +363,24 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
               <TextField
                 variant="standard"
                 type="number"
-                value={maxIterations}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setMaxIterations(Math.max(1, parseInt(e.target.value) || 0))}
+                value={maxIterationsInput}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                  setMaxIterationsInput(e.target.value);
+                }}
+                onBlur={(e: ChangeEvent<HTMLInputElement>) => {
+                  const parsed = parseInt(e.target.value);
+                  if (!isNaN(parsed) && parsed >= 1) {
+                    setMaxIterations(parsed);
+                    setMaxIterationsInput(parsed.toString());
+                  } else if (e.target.value === '') {
+                    // Keep empty temporarily, but set to 1 on blur if still empty
+                    setMaxIterations(1);
+                    setMaxIterationsInput('1');
+                  } else {
+                    // Invalid input, reset to last valid value
+                    setMaxIterationsInput(maxIterations.toString());
+                  }
+                }}
                 disabled={status === 'running'}
                 inputProps={{
                   style: {
@@ -404,57 +423,57 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
             
             {results.length === 1 ? (
               // Single solution - show as before
-              <Box
-                sx={{
-                  p: 1.5,
-                  bgcolor: 'grey.100',
-                  borderRadius: 1,
+            <Box
+              sx={{
+                p: 1.5,
+                bgcolor: 'grey.100',
+                borderRadius: 1,
                   maxHeight: '25vh',
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                }}
-              >
-                {Object.entries(results[0].variables).map(([key, value]) => {
-                  // For categorical variables, display category name if available
-                  let displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
-                  if (controls && typeof controls === 'object' && 'variables' in controls) {
-                    const vars = (controls as any).variables || [];
-                    const varDef = vars.find((v: any) => v.name === key);
-                    if (varDef?.type === 'categorical' && varDef.categories) {
-                      if (typeof value === 'string') {
-                        // Already a category name from backend
-                        displayValue = value;
-                      } else if (typeof value === 'number') {
-                        // Convert index to category name for display
-                        const idx = Math.round(value);
-                        if (idx >= 0 && idx < varDef.categories.length) {
-                          displayValue = varDef.categories[idx];
-                        }
+                overflowY: 'auto',
+                overflowX: 'hidden',
+              }}
+            >
+              {Object.entries(results[0].variables).map(([key, value]) => {
+                // For categorical variables, display category name if available
+                let displayValue = typeof value === 'number' ? value.toFixed(2) : String(value);
+                if (controls && typeof controls === 'object' && 'variables' in controls) {
+                  const vars = (controls as any).variables || [];
+                  const varDef = vars.find((v: any) => v.name === key);
+                  if (varDef?.type === 'categorical' && varDef.categories) {
+                    if (typeof value === 'string') {
+                      // Already a category name from backend
+                      displayValue = value;
+                    } else if (typeof value === 'number') {
+                      // Convert index to category name for display
+                      const idx = Math.round(value);
+                      if (idx >= 0 && idx < varDef.categories.length) {
+                        displayValue = varDef.categories[idx];
                       }
                     }
                   }
-                  
-                  return (
-                    <Box
-                      key={key}
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        py: 0.5,
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                        '&:last-child': { borderBottom: 'none' },
-                      }}
-                    >
-                      <Typography variant="body2" fontWeight="medium" sx={{ flex: 1, mr: 1 }}>
-                        {key}:
-                      </Typography>
-                      <Typography variant="body2" color="primary" sx={{ flex: 1, textAlign: 'right' }}>
-                        {displayValue}
-                      </Typography>
-                    </Box>
-                  );
-                })}
+                }
+                
+                return (
+                  <Box
+                    key={key}
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      py: 0.5,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      '&:last-child': { borderBottom: 'none' },
+                    }}
+                  >
+                    <Typography variant="body2" fontWeight="medium" sx={{ flex: 1, mr: 1 }}>
+                      {key}:
+                    </Typography>
+                    <Typography variant="body2" color="primary" sx={{ flex: 1, textAlign: 'right' }}>
+                      {displayValue}
+                    </Typography>
+                  </Box>
+                );
+              })}
                 {results[0].objectives && Object.keys(results[0].objectives).length > 0 && (
                   <Box sx={{ mt: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
                     <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
@@ -549,7 +568,7 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
                     </AccordionDetails>
                   </Accordion>
                 ))}
-              </Box>
+            </Box>
             )}
           </Box>
         )}
@@ -617,34 +636,34 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
         >
           <Typography variant="subtitle2">
             📋 Logs {logs.length > 0 && `(${logs.length})`}
-          </Typography>
+        </Typography>
           <IconButton size="small" onClick={(e) => { e.stopPropagation(); setLogsExpanded(!logsExpanded); }}>
             {logsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
           </IconButton>
         </Box>
         {logsExpanded ? (
-          <Box
-            sx={{
-              fontFamily: 'monospace',
-              fontSize: 12,
-              bgcolor: 'grey.100',
-              p: 1,
-              maxHeight: 200,
-              overflowY: 'auto',
-            }}
-          >
-            {logs.length === 0 ? (
-              <Typography variant="caption" color="text.secondary">
-                No logs yet. Start optimization to see progress.
-              </Typography>
-            ) : (
+        <Box
+          sx={{
+            fontFamily: 'monospace',
+            fontSize: 12,
+            bgcolor: 'grey.100',
+            p: 1,
+            maxHeight: 200,
+            overflowY: 'auto',
+          }}
+        >
+          {logs.length === 0 ? (
+            <Typography variant="caption" color="text.secondary">
+              No logs yet. Start optimization to see progress.
+            </Typography>
+          ) : (
               logs.map((log, idx) => (
-                <Box key={idx} sx={{ mb: 0.5 }}>
-                  {log}
-                </Box>
-              ))
-            )}
-          </Box>
+              <Box key={idx} sx={{ mb: 0.5 }}>
+                {log}
+              </Box>
+            ))
+          )}
+        </Box>
         ) : (
           logs.length > 0 && (
             <Box

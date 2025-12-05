@@ -15,7 +15,7 @@ INCREMENTAL STRUCTURED DATA EXTRACTION:
 - As you identify variables, objectives, constraints, or properties, you can optionally include structured data in a JSON block at the end of your response
 - Format: \`\`\`json { "variables": [...], "objectives": [...], "constraints": [...], "properties": [...] } \`\`\`
 - Variable: { "name": "var_name", "type": "continuous|discrete|categorical", "min": 0, "max": 100, "default": 50, "description": "...", "categories": [...] (categorical), "attributes": {...} (categorical) }
-- Objective: { "name": "obj_name", "expression": "python expression", "goal": "minimize|maximize", "description": "..." }
+- Objective: { "name": "obj_name", "expression": "python expression", "goal": "minimize|maximize", "description": "...", "weight": number (optional, default: 1.0) }
 - Constraint: { "expression": "python expression", "description": "...", "title": "..." (3-5 words), "type": "hard"|"soft" (optional, default: "hard"), "weight": number (for soft constraints only, default: 10.0) }
 - Property: { "name": "prop_name", "expression": "python expression", "description": "..." (optional) }
 - Use snake_case or camelCase for names. Expressions must be inline only.
@@ -129,21 +129,20 @@ Constraints: Requirements that must be satisfied
   - Expression must return boolean (True if satisfied, False if violated)
 
 Objectives: What to optimize
-  - Single objective: Direct expression
-  - Multiple objectives: MUST be combined into weighted cost function
-  - Soft constraints can be incorporated as penalty terms in the objective
+  - Each objective has its own expression and goal (minimize/maximize)
+  - Multiple objectives are automatically combined: score = Σ(normalized_objective_value × weight)
+  - Each objective can have a weight (default: 1.0) to control its importance
+  - Higher combined score is better (system normalizes each objective to 0-1, then applies weights)
 
 Please provide a structured problem definition with the following required sections and formats.
 
 1) Objectives (REQUIRED):
-  - Provide at least one objective with: name (snake_case/camelCase), expression (Python), goal (minimize/maximize), description
-  - CRITICAL: If there are 2+ objectives, you MUST combine them into a single weighted cost function
-  - For multiple objectives, use: "w1 * obj1 - w2 * obj2 + w3 * obj3" (use - for maximize, + for minimize after normalizing)
-  - Weight names should be descriptive: "w_cost", "w_quality", "w_time", etc.
+  - Provide at least one objective with: name (snake_case/camelCase), expression (Python), goal (minimize/maximize), description, weight (optional, default: 1.0)
+  - Each objective should have its own expression - the system will combine them automatically
+  - For multiple objectives, assign weights to control relative importance (e.g., cost objective: weight 2.0, quality objective: weight 1.0)
   - CRITICAL: The expression field MUST contain actual executable Python code, not a description or placeholder
-  - CRITICAL: If using weights, define them as properties first, then reference them in the objective expression
-  - DO NOT create separate objectives for each goal - combine them into one weighted expression
   - DO NOT define dictionaries or data structures in objective expressions - reference variable attributes directly
+  - Each objective expression should evaluate to a single numeric value (the system normalizes to 0-1 automatically)
 
 2) Variables (REQUIRED):
   - CRITICAL: You MUST define ALL variables explicitly in the JSON - do not omit any variables
@@ -173,7 +172,7 @@ Please provide a structured problem definition with the following required secti
   - Include: name (snake_case/camelCase), expression (Python), description (optional)
   - CRITICAL: The expression field MUST contain actual executable Python code that computes a value, not a description
   - CRITICAL: Properties MUST have expressions that compute values, not static dictionaries or lists
-  - If weights are needed for objectives, create them as properties with numeric expressions (e.g., expression: "-1.0" for w_cost)
+  - Properties are for computed values, not for objective weights (weights are set directly on objectives)
   - DO NOT create properties that are dictionaries mapping categories to data - use variable "attributes" instead
   - DO NOT create properties that are lists of variable names or static arrays
   - Valid property examples: computed totals, averages, weighted sums, weight coefficients
@@ -237,7 +236,7 @@ VALIDATION CHECKLIST - Before submitting, verify:
   - No properties contain static dictionaries or lists - only computed expressions
   - All objectives have complete Python expressions (not descriptions)
   - All constraints have complete Python expressions that return booleans
-  - If multiple objectives exist, they are combined into one weighted expression
+  - Each objective has a weight field (default: 1.0 if not specified)
   - The JSON block contains COMPLETE data - not summaries or placeholders`;
 };
 
@@ -286,8 +285,8 @@ Identify:
    - CRITICAL FOR ATTRIBUTES: Include the COMPLETE attributes object with ALL actual values - do not summarize or describe attributes
    - CRITICAL FOR ATTRIBUTES: Search the entire description for ALL numeric values, string values, or data points mentioned for each category
 2. Objectives: minimize/maximize with Python expressions
-   - CRITICAL: If 2+ objectives exist, combine into single weighted cost function: "w1 * obj1 - w2 * obj2 + w3 * obj3"
-   - DO NOT create separate objectives - always combine multiple goals into one weighted expression
+   - Each objective should have its own expression - the system combines them automatically
+   - Each objective can have a weight (default: 1.0) to control relative importance
    - DO NOT define dictionaries in expressions - reference variable attributes directly: {variable_name}_attributes[{variable_name}]['attribute_name']
 3. Properties: only if used in objectives/constraints, with Python expressions
    - Properties are DERIVED/COMPUTED values calculated from variables - NOT category data

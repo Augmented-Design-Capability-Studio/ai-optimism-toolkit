@@ -3,6 +3,7 @@
  */
 
 import { Box, Typography, Button } from '@mui/material';
+import { memo } from 'react';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import LogoutIcon from '@mui/icons-material/Logout';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
@@ -16,7 +17,7 @@ interface DashboardHeaderProps {
   onBackendSettings?: () => void;
 }
 
-export function DashboardHeader({ onRefresh, onLogout, onClearAll, onDeleteByIP, onBackendSettings }: DashboardHeaderProps) {
+export const DashboardHeader = memo(function DashboardHeader({ onRefresh, onLogout, onClearAll, onDeleteByIP, onBackendSettings }: DashboardHeaderProps) {
   return (
     <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <Box>
@@ -66,4 +67,4 @@ export function DashboardHeader({ onRefresh, onLogout, onClearAll, onDeleteByIP,
       </Box>
     </Box>
   );
-}
+});

@@ -529,7 +529,9 @@ class OptimizationService:
 
             obj_func = make_objective_func(obj_config.expression, obj_config.goal, problem.constraints or [], est_min, est_max)
             library.add_objective(obj_func, obj_config.name)
-            objective_function.add_objective_by_weight(library.get_objective(obj_config.name), 1.0)
+            # Use objective weight if provided, default to 1.0
+            objective_weight = obj_config.weight if obj_config.weight is not None else 1.0
+            objective_function.add_objective_by_weight(library.get_objective(obj_config.name), objective_weight)
 
         # Now that objectives exist, connect registered modifiers to objectives in heuristic_map
         # 1. Add random baseline weights

@@ -7,11 +7,13 @@ import { useMemo, memo } from 'react';
 import EditIcon from '@mui/icons-material/Edit';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import type { Objective } from './types';
 
 interface ObjectiveCardProps {
   objective: Objective;
-  currentValue?: number;
+  currentValue?: number; // Raw normalized value (0-1)
   dependencies: string[];
   onEdit?: () => void;
   onVariableClick?: (variableName: string) => void;
@@ -48,6 +50,10 @@ export const ObjectiveCard = memo(function ObjectiveCard({
   onVariableClick,
 }: ObjectiveCardProps) {
   const isMaximize = objective.goal === 'maximize';
+  const weight = objective.weight ?? 1.0;
+  // For minimize objectives, the normalized value is already inverted (1.0 - raw), so we show effective weight
+  const effectiveWeight = isMaximize ? weight : -weight;
+  const weightedContribution = currentValue !== undefined ? currentValue * weight : undefined;
 
   // Memoize expression parsing and dependency set for O(1) lookups
   const expressionTokens = useMemo(() => parseExpression(objective.expression), [objective.expression]);
@@ -77,46 +83,148 @@ export const ObjectiveCard = memo(function ObjectiveCard({
         },
       }}
     >
-      {/* Header with Current Value aligned */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1, mb: 0.25 }}>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.2 }}>
-            {isMaximize ? (
-              <TrendingUpIcon sx={{ fontSize: 14, color: 'success.main' }} />
-            ) : (
-              <TrendingDownIcon sx={{ fontSize: 14, color: 'info.main' }} />
-            )}
-            <Typography
-              variant="caption"
-              fontWeight="bold"
-              sx={{
-                fontSize: '0.7rem',
-                color: isMaximize ? 'success.dark' : 'info.dark',
-                textTransform: 'uppercase',
-              }}
-            >
-              {objective.goal}
-            </Typography>
-          </Box>
+      {/* Edit Button - Top Right Corner */}
+      {onEdit && (
+        <IconButton
+          size="small"
+          onClick={onEdit}
+          className="edit-button"
+          sx={{
+            position: 'absolute',
+            top: 4,
+            right: 4,
+            opacity: 0,
+            transition: 'opacity 0.2s',
+            p: 0.25,
+            zIndex: 1,
+          }}
+        >
+          <EditIcon sx={{ fontSize: 14 }} />
+        </IconButton>
+      )}
+
+      {/* Top: MAXIMIZE badge and edit button */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {isMaximize ? (
+            <TrendingUpIcon sx={{ fontSize: 14, color: 'success.main' }} />
+          ) : (
+            <TrendingDownIcon sx={{ fontSize: 14, color: 'info.main' }} />
+          )}
+          <Typography
+            variant="caption"
+            fontWeight="bold"
+            sx={{
+              fontSize: '0.7rem',
+              color: isMaximize ? 'success.dark' : 'info.dark',
+              textTransform: 'uppercase',
+            }}
+          >
+            {objective.goal}
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Two Column Layout: Title/Description/Formula (left) and Scores (right) */}
+      <Box sx={{ display: 'flex', gap: 1, flex: 1, minHeight: 0 }}>
+        {/* Left Column: Title, Description, and Formula */}
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: 0,
+            minHeight: 0,
+          }}
+        >
           <Typography
             variant="subtitle2"
             fontWeight="bold"
             sx={{
               fontSize: '0.8rem',
               lineHeight: 1.2,
+              mb: 0.25,
             }}
           >
             {objective.name}
           </Typography>
           {objective.description && (
-            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', display: 'block', mt: 0.15 }}>
+            <Typography 
+              variant="caption" 
+              color="text.secondary" 
+              sx={{ 
+                fontSize: '0.65rem', 
+                display: 'block', 
+                mb: 0.5,
+                lineHeight: 1.3,
+              }}
+            >
               {objective.description}
             </Typography>
           )}
+          <Box
+            sx={{
+              flex: 1,
+              bgcolor: 'background.paper',
+              borderRadius: 1,
+              px: 1,
+              py: 0.4,
+              overflow: 'auto',
+              minHeight: 0,
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', mb: 0.2 }}>
+              Formula
+            </Typography>
+            <Box
+              sx={{
+                fontFamily: 'monospace',
+                fontSize: '0.75rem',
+                lineHeight: 1.4,
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 0.25,
+                alignItems: 'center',
+              }}
+            >
+              {expressionTokens.map((token, idx) => {
+                if (typeof token === 'string') {
+                  return <span key={idx}>{token}</span>;
+                }
+                const isVariable = dependenciesSet.has(token.name);
+                return (
+                  <Chip
+                    key={idx}
+                    label={token.name}
+                    size="small"
+                    onClick={() => onVariableClick?.(token.name)}
+                    sx={{
+                      height: 18,
+                      fontSize: '0.65rem',
+                      bgcolor: isVariable ? 'primary.main' : 'secondary.main',
+                      color: 'white',
+                      cursor: onVariableClick ? 'pointer' : 'default',
+                      '&:hover': onVariableClick ? {
+                        bgcolor: isVariable ? 'primary.dark' : 'secondary.dark',
+                      } : {},
+                    }}
+                  />
+                );
+              })}
+            </Box>
+          </Box>
         </Box>
-        
-        {/* Current Value and Edit - Aligned from bottom */}
-        <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 0.5 }}>
+
+        {/* Right Column: Scores - Narrow vertical stack */}
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          gap: 0.3,
+          minWidth: 65,
+          pt: 0.2,
+        }}>
           {currentValue !== undefined && (
             <Box sx={{ 
               bgcolor: 'background.paper', 
@@ -124,83 +232,81 @@ export const ObjectiveCard = memo(function ObjectiveCard({
               px: 0.75, 
               py: 0.4,
               textAlign: 'center',
-              minWidth: 65,
+              width: '100%',
             }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1 }}>
-                Current
+                Raw
               </Typography>
-              <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '0.95rem', color: isMaximize ? 'success.dark' : 'info.dark', lineHeight: 1 }}>
-                {currentValue.toFixed(2)}
+              <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.75rem', color: 'text.primary', lineHeight: 1 }}>
+                {currentValue.toFixed(3)}
               </Typography>
             </Box>
           )}
-          {onEdit && (
-            <IconButton
-              size="small"
-              onClick={onEdit}
-              className="edit-button"
-              sx={{
-                opacity: 0,
-                transition: 'opacity 0.2s',
-                p: 0.25,
-                mb: 0.2,
-              }}
-            >
-              <EditIcon sx={{ fontSize: 14 }} />
-            </IconButton>
+          
+          {/* Multiply symbol */}
+          {currentValue !== undefined && (
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem', lineHeight: 1 }}>
+              ×
+            </Typography>
           )}
-        </Box>
-      </Box>
+          
+          <Box sx={{ 
+            bgcolor: 'background.paper', 
+            borderRadius: 1, 
+            px: 0.75, 
+            py: 0.4,
+            textAlign: 'center',
+            width: '100%',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.3, mb: 0.2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', lineHeight: 1 }}>
+                Weight
+              </Typography>
+              <Tooltip 
+                title={isMaximize 
+                  ? "Weight for combining objectives. Higher weight = more important." 
+                  : "Effective weight. For minimize objectives, the normalized value is inverted (1.0 - raw) before multiplying by this weight, so lower raw values contribute more to the score."
+                }
+              >
+                {isMaximize ? (
+                  <ArrowUpwardIcon sx={{ fontSize: 12, color: 'success.main', cursor: 'help' }} />
+                ) : (
+                  <ArrowDownwardIcon sx={{ fontSize: 12, color: 'info.main', cursor: 'help' }} />
+                )}
+              </Tooltip>
+            </Box>
+            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.75rem', color: isMaximize ? 'primary.main' : 'info.main', lineHeight: 1 }}>
+              {effectiveWeight > 0 ? '+' : ''}{effectiveWeight.toFixed(1)}
+            </Typography>
+          </Box>
 
-      {/* Formula - Full Width */}
-      <Box
-        sx={{
-          bgcolor: 'background.paper',
-          borderRadius: 1,
-          px: 1,
-          py: 0.4,
-          overflow: 'auto',
-          minHeight: 0,
-        }}
-      >
-        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', mb: 0.2 }}>
-          Formula
-        </Typography>
-        <Box
-          sx={{
-            fontFamily: 'monospace',
-            fontSize: '0.75rem',
-            lineHeight: 1.4,
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 0.25,
-            alignItems: 'center',
-          }}
-        >
-          {expressionTokens.map((token, idx) => {
-            if (typeof token === 'string') {
-              return <span key={idx}>{token}</span>;
-            }
-            const isVariable = dependenciesSet.has(token.name);
-            return (
-              <Chip
-                key={idx}
-                label={token.name}
-                size="small"
-                onClick={() => onVariableClick?.(token.name)}
-                sx={{
-                  height: 18,
-                  fontSize: '0.65rem',
-                  bgcolor: isVariable ? 'primary.main' : 'secondary.main',
-                  color: 'white',
-                  cursor: onVariableClick ? 'pointer' : 'default',
-                  '&:hover': onVariableClick ? {
-                    bgcolor: isVariable ? 'primary.dark' : 'secondary.dark',
-                  } : {},
-                }}
-              />
-            );
-          })}
+          {/* Divider above contribution */}
+          {currentValue !== undefined && (
+            <Box sx={{ 
+              width: '100%', 
+              height: '1px', 
+              bgcolor: 'divider', 
+              my: 0.2,
+            }} />
+          )}
+
+          {currentValue !== undefined && (
+            <Box sx={{ 
+              bgcolor: 'background.paper', 
+              borderRadius: 1, 
+              px: 0.75, 
+              py: 0.5,
+              textAlign: 'center',
+              width: '100%',
+            }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1 }}>
+                Contrib
+              </Typography>
+              <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1rem', color: isMaximize ? 'success.dark' : 'info.dark', lineHeight: 1 }}>
+                {weightedContribution !== undefined ? weightedContribution.toFixed(3) : '—'}
+              </Typography>
+            </Box>
+          )}
         </Box>
       </Box>
 
@@ -214,6 +320,7 @@ export const ObjectiveCard = memo(function ObjectiveCard({
     prevProps.objective.expression === nextProps.objective.expression &&
     prevProps.objective.goal === nextProps.objective.goal &&
     prevProps.objective.description === nextProps.objective.description &&
+    (prevProps.objective.weight ?? 1.0) === (nextProps.objective.weight ?? 1.0) &&
     prevProps.currentValue === nextProps.currentValue &&
     prevProps.dependencies.length === nextProps.dependencies.length &&
     prevProps.dependencies.every((dep, i) => dep === nextProps.dependencies[i])

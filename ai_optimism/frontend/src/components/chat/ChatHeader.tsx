@@ -2,6 +2,7 @@
 
 import { Box, Typography, IconButton, Tooltip } from '@mui/material';
 import ShareIcon from '@mui/icons-material/Share';
+import { memo } from 'react';
 import { Session } from '../../services/sessionManager';
 
 interface ChatHeaderProps {
@@ -9,7 +10,7 @@ interface ChatHeaderProps {
   session?: Session | null;
 }
 
-export function ChatHeader({ mode, session }: ChatHeaderProps) {
+export const ChatHeader = memo(function ChatHeader({ mode, session }: ChatHeaderProps) {
   const handleShare = async () => {
     if (!session) return;
 
@@ -62,4 +63,4 @@ export function ChatHeader({ mode, session }: ChatHeaderProps) {
       )}
     </Box>
   );
-}
+});

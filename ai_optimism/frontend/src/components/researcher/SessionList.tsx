@@ -13,6 +13,7 @@ import {
   Chip,
   Tooltip,
 } from '@mui/material';
+import { memo } from 'react';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import { Session } from '../../services/sessionManager';
 
@@ -23,7 +24,7 @@ interface SessionListProps {
   newSessionIds: Set<string>;
 }
 
-export function SessionList({
+export const SessionList = memo(function SessionList({
   sessions,
   selectedSession,
   onSelectSession,
@@ -149,4 +150,4 @@ export function SessionList({
       </List>
     </Paper>
   );
-}
+});

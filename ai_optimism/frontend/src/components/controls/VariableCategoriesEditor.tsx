@@ -16,8 +16,49 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Variable } from './types';
+
+// Component for numeric attribute input that allows empty state
+function NumericAttributeField({ value, onValueChange }: { value: number; onValueChange: (value: number) => void }) {
+  const [inputValue, setInputValue] = useState<string>(value.toString());
+
+  useEffect(() => {
+    setInputValue(value.toString());
+  }, [value]);
+
+  return (
+    <TextField
+      size="small"
+      type="number"
+      value={inputValue}
+      onChange={(e) => {
+        setInputValue(e.target.value);
+      }}
+      onBlur={(e) => {
+        const parsed = parseFloat(e.target.value);
+        if (!isNaN(parsed)) {
+          onValueChange(parsed);
+          setInputValue(parsed.toString());
+        } else if (e.target.value === '') {
+          // Empty input, set to 0
+          onValueChange(0);
+          setInputValue('0');
+        } else {
+          // Invalid input, reset to last valid value
+          setInputValue(value.toString());
+        }
+      }}
+      sx={{
+        flex: 1,
+        '& .MuiInputBase-input': {
+          py: 0.5,
+          fontSize: '0.7rem',
+        },
+      }}
+    />
+  );
+}
 
 interface VariableCategoriesEditorProps {
   variable: Variable;
@@ -187,21 +228,9 @@ export function VariableCategoriesEditor({
                             }}
                           />
                           {isNumeric ? (
-                            <TextField
-                              size="small"
-                              type="number"
-                              value={value}
-                              onChange={(e) => {
-                                const newValue = parseFloat(e.target.value) || 0;
-                                handleAttributeChange(cat, key, newValue);
-                              }}
-                              sx={{
-                                flex: 1,
-                                '& .MuiInputBase-input': {
-                                  py: 0.5,
-                                  fontSize: '0.7rem',
-                                },
-                              }}
+                            <NumericAttributeField
+                              value={value as number}
+                              onValueChange={(newValue) => handleAttributeChange(cat, key, newValue)}
                             />
                           ) : isBoolean ? (
                             <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1 }}>

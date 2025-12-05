@@ -27,6 +27,7 @@ class Objective(BaseModel):
     expression: str
     goal: Literal["minimize", "maximize"]
     description: str
+    weight: Optional[float] = 1.0  # Weight for combining multiple objectives (default: 1.0)
 
 class Property(BaseModel):
     name: str

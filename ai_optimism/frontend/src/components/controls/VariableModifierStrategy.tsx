@@ -12,6 +12,7 @@ import {
   Radio,
   TextField,
 } from '@mui/material';
+import { useState, useEffect } from 'react';
 import type { Variable } from './types';
 
 interface VariableModifierStrategyProps {
@@ -23,6 +24,19 @@ export function VariableModifierStrategy({
   variable,
   onVariableChange,
 }: VariableModifierStrategyProps) {
+  const [sigmaInput, setSigmaInput] = useState<string>('');
+  const [stepSizeInput, setStepSizeInput] = useState<string>('');
+  const [probabilityInput, setProbabilityInput] = useState<string>('');
+
+  useEffect(() => {
+    const defaultSigma = variable.modifierStrategy?.sigma ?? ((variable.max! - variable.min!) * 0.1);
+    const defaultStepSize = variable.modifierStrategy?.stepSize ?? ((variable.max! - variable.min!) * 0.1);
+    const defaultProbability = variable.modifierStrategy?.probability ?? 1.0;
+    
+    setSigmaInput(defaultSigma.toFixed(2));
+    setStepSizeInput(defaultStepSize.toFixed(2));
+    setProbabilityInput(defaultProbability.toString());
+  }, [variable.modifierStrategy, variable.min, variable.max]);
   return (
     <Box sx={{ pt: 1, borderTop: 1, borderColor: 'divider' }}>
       <Typography variant="subtitle2" sx={{ mb: 1.5, color: 'primary.main' }}>
@@ -70,15 +84,36 @@ export function VariableModifierStrategy({
             type="number"
             size="small"
             fullWidth
-            value={variable.modifierStrategy?.sigma ?? ((variable.max! - variable.min!) * 0.1).toFixed(2)}
-            onChange={(e) => onVariableChange({
-              ...variable,
-              modifierStrategy: {
-                ...variable.modifierStrategy,
-                type: 'gaussian',
-                sigma: parseFloat(e.target.value)
+            value={sigmaInput}
+            onChange={(e) => setSigmaInput(e.target.value)}
+            onBlur={(e) => {
+              const parsed = parseFloat(e.target.value);
+              if (!isNaN(parsed) && parsed > 0) {
+                onVariableChange({
+                  ...variable,
+                  modifierStrategy: {
+                    ...variable.modifierStrategy,
+                    type: 'gaussian',
+                    sigma: parsed
+                  }
+                });
+                setSigmaInput(parsed.toFixed(2));
+              } else if (e.target.value === '') {
+                const defaultValue = (variable.max! - variable.min!) * 0.1;
+                onVariableChange({
+                  ...variable,
+                  modifierStrategy: {
+                    ...variable.modifierStrategy,
+                    type: 'gaussian',
+                    sigma: defaultValue
+                  }
+                });
+                setSigmaInput(defaultValue.toFixed(2));
+              } else {
+                const lastValid = variable.modifierStrategy?.sigma ?? ((variable.max! - variable.min!) * 0.1);
+                setSigmaInput(lastValid.toFixed(2));
               }
-            })}
+            }}
             helperText="Spread of random changes"
           />
         )}
@@ -89,15 +124,36 @@ export function VariableModifierStrategy({
             type="number"
             size="small"
             fullWidth
-            value={variable.modifierStrategy?.stepSize ?? ((variable.max! - variable.min!) * 0.1).toFixed(2)}
-            onChange={(e) => onVariableChange({
-              ...variable,
-              modifierStrategy: {
-                ...variable.modifierStrategy,
-                type: 'uniform',
-                stepSize: parseFloat(e.target.value)
+            value={stepSizeInput}
+            onChange={(e) => setStepSizeInput(e.target.value)}
+            onBlur={(e) => {
+              const parsed = parseFloat(e.target.value);
+              if (!isNaN(parsed) && parsed > 0) {
+                onVariableChange({
+                  ...variable,
+                  modifierStrategy: {
+                    ...variable.modifierStrategy,
+                    type: 'uniform',
+                    stepSize: parsed
+                  }
+                });
+                setStepSizeInput(parsed.toFixed(2));
+              } else if (e.target.value === '') {
+                const defaultValue = (variable.max! - variable.min!) * 0.1;
+                onVariableChange({
+                  ...variable,
+                  modifierStrategy: {
+                    ...variable.modifierStrategy,
+                    type: 'uniform',
+                    stepSize: defaultValue
+                  }
+                });
+                setStepSizeInput(defaultValue.toFixed(2));
+              } else {
+                const lastValid = variable.modifierStrategy?.stepSize ?? ((variable.max! - variable.min!) * 0.1);
+                setStepSizeInput(lastValid.toFixed(2));
               }
-            })}
+            }}
             helperText="Max size of single step"
           />
         )}
@@ -108,14 +164,34 @@ export function VariableModifierStrategy({
           size="small"
           fullWidth
           inputProps={{ min: 0, max: 1, step: 0.1 }}
-          value={variable.modifierStrategy?.probability ?? 1.0}
-          onChange={(e) => onVariableChange({
-            ...variable,
-            modifierStrategy: {
-              ...variable.modifierStrategy!,
-              probability: parseFloat(e.target.value)
+          value={probabilityInput}
+          onChange={(e) => setProbabilityInput(e.target.value)}
+          onBlur={(e) => {
+            const parsed = parseFloat(e.target.value);
+            if (!isNaN(parsed) && parsed >= 0 && parsed <= 1) {
+              onVariableChange({
+                ...variable,
+                modifierStrategy: {
+                  ...variable.modifierStrategy!,
+                  probability: parsed
+                }
+              });
+              setProbabilityInput(parsed.toString());
+            } else if (e.target.value === '') {
+              const defaultValue = 1.0;
+              onVariableChange({
+                ...variable,
+                modifierStrategy: {
+                  ...variable.modifierStrategy!,
+                  probability: defaultValue
+                }
+              });
+              setProbabilityInput(defaultValue.toString());
+            } else {
+              const lastValid = variable.modifierStrategy?.probability ?? 1.0;
+              setProbabilityInput(lastValid.toString());
             }
-          })}
+          }}
           helperText="Chance to modify (0-1)"
         />
       </Box>

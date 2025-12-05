@@ -103,84 +103,110 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
   // Aggregate controls from messages and pass to parent
   // Use refs to prevent infinite loops
   const onControlsGeneratedRef = useRef(onControlsGenerated);
-  const lastAggregatedControlsRef = useRef<string | null>(null);
 
   useEffect(() => {
     onControlsGeneratedRef.current = onControlsGenerated;
   }, [onControlsGenerated]);
 
-  // Track messages to avoid unnecessary aggregations
-  const messagesRef = useRef<Message[]>([]);
-  const messagesHashRef = useRef<string>('');
+  // Track message state for simple change detection
+  const lastMessageCountRef = useRef(0);
+  const lastMessageTimestampRef = useRef(0);
+  const hasControlsRef = useRef(false);
   
-  // Debounce expensive aggregation to avoid blocking input
-  // Only run when messages actually change (not on every render)
+  // Track typing state to skip expensive operations during active typing
+  const isTypingRef = useRef(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Update typing state when input changes
   useEffect(() => {
-    if (!currentSession?.messages || !onControlsGeneratedRef.current) {
-      // If no messages or no callback, clear controls if we had them before
-      if (lastAggregatedControlsRef.current !== null && onControlsGeneratedRef.current) {
-        lastAggregatedControlsRef.current = null;
-        onControlsGeneratedRef.current(null);
+    // Mark as typing when input changes
+    isTypingRef.current = true;
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    // Mark as not typing after 1.5 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+    }, 1500);
+    
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
       }
-      messagesRef.current = [];
-      messagesHashRef.current = '';
+    };
+  }, [input]);
+  
+  // Simplified aggregation: only check for new messages OR when no controls are shown
+  // Skip entirely while user is actively typing
+  useEffect(() => {
+    const callback = onControlsGeneratedRef.current;
+    if (!currentSession?.messages || !callback) {
+      // If no messages or no callback, clear controls if we had them before
+      if (hasControlsRef.current) {
+        hasControlsRef.current = false;
+        callback?.(null);
+      }
+      lastMessageCountRef.current = 0;
+      lastMessageTimestampRef.current = 0;
       return;
     }
 
     const messages = currentSession.messages;
+    const messageCount = messages.length;
+    const latestMessage = messages[messages.length - 1];
+    const latestTimestamp = latestMessage?.timestamp || 0;
     
-    // Quick check: only process if messages actually changed
-    // Create a simple hash from message IDs and timestamps (much faster than full JSON.stringify)
-    // Only check last 10 messages for hash (most recent changes) to avoid expensive computation
-    const recentMessages = messages.slice(-10);
-    const messagesHash = recentMessages
-      .map(m => `${m.id}:${m.timestamp}`)
-      .join('|');
+    // Check if there's a new message
+    const hasNewMessage = 
+      messageCount !== lastMessageCountRef.current ||
+      latestTimestamp > lastMessageTimestampRef.current;
     
-    // Skip if nothing changed (compare both length and hash of recent messages)
-    if (
-      messagesRef.current.length === messages.length &&
-      messagesHashRef.current === messagesHash
-    ) {
+    // Check if we have no controls currently
+    const hasNoControls = !hasControlsRef.current;
+    
+    // Only aggregate if: (new message) OR (no controls)
+    const shouldAggregate = hasNewMessage || hasNoControls;
+    
+    if (!shouldAggregate) {
+      return;
+    }
+
+    // Skip aggregation entirely if user is actively typing
+    // This prevents lag during typing, especially with many messages
+    if (isTypingRef.current) {
       return;
     }
     
-    messagesRef.current = messages;
-    messagesHashRef.current = messagesHash;
+    // Update refs before processing
+    lastMessageCountRef.current = messageCount;
+    lastMessageTimestampRef.current = latestTimestamp;
 
     // Use setTimeout to defer expensive computation and avoid blocking input
     const timeoutId = setTimeout(() => {
+      // Double-check typing state before running expensive operation
+      if (isTypingRef.current) {
+        return;
+      }
+      
       const aggregatedControls = aggregateControlsFromMessages(messages);
     
-    // Only call callback if controls actually changed
-    if (aggregatedControls) {
-        // Create a lightweight hash using only essential fields (avoid expensive JSON.stringify of full objects)
-        const controlsHash = [
-          aggregatedControls.variables?.length || 0,
-          aggregatedControls.objectives?.length || 0,
-          aggregatedControls.constraints?.length || 0,
-          aggregatedControls.properties?.length || 0,
-          // Add a hash of just the names/expressions (much faster than full objects)
-          aggregatedControls.variables?.map(v => v.name).join(',') || '',
-          aggregatedControls.objectives?.map(o => `${o.name}:${o.expression.substring(0, 50)}`).join(',') || '',
-        ].join('|');
-
-        if (lastAggregatedControlsRef.current !== controlsHash && onControlsGeneratedRef.current) {
-        lastAggregatedControlsRef.current = controlsHash;
-        onControlsGeneratedRef.current(aggregatedControls);
+      if (aggregatedControls) {
+        hasControlsRef.current = true;
+        callback(aggregatedControls);
+      } else {
+        hasControlsRef.current = false;
+        callback(null);
       }
-    } else if (lastAggregatedControlsRef.current !== null && onControlsGeneratedRef.current) {
-      // Controls were cleared, reset the ref and explicitly clear parent controls
-      lastAggregatedControlsRef.current = null;
-      onControlsGeneratedRef.current(null); // Explicitly clear controls in parent
-    }
-    }, 500); // Increased debounce to 500ms to reduce frequency during typing
+    }, 300);
 
     return () => clearTimeout(timeoutId);
   }, [currentSession?.messages, currentSession?.id]);
 
   // Handle formalization
-  const handleFormalize = async () => {
+  const handleFormalize = useCallback(async () => {
     if (!currentSession || isFormalizing) return;
 
     setIsFormalizing(true);
@@ -191,7 +217,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     } finally {
       setIsFormalizing(false);
     }
-  };
+  }, [currentSession, isFormalizing, formalizeProblem]);
 
   // Handle reset formalization
   const handleResetFormalization = () => {
@@ -205,7 +231,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
   };
 
   // Generate controls from conversation
-  const handleGenerateControls = async (formalizationText?: string) => {
+  const handleGenerateControls = useCallback(async (formalizationText?: string) => {
     // Prevent multiple simultaneous calls
     if (isGenerating) {
       return;
@@ -301,9 +327,9 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
           }
         );
         
-        // Force update by clearing the hash so the useEffect will detect the change
-        // This ensures controls update even if the hash comparison might miss it
-        lastAggregatedControlsRef.current = null;
+        // Reset message tracking to force re-aggregation on next check
+        lastMessageCountRef.current = 0;
+        lastMessageTimestampRef.current = 0;
       }
 
       // Pass to parent component immediately
@@ -338,7 +364,7 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [isGenerating, mode, currentSession, getConversationText, model, sessionManager, onControlsGenerated]);
 
   return (
     <Paper
@@ -395,9 +421,31 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
             return displayMessages;
           }
           
+          // Early return if no messages to process
+          if (!displayMessages || displayMessages.length === 0) {
+            return displayMessages;
+          }
+          
+          // Create a Set for faster lookup (O(1) instead of O(n))
+          const completedIdsSet = locallyCompletedMessages;
+          
+          // Only process messages that might need transformation
+          // This avoids creating new arrays when nothing needs to change
+          let needsTransformation = false;
+          for (const msg of displayMessages) {
+            if (completedIdsSet.has(msg.id) && msg.metadata?.type === 'controls-generation') {
+              needsTransformation = true;
+              break;
+            }
+          }
+          
+          if (!needsTransformation) {
+            return displayMessages;
+          }
+          
           return displayMessages.map(msg => {
           // Apply local state overrides for messages that completed locally
-          if (locallyCompletedMessages.has(msg.id) && msg.metadata?.type === 'controls-generation') {
+          if (completedIdsSet.has(msg.id) && msg.metadata?.type === 'controls-generation') {
             return {
               ...msg,
               content: 'Controls generated successfully! You can now use the Optimization Panel to configure and run your optimization.',
@@ -433,8 +481,8 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
       )}
 
       <ChatInput
-        input={input}
-        onInputChange={setInput}
+        input={input} // Clear counter - increments when input should be reset
+        onInputChange={setInput} // Updates ref in useChatSession
         onSubmit={handleSubmit}
         isLoading={isLoading}
         disabled={sessionDeleted}

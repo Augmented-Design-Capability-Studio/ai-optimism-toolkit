@@ -31,6 +31,7 @@ export interface Objective {
   expression: string;
   goal: 'minimize' | 'maximize';
   description: string;
+  weight?: number; // Weight for combining multiple objectives (default: 1.0)
 }
 
 export interface Property {

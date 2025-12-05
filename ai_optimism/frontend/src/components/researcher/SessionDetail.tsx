@@ -3,7 +3,7 @@
  */
 
 import { Paper, Box, Typography } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo, useRef } from 'react';
 import { Session } from '../../services/sessionManager';
 import { SessionHeader } from './SessionHeader';
 import { MessageList } from './MessageList';
@@ -21,7 +21,7 @@ interface SessionDetailProps {
   onRequestAIResponse?: (sessionId: string) => void;
 }
 
-export function SessionDetail({
+export const SessionDetail = memo(function SessionDetail({
   session,
   isFormalizingId,
   onModeToggle,
@@ -32,22 +32,30 @@ export function SessionDetail({
   onRequestAIResponse,
 }: SessionDetailProps) {
   const [hasAIConfig, setHasAIConfig] = useState(false);
+  const hasAIConfigRef = useRef(false);
 
   // Check if session has AI config
   useEffect(() => {
     if (!session?.id) {
       setHasAIConfig(false);
+      hasAIConfigRef.current = false;
       return;
     }
 
     const checkAIConfig = async () => {
       try {
         const config = await getAIConfig(session.id);
-        // Enable button if config exists (regardless of validation status)
-        // The API endpoint will handle validation when making the request
-        setHasAIConfig(config !== null);
+        const hasConfig = config !== null;
+        // Only update state if value actually changed
+        if (hasConfig !== hasAIConfigRef.current) {
+          hasAIConfigRef.current = hasConfig;
+          setHasAIConfig(hasConfig);
+        }
       } catch (error) {
-        setHasAIConfig(false);
+        if (hasAIConfigRef.current) {
+          hasAIConfigRef.current = false;
+          setHasAIConfig(false);
+        }
       }
     };
 
@@ -100,4 +108,4 @@ export function SessionDetail({
       )}
     </Paper>
   );
-}
+});
