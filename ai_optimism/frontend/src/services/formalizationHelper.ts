@@ -157,9 +157,66 @@ export async function executeFormalization(config: FormalizationConfig): Promise
       return false;
     }
 
-    // Add complete formalization message
-    config.sessionManager.addMessage(sessionId, 'ai', formalizedText, {
+    // Extract JSON from the response (same logic as API route)
+    let structuredData = null;
+    let summary = formalizedText;
+
+    // Look for JSON block in response
+    let jsonMatch = formalizedText.match(/```json\s*([\s\S]*?)\s*```/);
+    
+    if (!jsonMatch) {
+      const codeBlockMatch = formalizedText.match(/```\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch) {
+        try {
+          JSON.parse(codeBlockMatch[1].trim());
+          jsonMatch = codeBlockMatch;
+        } catch {
+          // Not JSON, ignore
+        }
+      }
+    }
+    
+    if (!jsonMatch) {
+      const jsonObjectMatch = formalizedText.match(/(\{[\s\S]*"variables"[\s\S]*\})/);
+      if (jsonObjectMatch) {
+        jsonMatch = jsonObjectMatch;
+      }
+    }
+
+    if (jsonMatch) {
+      try {
+        const jsonText = jsonMatch[1].trim();
+        structuredData = JSON.parse(jsonText);
+        const jsonStartIndex = formalizedText.indexOf(jsonMatch[0]);
+        summary = formalizedText.substring(0, jsonStartIndex).trim();
+        console.log('[Formalization Helper] Successfully extracted JSON from response');
+      } catch (e) {
+        console.error('[Formalization Helper] Failed to parse JSON block:', e);
+      }
+    }
+
+    // If no JSON found, try to parse the entire response as JSON
+    if (!structuredData) {
+      try {
+        structuredData = JSON.parse(formalizedText.trim());
+        summary = 'Problem formalized from conversation';
+        console.log('[Formalization Helper] Parsed entire response as JSON');
+      } catch (e) {
+        // No structured data available, use full text as summary
+        console.warn('[Formalization Helper] No structured data extracted from response');
+      }
+    }
+
+    // Validate that structuredData has required fields
+    if (structuredData && (!structuredData.variables || !Array.isArray(structuredData.variables) || structuredData.variables.length === 0)) {
+      console.warn('[Formalization Helper] Extracted JSON missing required variables array');
+      structuredData = null;
+    }
+
+    // Add complete formalization message with structuredData
+    config.sessionManager.addMessage(sessionId, 'ai', summary || formalizedText, {
       type: 'formalization',
+      structuredData, // Add the extracted JSON here
     });
 
     // Update session status and reset readyToFormalize
@@ -185,12 +242,15 @@ export function detectFormalizationReadiness(text: string): {
 } {
   const lowerText = text.toLowerCase();
 
+  // Stricter detection: require mention of key components (variables, objectives, constraints)
   const isReady = (
     (lowerText.includes('enough information') || 
      lowerText.includes('ready to formalize') ||
      lowerText.includes('can now formalize') || 
      lowerText.includes('sufficient information')) &&
-    (lowerText.includes('formalize') || lowerText.includes('formalise'))
+    (lowerText.includes('formalize') || lowerText.includes('formalise')) &&
+    // Require mention of key components to ensure problem is well-defined
+    (lowerText.includes('variable') || lowerText.includes('objective') || lowerText.includes('constraint'))
   ) || (
     (lowerText.includes('would you like') || 
      lowerText.includes('shall i') || 
@@ -199,7 +259,9 @@ export function detectFormalizationReadiness(text: string): {
     (lowerText.includes('formalize') || 
      lowerText.includes('formalise') || 
      lowerText.includes('structured') || 
-     lowerText.includes('problem definition'))
+     lowerText.includes('problem definition')) &&
+    // Require mention of key components to ensure problem is well-defined
+    (lowerText.includes('variable') || lowerText.includes('objective') || lowerText.includes('constraint'))
   );
 
   const suggestsReformalizing = (

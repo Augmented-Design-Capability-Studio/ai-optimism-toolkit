@@ -171,6 +171,26 @@ function mergeVariables(existing: Variable[], newVars: Variable[]): Variable[] {
     if (existingIdx !== undefined) {
       // Variable exists, merge intelligently
       const existingVar = merged[existingIdx];
+      
+      // For categorical variables, merge attributes at the category level
+      let mergedAttributes = existingVar.attributes || {};
+      if (newVar.attributes) {
+        // Deep merge: merge attributes for each category
+        mergedAttributes = { ...mergedAttributes };
+        for (const [category, newAttrs] of Object.entries(newVar.attributes)) {
+          if (typeof newAttrs === 'object' && newAttrs !== null) {
+            // Merge category attributes, with new values taking precedence
+            mergedAttributes[category] = {
+              ...(mergedAttributes[category] || {}),
+              ...newAttrs,
+            };
+          } else {
+            // Simple value, just replace
+            mergedAttributes[category] = newAttrs;
+          }
+        }
+      }
+      
       merged[existingIdx] = {
         ...existingVar,
         ...newVar,
@@ -182,10 +202,8 @@ function mergeVariables(existing: Variable[], newVars: Variable[]): Variable[] {
         description: newVar.description || existingVar.description,
         categories: newVar.categories || existingVar.categories,
         currentCategory: newVar.currentCategory || existingVar.currentCategory,
-        // Merge attributes: prefer new attributes, but merge category-level attributes
-        attributes: newVar.attributes 
-          ? { ...(existingVar.attributes || {}), ...newVar.attributes }
-          : existingVar.attributes,
+        // Use merged attributes (preserves existing attributes when new ones are partial)
+        attributes: Object.keys(mergedAttributes).length > 0 ? mergedAttributes : undefined,
         modifierStrategy: newVar.modifierStrategy || existingVar.modifierStrategy,
       };
     } else {

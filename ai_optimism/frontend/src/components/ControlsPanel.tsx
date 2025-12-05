@@ -94,8 +94,41 @@ export const ControlsPanel = memo(function ControlsPanel({ controls, initialValu
         const result = evaluateExpr(constraint.expression);
         const isSatisfied = result !== undefined && result > 0.5;
         const parsed = parseConstraintForDisplay(constraint.expression);
-        const currentValue = parsed ? evaluateExpr(parsed.lhs) : undefined;
-        const limit = parsed ? evaluateExpr(parsed.rhs) : undefined;
+        
+        // Evaluate LHS and RHS separately, handling property references
+        let currentValue: number | undefined;
+        let limit: number | undefined;
+        
+        if (parsed) {
+          // Try to evaluate LHS (could be a property or variable)
+          currentValue = evaluateExpr(parsed.lhs);
+          
+          // If LHS evaluation failed, try to evaluate as property
+          if (currentValue === undefined && parsedControls.properties) {
+            const property = parsedControls.properties.find(p => p.name === parsed.lhs.trim());
+            if (property) {
+              currentValue = evaluateExpr(property.expression);
+            }
+          }
+          
+          // Evaluate RHS (usually a number)
+          limit = evaluateExpr(parsed.rhs);
+          
+          // If RHS is not a number, try to evaluate it
+          if (limit === undefined && isNaN(Number(parsed.rhs))) {
+            limit = evaluateExpr(parsed.rhs);
+            // If still undefined, check if it's a property
+            if (limit === undefined && parsedControls.properties) {
+              const property = parsedControls.properties.find(p => p.name === parsed.rhs.trim());
+              if (property) {
+                limit = evaluateExpr(property.expression);
+              }
+            }
+          } else if (limit === undefined) {
+            limit = Number(parsed.rhs);
+          }
+        }
+        
         const operator = parsed ? parsed.operator : undefined;
         
         return {
@@ -106,7 +139,7 @@ export const ControlsPanel = memo(function ControlsPanel({ controls, initialValu
           operator,
         };
       });
-  }, [parsedControls?.constraints, evaluateExpr]);
+  }, [parsedControls?.constraints, parsedControls?.properties, evaluateExpr]);
 
   return (
     <Paper

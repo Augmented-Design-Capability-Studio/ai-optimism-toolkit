@@ -113,6 +113,52 @@ function mergeSimpleBoundConstraints<
   return { variables: updatedVars, constraints: remainingConstraints };
 }
 
+/**
+ * Validate that a property is not a static data structure (dictionary/list)
+ * Properties should be computed expressions, not data storage
+ */
+function isValidProperty(property: { name: string; expression: string }): boolean {
+  const expr = property.expression.trim();
+  
+  // Allow simple numeric constants (weights)
+  if (/^-?\d+(\.\d+)?$/.test(expr)) {
+    return true;
+  }
+  
+  // Try to parse as JSON to detect static data structures
+  try {
+    const parsed = JSON.parse(expr);
+    
+    // If it's a number or boolean, it's fine (weight constants)
+    if (typeof parsed === 'number' || typeof parsed === 'boolean') {
+      return true;
+    }
+    
+    // If it parses as an object or array, it's likely a data structure
+    if (typeof parsed === 'object' && parsed !== null) {
+      // Check if it's a nested dictionary (category data structure)
+      if (!Array.isArray(parsed)) {
+        const values = Object.values(parsed);
+        // If all values are objects, it's likely category data (should be in attributes)
+        if (values.length > 0 && values.every(v => typeof v === 'object' && v !== null && !Array.isArray(v))) {
+          return false; // This is category data - should be in variable attributes
+        }
+      }
+      // If it's an array, it's likely a static list (shouldn't be a property)
+      if (Array.isArray(parsed)) {
+        return false; // Static lists shouldn't be properties
+      }
+      // Reject object literals - they should be in attributes or computed
+      return false;
+    }
+  } catch {
+    // If it doesn't parse as JSON, it's likely a valid expression (contains variables, functions, etc.)
+    return true;
+  }
+  
+  return true; // Default to valid if we can't determine
+}
+
 // Schema for optimization problem controls
 const controlsSchema = z.object({
   variables: z.array(z.object({
@@ -221,7 +267,7 @@ export async function POST(req: Request) {
       prompt: getGenerateControlsPrompt(description),
     });
 
-    // Filter out unused properties (those not referenced in objectives or constraints)
+    // Filter out unused properties and invalid properties (dictionaries/lists that should be attributes)
     const filteredObject = { ...result.object };
     if (filteredObject.properties && filteredObject.properties.length > 0) {
       const usedProperties = new Set<string>();
@@ -244,10 +290,19 @@ export async function POST(req: Request) {
         });
       });
 
-      // Keep only used properties
-      filteredObject.properties = filteredObject.properties.filter(prop =>
-        usedProperties.has(prop.name)
-      );
+      // Filter: keep only used properties that are valid (not static data structures)
+      const validProperties = filteredObject.properties.filter(prop => {
+        if (!usedProperties.has(prop.name)) {
+          return false; // Not used
+        }
+        if (!isValidProperty(prop)) {
+          console.warn(`[Generate] Property "${prop.name}" appears to be static data - should be in variable attributes`);
+          return false; // Invalid - static data structure
+        }
+        return true;
+      });
+
+      filteredObject.properties = validProperties.length > 0 ? validProperties : undefined;
     }
 
     // Merge simple bound constraints into variable min/max values
@@ -258,6 +313,15 @@ export async function POST(req: Request) {
       // Type assertion: spread operator preserves all properties including required ones
       filteredObject.variables = merged.variables as typeof variables;
       filteredObject.constraints = merged.constraints.length > 0 ? merged.constraints : undefined;
+    }
+
+    // Final validation: ensure variables exist
+    if (!filteredObject.variables || filteredObject.variables.length === 0) {
+      console.error('[Generate] No variables generated');
+      return Response.json(
+        { error: 'Generated controls missing variables' },
+        { status: 500 }
+      );
     }
 
     // Ensure objectives were produced by the model; fail clearly if not
@@ -278,22 +342,42 @@ export async function POST(req: Request) {
       }
     }
 
-    // Validate that categorical variables with attributes have them properly set
+    // Validate categorical variables have complete attributes
     if (filteredObject.variables) {
       for (const variable of filteredObject.variables) {
-        if (variable.type === 'categorical' && variable.categories && variable.categories.length > 0) {
-          // Check if attributes are missing but might be needed (based on objective expressions)
-          if (!variable.attributes) {
-            const allExpressions = [
-              ...(filteredObject.objectives?.map(obj => obj.expression) || []),
-              ...(filteredObject.constraints?.map(con => con.expression) || []),
-            ];
-            // Check if any expression references this variable's attributes
-            const attrPattern = new RegExp(`${variable.name}_attributes\\[${variable.name}\\]`, 'g');
-            const needsAttributes = allExpressions.some(expr => attrPattern.test(expr));
-            if (needsAttributes) {
-              console.warn(`[Generate] Variable "${variable.name}" is referenced with attributes but has none defined.`);
+        if (variable.type === 'categorical') {
+          // Check if categories are defined
+          if (!variable.categories || variable.categories.length === 0) {
+            console.warn(`[Generate] Categorical variable "${variable.name}" missing categories array`);
+          } else {
+            // Check if attributes are defined
+            if (!variable.attributes || Object.keys(variable.attributes).length === 0) {
+              console.warn(`[Generate] Categorical variable "${variable.name}" missing attributes object`);
+            } else {
+              // Check that all categories have attributes
+              const missingCategories = variable.categories.filter(
+                cat => !variable.attributes || !variable.attributes[cat]
+              );
+              if (missingCategories.length > 0) {
+                console.warn(`[Generate] Variable "${variable.name}" missing attributes for categories: ${missingCategories.join(', ')}`);
+              }
             }
+          }
+          
+          // Check if attributes are referenced but missing
+          const allExpressions = [
+            ...(filteredObject.objectives?.map(obj => obj.expression) || []),
+            ...(filteredObject.constraints?.map(con => con.expression) || []),
+          ];
+          const attrPattern = new RegExp(`${variable.name}_attributes\\[${variable.name}\\]`, 'g');
+          const needsAttributes = allExpressions.some(expr => attrPattern.test(expr));
+          if (needsAttributes && (!variable.attributes || Object.keys(variable.attributes).length === 0)) {
+            console.warn(`[Generate] Variable "${variable.name}" is referenced with attributes but has none defined.`);
+          }
+        } else {
+          // For continuous/discrete, check that min/max/default are provided
+          if (variable.min === undefined || variable.max === undefined || variable.default === undefined) {
+            console.warn(`[Generate] Variable "${variable.name}" missing required bounds (min, max, or default)`);
           }
         }
       }
