@@ -84,17 +84,47 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
         ? `${backendApi.optimization.createProblem}?session_id=${encodeURIComponent(currentSessionId)}`
         : backendApi.optimization.createProblem;
       
+      // Ensure constraints include type and weight fields explicitly
+      // This ensures the backend receives the constraint type and weight even if they're undefined in the original object
+      const constraintsWithDefaults = (controls.constraints || []).map((constraint, idx) => {
+        // Preserve the actual type if set, otherwise default to 'hard'
+        const constraintType = constraint.type !== undefined ? constraint.type : 'hard';
+        
+        const result: any = {
+          expression: constraint.expression,
+          description: constraint.description,
+          title: constraint.title || `Constraint ${idx + 1}`,
+          type: constraintType, // Always include type explicitly
+        };
+        
+        // For soft constraints, always include weight (backend defaults to 10.0 if not provided)
+        if (constraintType === 'soft') {
+          result.weight = constraint.weight !== undefined ? constraint.weight : 10.0;
+        }
+        
+        console.log(`[OptimizationPanel] Constraint ${idx + 1}:`, {
+          original: constraint,
+          processed: result,
+        });
+        
+        return result;
+      });
+
+      const problemPayload = {
+        name: 'Web Optimization',
+        description: 'Optimization from web interface',
+        variables: controls.variables,
+        objectives: controls.objectives,
+        properties: controls.properties || [],
+        constraints: constraintsWithDefaults,
+      };
+
+      console.log('[OptimizationPanel] Full optimization problem payload:', JSON.stringify(problemPayload, null, 2));
+
       const problemResponse = await fetch(problemUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'Web Optimization',
-          description: 'Optimization from web interface',
-          variables: controls.variables,
-          objectives: controls.objectives,
-          properties: controls.properties || [],
-          constraints: controls.constraints || [],
-        }),
+        body: JSON.stringify(problemPayload),
       });
 
       if (!problemResponse.ok) {

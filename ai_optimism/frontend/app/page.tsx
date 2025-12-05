@@ -90,6 +90,12 @@ export default function HomePage() {
     // Note: ChatPanel already saves controls to session with the message
   };
 
+  const handleControlsUpdate = (updatedControls: unknown) => {
+    console.log('[HomePage] Controls updated from ControlsPanel:', updatedControls);
+    setGeneratedControls(updatedControls);
+    lastExplicitControlsTimeRef.current = Date.now();
+  };
+
   const handleOptimizationResults = (results: any[], fullData?: any) => {
     // Use best_design from fullData if available, otherwise use first result
     const bestSolution = fullData?.best_design?.variables || (results && results.length > 0 ? results[0].variables : null);
@@ -276,6 +282,7 @@ export default function HomePage() {
                   <ControlsPanel 
                     controls={generatedControls} 
                     initialValues={variableValues}
+                    onControlsUpdate={handleControlsUpdate}
                     onClearControls={() => {
                       setGeneratedControls(null);
                       setVariableValues({});
