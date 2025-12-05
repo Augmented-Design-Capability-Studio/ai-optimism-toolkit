@@ -236,9 +236,10 @@ export async function POST(
     // Pattern 3: Look for JSON object at the end of the text
     if (!jsonMatch) {
       // Try to find a JSON object pattern { ... } at the end
-      const jsonObjectMatch = text.match(/\{[\s\S]*"variables"[\s\S]*\}/);
+      // Use a capture group so [1] contains the JSON content
+      const jsonObjectMatch = text.match(/(\{[\s\S]*"variables"[\s\S]*\})/);
       if (jsonObjectMatch) {
-        jsonMatch = { 1: jsonObjectMatch[0] };
+        jsonMatch = jsonObjectMatch;
       }
     }
 
