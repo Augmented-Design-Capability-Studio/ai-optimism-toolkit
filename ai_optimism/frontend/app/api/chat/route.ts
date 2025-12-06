@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText, convertToCoreMessages } from 'ai';
-import { CHAT_SYSTEM_PROMPT } from '../../../src/config/prompts';
+import { CHAT_SYSTEM_PROMPT } from '../../../src/clients/v1/config/prompts';
 
 export const runtime = 'edge';
 

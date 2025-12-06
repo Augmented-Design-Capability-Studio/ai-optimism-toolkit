@@ -54,6 +54,7 @@ async def create_session(
         lastActivity=int(time.time() * 1000),
         readyToFormalize=False,
         ipAddress=ip_address,
+        version=request.version,
     )
     db.add(session)
     db.commit()

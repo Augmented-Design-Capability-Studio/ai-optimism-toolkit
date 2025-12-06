@@ -1,16 +1,16 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { getGenerateControlsPrompt } from '../../../src/config/prompts';
+import { getGenerateControlsPrompt } from '../../../src/clients/v1/config/prompts';
 import {
   mergeSimpleBoundConstraints,
   isValidProperty,
   extractAttributesFromFormalization,
-} from '../../../src/services/controlsGenerationUtils';
+} from '../../../src/clients/v1/services/controlsGenerationUtils';
 import {
   processCategoricalVariables,
   transformAllExpressions,
-} from '../../../src/services/controlsPostProcessing';
+} from '../../../src/clients/v1/services/controlsPostProcessing';
 
 export const runtime = 'edge';
 

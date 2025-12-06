@@ -17,6 +17,7 @@ engine = create_engine(sqlite_url, connect_args=connect_args)
 EXPECTED_SCHEMA: Dict[str, Dict[str, tuple]] = {
     'session': {
         'ipAddress': ('TEXT', True),  # Optional column for IP tracking
+        'version': ('TEXT', True),  # Optional column for frontend version (v1, v2, v3, etc.)
     },
     # Add more tables/columns here as needed for future migrations
 }

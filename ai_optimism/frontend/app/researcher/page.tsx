@@ -2,16 +2,16 @@
 
 import { Alert, Container, Box } from '@mui/material';
 import { useState } from 'react';
-import { useSessionManager } from '../../src/services/sessionManager';
+import { useSessionManager } from '../../src/core/services/sessionManager';
 import {
   useResearcherSessions,
   DashboardHeader,
   NewSessionAlert,
   SessionList,
   SessionDetail,
-} from '../../src/components/researcher';
-import { ResearcherAuthWrapper } from '../../src/components/researcher/ResearcherAuthWrapper';
-import { BackendSettings } from '../../src/components/shared/BackendSettings';
+} from '../../src/researcher';
+import { ResearcherAuthWrapper } from '../../src/researcher/ResearcherAuthWrapper';
+import { BackendSettings } from '../../src/core/components/status/BackendSettings';
 
 export default function ResearcherDashboard() {
   const [backendSettingsOpen, setBackendSettingsOpen] = useState(false);

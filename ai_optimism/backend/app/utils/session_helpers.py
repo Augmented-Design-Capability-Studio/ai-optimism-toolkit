@@ -28,6 +28,7 @@ def session_to_response(session: Session) -> SessionResponse:
         isAIResponding=session.isAIResponding,
         readyToFormalize=session.readyToFormalize,
         ipAddress=getattr(session, 'ipAddress', None),
+        version=getattr(session, 'version', None),
         messages=[MessageResponse.from_orm_message(m) for m in session.messages]
     )
 

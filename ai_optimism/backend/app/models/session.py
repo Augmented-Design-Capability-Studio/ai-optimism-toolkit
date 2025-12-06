@@ -34,6 +34,7 @@ class Session(SQLModel, table=True):
     isAIResponding: Optional[bool] = False
     readyToFormalize: Optional[bool] = False
     ipAddress: Optional[str] = None  # Store client IP address
+    version: Optional[str] = None  # Store frontend version (v1, v2, v3, etc.)
     
     messages: List[Message] = Relationship(
         back_populates="session",
@@ -81,6 +82,7 @@ class SessionResponse(BaseModel):
     isAIResponding: Optional[bool] = False
     readyToFormalize: Optional[bool] = False
     ipAddress: Optional[str] = None
+    version: Optional[str] = None
     messages: List[MessageResponse] = []
 
     class Config:
@@ -90,6 +92,7 @@ class CreateSessionRequest(SQLModel):
     mode: str
     userId: Optional[str] = "default-user"
     researcherId: Optional[str] = None
+    version: Optional[str] = None  # Frontend version (v1, v2, v3, etc.)
 
 class MessageUpdateItem(BaseModel):
     """Simplified message model for updates (avoids SQLModel MetaData class issues)"""

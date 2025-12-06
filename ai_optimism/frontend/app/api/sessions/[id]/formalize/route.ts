@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { getFormalizationPrompt } from '../../../../../src/config/prompts';
-import { extractJSONBlocks } from '../../../../../src/components/shared/chat/messages/utils/jsonExtractors';
-import { aggregateControlsFromMessages } from '../../../../../src/services/controlsAggregator';
+import { getFormalizationPrompt } from '../../../../../src/clients/v1/config/prompts';
+import { extractJSONBlocks } from '../../../../../src/core/components/shared/chat/messages/utils/jsonExtractors';
+import { aggregateControlsFromMessages } from '../../../../../src/clients/v1/services/controlsAggregator';
 
 export const runtime = 'edge';
 

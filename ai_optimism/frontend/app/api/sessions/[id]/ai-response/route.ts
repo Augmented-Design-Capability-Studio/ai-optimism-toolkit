@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { CHAT_SYSTEM_PROMPT } from '../../../../../src/config/prompts';
+import { CHAT_SYSTEM_PROMPT } from '../../../../../src/clients/v1/config/prompts';
 
 export const runtime = 'edge';
 
