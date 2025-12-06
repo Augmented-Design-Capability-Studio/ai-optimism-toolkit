@@ -3,8 +3,8 @@
 import { ReactNode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CacheProvider } from '@emotion/react';
-import { BackendProvider } from '../src/core/contexts/BackendContext';
-import createEmotionCache from '../src/core/lib/emotionCache';
+import { BackendProvider } from '@/core/contexts/BackendContext';
+import createEmotionCache from '@/core/lib/emotionCache';
 
 // Create emotion cache on client side
 const clientSideEmotionCache = createEmotionCache();
