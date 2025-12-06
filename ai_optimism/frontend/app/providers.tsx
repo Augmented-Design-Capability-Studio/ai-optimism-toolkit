@@ -3,11 +3,11 @@
 import { ReactNode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CacheProvider } from '@emotion/react';
-import { BackendProvider } from '@/core/contexts/BackendContext';
-import createEmotionCache from '@/core/lib/emotionCache';
+import createCache from '@emotion/cache';
+import { BackendProvider } from '../src/core/contexts/BackendContext';
 
 // Create emotion cache on client side
-const clientSideEmotionCache = createEmotionCache();
+const clientSideEmotionCache = createCache({ key: 'css', prepend: true });
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
