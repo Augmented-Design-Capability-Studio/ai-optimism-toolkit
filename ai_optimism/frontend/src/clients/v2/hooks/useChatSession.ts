@@ -39,9 +39,11 @@ export function useChatSession() {
   const [sessionProvider, setSessionProvider] = useState<string>('google');
   const [sessionModel, setSessionModel] = useState<string>('gemini-2.5-flash');
 
-  const { apiKey, provider, model } = useBackend();
-  const effectiveProvider = provider || sessionProvider;
-  const effectiveModel = model || sessionModel;
+  // apiKey, provider, and model are not available in BackendContext
+  // Using local state values instead
+  const apiKey: string | null = null;
+  const effectiveProvider = sessionProvider;
+  const effectiveModel = sessionModel;
 
   const { transport, chatId } = useChatTransport({
     currentSession,
