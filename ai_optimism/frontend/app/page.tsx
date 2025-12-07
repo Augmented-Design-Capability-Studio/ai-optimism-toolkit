@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Container, Typography, Card, CardContent, CardActions, Button, Grid } from '@mui/material';
+import { Box, Container, Typography, Card, CardContent, CardActions, Button, Grid2 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { ClientAuthWrapper } from '../src/core/components/auth/ClientAuthWrapper';
 
@@ -61,10 +61,10 @@ export default function NavigationHub() {
               Select Interface
             </Typography>
 
-            <Grid container spacing={3}>
+            <Grid2 container spacing={3}>
               {/* Client Versions */}
               {clientVersions.map((version) => (
-                <Grid item xs={12} sm={6} md={4} key={version.id}>
+                <Grid2 xs={12} sm={6} md={4} key={version.id}>
                   <Card
                     sx={{
                       height: '100%',
@@ -104,11 +104,11 @@ export default function NavigationHub() {
                       </Button>
                     </CardActions>
                   </Card>
-                </Grid>
+                </Grid2>
               ))}
 
               {/* Researcher Portal */}
-              <Grid item xs={12} sm={6} md={4}>
+              <Grid2 xs={12} sm={6} md={4}>
                 <Card
                   sx={{
                     height: '100%',
@@ -160,8 +160,8 @@ export default function NavigationHub() {
                     </Button>
                   </CardActions>
                 </Card>
-              </Grid>
-            </Grid>
+              </Grid2>
+            </Grid2>
           </Container>
         </Box>
       )}
