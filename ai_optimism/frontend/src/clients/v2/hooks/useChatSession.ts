@@ -51,11 +51,13 @@ export function useChatSession() {
     model: effectiveModel,
   });
 
-  const { messages, setMessages, isLoading, sendMessage } = useChat({
+  const { messages, setMessages, status, sendMessage } = useChat({
     id: chatId,
     transport,
     initialMessages: [],
   });
+
+  const isLoading = status === 'streaming' || status === 'submitted';
 
   const mode = (currentSession?.mode as SessionMode) || 'experimental';
   const isResearcherControlledMode = mode === 'experimental';
@@ -66,7 +68,7 @@ export function useChatSession() {
     messages,
     setMessages,
     isLoading,
-    status: currentSession?.status || 'active',
+    status,
     sendMessage,
     sessionManager,
   });
