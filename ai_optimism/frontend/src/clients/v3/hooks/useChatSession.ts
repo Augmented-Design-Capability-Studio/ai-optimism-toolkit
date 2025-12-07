@@ -54,7 +54,6 @@ export function useChatSession() {
   const { messages, setMessages, status, sendMessage } = useChat({
     id: chatId,
     transport,
-    initialMessages: [],
   });
 
   const isLoading = status === 'streaming' || status === 'submitted';
@@ -74,9 +73,10 @@ export function useChatSession() {
   });
 
   const { displayMessages } = useDisplayMessages({
+    currentSession,
+    isResearcherControlled: isResearcherControlledMode,
     messages,
-    mode: currentSession?.mode || 'experimental',
-    status: currentSession?.status,
+    status,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
