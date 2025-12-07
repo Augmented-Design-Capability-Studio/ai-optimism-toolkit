@@ -1,4 +1,4 @@
-import { apiClient } from '../lib/apiClient';
+import { apiClient } from '@/core/lib/apiClient';
 
 export type AIProvider = 'openai' | 'anthropic' | 'google' | 'ollama' | 'custom';
 

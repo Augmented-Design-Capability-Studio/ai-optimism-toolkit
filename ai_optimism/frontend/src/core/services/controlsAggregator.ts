@@ -425,8 +425,8 @@ function migrateControls(controls: Controls): Controls {
           // This looks like a dictionary property containing attributes
           // Find which categorical variable it belongs to by checking expressions
           const allExpressions = [
-            ...(controls.objectives?.map(obj => obj.expression) || []),
-            ...(controls.constraints?.map(con => con.expression) || []),
+            ...(controls.objectives?.map((obj: Objective) => obj.expression) || []),
+            ...(controls.constraints?.map((con: Constraint) => con.expression) || []),
           ];
 
           // Look for patterns like property_name[variable_name] in expressions
