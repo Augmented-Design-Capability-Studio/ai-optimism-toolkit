@@ -133,8 +133,9 @@ dmypy.json
 
 ai_optimism/frontend/.next/
 
-# Allow frontend lib directory
+# Allow frontend lib directories
 !ai_optimism/frontend/src/lib/
+!ai_optimism/frontend/src/core/lib/
 
 # Database files
 *.db
