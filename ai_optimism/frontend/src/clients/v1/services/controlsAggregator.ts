@@ -3,7 +3,7 @@
  * Intelligently merges incremental updates and full formalizations
  */
 
-import type { Controls, Variable, Objective, Constraint, Property } from '../components/controls/types';
+import type { Controls, Variable, Objective, Constraint, Property } from '../components/controls/controls/types';
 import type { Message } from '../../../core/services/sessionManager';
 
 /**
