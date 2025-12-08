@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { getComponentGenerationPrompt } from '../../../../../../src/core/config/prompts';
-import { extractJSONBlocks } from '../../../../../../src/core/components/shared/chat/messages/utils/jsonExtractors';
-import { aggregateControlsFromMessages } from '../../../../../../src/clients/v1/services/controlsAggregator';
+import { getComponentGenerationPrompt } from '@/core/config/prompts';
+import { extractJSONBlocks } from '@/core/components/shared/chat/messages/utils/jsonExtractors';
+import { aggregateControlsFromMessages } from '@/clients/v1/services/controlsAggregator';
+import type { Controls } from '@/clients/v1/components/controls/controls/types';
 
 export const runtime = 'edge';
 
@@ -14,12 +15,7 @@ type ComponentType = 'variables' | 'properties' | 'objectives' | 'constraints';
  */
 function validateDependencies(
   component: ComponentType,
-  existingComponents: {
-    variables?: Array<Record<string, unknown>>;
-    objectives?: Array<Record<string, unknown>>;
-    constraints?: Array<Record<string, unknown>>;
-    properties?: Array<Record<string, unknown>>;
-  } | null
+  existingComponents: Controls | null
 ): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -205,10 +201,10 @@ export async function POST(
 
     // Build existing components context for prompt
     const existingContext = existingComponents ? {
-      variables: existingComponents.variables as Array<Record<string, unknown>> | undefined,
-      objectives: existingComponents.objectives as Array<Record<string, unknown>> | undefined,
-      constraints: existingComponents.constraints as Array<Record<string, unknown>> | undefined,
-      properties: existingComponents.properties as Array<Record<string, unknown>> | undefined,
+      variables: existingComponents.variables as unknown as Array<Record<string, unknown>> | undefined,
+      objectives: existingComponents.objectives as unknown as Array<Record<string, unknown>> | undefined,
+      constraints: existingComponents.constraints as unknown as Array<Record<string, unknown>> | undefined,
+      properties: existingComponents.properties as unknown as Array<Record<string, unknown>> | undefined,
     } : null;
 
     // Generate component using AI

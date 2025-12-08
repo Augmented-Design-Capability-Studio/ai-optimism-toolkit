@@ -14,7 +14,7 @@ export function FormalizationMessageBubble({ message }: FormalizationMessageBubb
     <FormalizationMessage
       content={message.content}
       isIncomplete={message.metadata?.incomplete}
-      isError={message.metadata?.error === true}
+      isError={!!message.metadata?.errorDetails}
       errorDetails={message.metadata?.errorDetails as string | undefined}
       variant="default"
       structuredData={message.metadata?.structuredData}

@@ -59,7 +59,6 @@ export function useChatSession() {
   const { messages, sendMessage, status, error, setMessages } = useChat({
     id: chatId,
     transport,
-    maxSteps: 1, // Reduce retries - only 1 attempt instead of default 3
     onError: (error) => {
       console.error('[useChatSession] Chat error:', error);
       

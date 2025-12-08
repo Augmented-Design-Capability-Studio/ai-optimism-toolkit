@@ -23,7 +23,12 @@ export interface Message {
     controlsGenerated?: boolean;
     controlsError?: string;
     errorDetails?: string;
+    error?: boolean;
     structuredData?: unknown;
+    validation?: {
+      errors?: string[];
+      warnings?: string[];
+    };
     // Optimization run metadata
     runId?: string;
     status?: 'running' | 'completed' | 'failed';

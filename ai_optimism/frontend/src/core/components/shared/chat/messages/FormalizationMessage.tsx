@@ -148,7 +148,7 @@ export function FormalizationMessage({
       </Accordion>
 
       {/* Generate Controls button for complete formalization - client side only */}
-      {!effectiveIncomplete && onGenerateControls && structuredData && (
+      {!effectiveIncomplete && onGenerateControls && structuredData != null ? (
         <Box sx={{ mt: 2 }}>
           <Button
             fullWidth
@@ -158,7 +158,7 @@ export function FormalizationMessage({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              if (!isGeneratingControls && onGenerateControls && structuredData) {
+              if (!isGeneratingControls && onGenerateControls && structuredData != null) {
                 // Pass the structuredData JSON object directly (like normal message bubble)
                 // This avoids API calls and is much faster
                 onGenerateControls(structuredData);
@@ -172,7 +172,7 @@ export function FormalizationMessage({
             {isGeneratingControls ? 'Generating controls...' : 'Generate optimization controls from this problem definition'}
           </Typography>
         </Box>
-      )}
+      ) : null}
     </Box>
   );
 }
