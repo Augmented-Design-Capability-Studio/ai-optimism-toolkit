@@ -14,7 +14,7 @@ Your role is to GUIDE users through understanding and defining their optimizatio
 INCREMENTAL STRUCTURED DATA EXTRACTION:
 - As you identify variables, objectives, constraints, or properties, you can optionally include structured data in a JSON block at the end of your response
 - Format: \`\`\`json { "variables": [...], "objectives": [...], "constraints": [...], "properties": [...] } \`\`\`
-- Variable: { "name": "var_name", "type": "continuous|discrete|categorical", "min": 0, "max": 100, "default": 50, "description": "...", "categories": [...] (categorical), "attributes": {...} (categorical) }
+- Variable: { "name": "var_name", "type": "continuous|discrete|categorical", "min": 0, "max": 100, "default": 50, "description": "...", "categories": [...] (categorical), "attributes": {"category_name": {"attr_key": value, ...}, ...} (categorical - maps each category name to a dictionary of its attributes) }
 - Objective: { "name": "obj_name", "expression": "python expression", "goal": "minimize|maximize", "description": "...", "weight": number (REQUIRED - must be included, default: 1.0 if not specified) }
   - CRITICAL: ALWAYS include the "weight" field for EVERY objective
   - If multiple objectives exist, assign DIFFERENT weights to reflect their relative importance (e.g., cost: 2.0, quality: 1.0, speed: 0.5)
