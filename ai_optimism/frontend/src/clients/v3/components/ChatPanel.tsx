@@ -1,19 +1,21 @@
 'use client';
 
 import { Paper, Box, Alert, Button } from '@mui/material';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import {
   ChatHeader,
   MessagesList,
   ChatInput,
 } from '@/core/components/chat';
 import { useChatSession } from '../hooks/useChatSession';
+import type { Session } from '@/core/services/sessionManager';
 
 interface ChatPanelProps {
   onControlsGenerated?: (controls: unknown) => void;
+  onSessionUpdate?: (session: Session | null) => void;
 }
 
-export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
+export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -30,6 +32,17 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     createNewSession,
     handleSubmit,
   } = useChatSession();
+
+  // Notify parent when session updates (to sync AppBar's currentSession)
+  // Use ref to avoid dependency on callback to prevent infinite loops
+  const onSessionUpdateRef = useRef(onSessionUpdate);
+  useEffect(() => {
+    onSessionUpdateRef.current = onSessionUpdate;
+  }, [onSessionUpdate]);
+  
+  useEffect(() => {
+    onSessionUpdateRef.current?.(currentSession);
+  }, [currentSession]);
 
   return (
     <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

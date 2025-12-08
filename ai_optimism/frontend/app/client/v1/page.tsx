@@ -10,6 +10,7 @@ import { ClientAuthWrapper } from '../../../src/core/components/auth/ClientAuthW
 import { VersionProvider } from '../../../src/core/contexts/VersionContext';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSessionManager, Session } from '../../../src/core/services/sessionManager';
+import type { AISessionConfigStatus } from '../../../src/core/services/sessionManager';
 import { aggregateControlsFromMessages } from '../../../src/clients/v1/services/controlsAggregator';
 
 export default function ClientV1Page() {
@@ -28,29 +29,61 @@ export default function ClientV1Page() {
   const hasRestoredForSessionRef = useRef<string | null>(null);
   const hasBoundsRef = useRef<boolean>(false); // Track if controls have bounds to avoid stale closure issues
 
-  // Load and monitor current session
-  // Use ref to track previous session to avoid unnecessary state updates
-  const prevSessionRef = useRef<Session | null>(null);
-  
+  // Load current session on mount
+  // ChatPanel's useSessionLifecycle already subscribes to updates, so we'll sync via callback
   useEffect(() => {
     const loadSession = async () => {
       const session = await sessionManager.getCurrentSession();
-      // Only update state if session actually changed (by ID or key properties)
-      const sessionChanged = !prevSessionRef.current || 
-          prevSessionRef.current.id !== session?.id ||
-          prevSessionRef.current.status !== session?.status ||
-          prevSessionRef.current.messages?.length !== session?.messages?.length;
-      
-      if (sessionChanged) {
-        prevSessionRef.current = session;
-        setCurrentSession(session);
-      }
+      setCurrentSession(session);
     };
     
     loadSession();
-    const interval = setInterval(loadSession, 2000);
-    return () => clearInterval(interval);
   }, [sessionManager]);
+
+  // Sync currentSession from ChatPanel's subscription (avoids duplicate subscriptions)
+  const handleSessionUpdate = useCallback((session: Session | null) => {
+    setCurrentSession(prev => {
+      // No change
+      if (!session && !prev) return prev;
+      if (!session || !prev) return session;
+      const sameId = prev.id === session.id;
+      const sameUpdatedAt = prev.updatedAt === session.updatedAt;
+      const sameMsgLen = (prev.messages?.length || 0) === (session.messages?.length || 0);
+      if (sameId && sameUpdatedAt && sameMsgLen) {
+        return prev;
+      }
+      return session;
+    });
+  }, []);
+
+  // Handle lightweight AI config update (just updates aiConfig field, not whole session)
+  const handleAIConfigUpdate = useCallback((sessionId: string, aiConfig: AISessionConfigStatus | null) => {
+    setCurrentSession(prev => {
+      if (!prev || prev.id !== sessionId) return prev;
+      const prevHash = prev.aiConfig
+        ? [
+            prev.aiConfig.status,
+            prev.aiConfig.provider,
+            prev.aiConfig.model,
+            prev.aiConfig.endpoint,
+            prev.aiConfig.setBy,
+            prev.aiConfig.setAt,
+          ].join('|')
+        : null;
+      const nextHash = aiConfig
+        ? [
+            aiConfig.status,
+            aiConfig.provider,
+            aiConfig.model,
+            aiConfig.endpoint,
+            aiConfig.setBy,
+            aiConfig.setAt,
+          ].join('|')
+        : null;
+      if (prevHash === nextHash) return prev;
+      return { ...prev, aiConfig };
+    });
+  }, []);
 
   // Restore controls from session messages (only on session change or initial load)
   // Also clear controls when session is terminated
@@ -373,6 +406,7 @@ export default function ClientV1Page() {
               color="#1976d2"
               currentSession={currentSession}
               onLogout={handleLogout}
+              onAIConfigUpdate={handleAIConfigUpdate}
             />
 
             <Box sx={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden' }}>
@@ -438,7 +472,11 @@ export default function ClientV1Page() {
                   }}
                 >
                   <Box sx={{ height: '100%', overflow: 'hidden' }}>
-                    <ChatPanel key={currentSession?.id || 'no-session'} onControlsGenerated={handleControlsGenerated} />
+                    <ChatPanel 
+                      key={currentSession?.id || 'no-session'} 
+                      onControlsGenerated={handleControlsGenerated}
+                      onSessionUpdate={handleSessionUpdate}
+                    />
                   </Box>
 
                   <Box sx={{ height: '100%', overflow: 'hidden' }}>

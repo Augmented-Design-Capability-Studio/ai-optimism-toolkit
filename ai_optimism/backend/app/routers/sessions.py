@@ -62,14 +62,14 @@ async def create_session(
     db.refresh(session)
     # Reload with messages
     session = db.exec(select(Session).where(Session.id == session.id).options(selectinload(Session.messages))).first()
-    return session_to_response(session)
+    return session_to_response(session, db)
 
 
 @router.get("/", response_model=List[SessionResponse])
 async def list_sessions(db: DBSession = Depends(get_session)):
     """Get all sessions"""
     sessions = db.exec(select(Session).options(selectinload(Session.messages))).all()
-    return [session_to_response(s) for s in sessions]
+    return [session_to_response(s, db) for s in sessions]
 
 
 @router.get("/with-ips", response_model=List[dict])
@@ -97,7 +97,7 @@ async def get_session_by_id(session_id: str, db: DBSession = Depends(get_session
     session = db.exec(select(Session).where(Session.id == session_id).options(selectinload(Session.messages))).first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    return session_to_response(session)
+    return session_to_response(session, db)
 
 
 @router.put("/{session_id}", response_model=SessionResponse)
@@ -183,7 +183,7 @@ async def update_session(session_id: str, request: UpdateSessionRequest, db: DBS
     
     # Reload with messages to ensure we have the latest data
     session = db.exec(select(Session).where(Session.id == session_id).options(selectinload(Session.messages))).first()
-    return session_to_response(session)
+    return session_to_response(session, db)
 
 
 @router.post("/{session_id}/heartbeat")
@@ -233,7 +233,7 @@ async def delete_session(session_id: str, db: DBSession = Depends(get_session)):
 async def get_waiting_sessions(db: DBSession = Depends(get_session)):
     """Get sessions waiting for researcher response"""
     sessions = db.exec(select(Session).where(Session.status == "waiting").options(selectinload(Session.messages))).all()
-    return [session_to_response(s) for s in sessions]
+    return [session_to_response(s, db) for s in sessions]
 
 
 @router.delete("/clear/")

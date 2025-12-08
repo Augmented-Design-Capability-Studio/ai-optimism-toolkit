@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSessionManager, Session } from '@/core/services/sessionManager';
+import type { AISessionConfigStatus } from '@/core/services/sessionManager';
 import { useVersion } from '@/core/contexts/VersionContext';
 
 export function useSessionLifecycle() {
@@ -8,55 +9,14 @@ export function useSessionLifecycle() {
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const [sessionDeleted, setSessionDeleted] = useState(false);
   const [sessionTerminated, setSessionTerminated] = useState(false);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
-  const hasAttemptedLoadRef = useRef(false);
+  const hasLoadedRef = useRef(false);
 
-  const subscribeToSession = (sessionId: string) => {
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
-    }
-
-    unsubscribeRef.current = sessionManager.subscribeToSession(
-      sessionId,
-      (updatedSession) => {
-        if (sessionDeleted) {
-          return;
-        }
-
-        if (!updatedSession) {
-          setSessionDeleted(true);
-          setCurrentSession(null);
-          sessionManager.setCurrentSession(null);
-          if (unsubscribeRef.current) {
-            unsubscribeRef.current();
-            unsubscribeRef.current = null;
-          }
-          return;
-        }
-
-        if (updatedSession.status === 'completed') {
-          setSessionDeleted(true);
-          setCurrentSession(null);
-          sessionManager.setCurrentSession(null);
-          if (unsubscribeRef.current) {
-            unsubscribeRef.current();
-            unsubscribeRef.current = null;
-          }
-          return;
-        }
-
-        setCurrentSession(updatedSession);
-      }
-    );
-  };
-
+  // Load initial session once on mount
   useEffect(() => {
-    if (hasAttemptedLoadRef.current) {
-      return;
-    }
-    hasAttemptedLoadRef.current = true;
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
 
-    const loadSession = async () => {
+    const loadInitialSession = async () => {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const sessionParam = urlParams.get('session');
@@ -73,113 +33,186 @@ export function useSessionLifecycle() {
         }
 
         if (!session) {
-          const localStorageId = localStorage.getItem('wizard_current_session');
-          if (localStorageId) {
-            try {
-              session = await sessionManager.getSession(localStorageId);
-              if (session && session.status !== 'completed') {
-                sessionManager.setCurrentSession(session.id);
-              } else {
-                setSessionDeleted(true);
-                sessionManager.setCurrentSession(null);
-                session = null;
-              }
-            } catch (error) {
-              setSessionDeleted(true);
-              session = null;
-            }
-          }
+          const clientName = version.name;
+          session = await sessionManager.createSession({ clientName });
+          sessionManager.setCurrentSession(session.id);
+          
+          const url = new URL(window.location.href);
+          url.searchParams.set('session', session.id);
+          window.history.replaceState({}, '', url.toString());
         }
 
-        if (!session && !sessionDeleted) {
-          try {
-            session = await sessionManager.getCurrentSession();
-            if (!session || session.status === 'completed') {
-              session = null;
-            }
-          } catch (error) {
-            session = null;
-          }
-        }
-
-        if (session?.id) {
-          setCurrentSession(session);
-          subscribeToSession(session.id);
-        } else {
-          setSessionDeleted(true);
-        }
+        setCurrentSession(session);
       } catch (error) {
-        console.error('[useSessionLifecycle] Error loading session:', error);
-        setSessionDeleted(true);
+        console.error('[useSessionLifecycle] Failed to load session:', error);
       }
     };
 
-    loadSession();
+    loadInitialSession();
+  }, [sessionManager, version.name]);
 
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
-    };
-  }, []);
+  // Extract session ID as a stable string to prevent unnecessary re-subscriptions
+  const sessionId = currentSession?.id || null;
+  const sessionDeletedRef = useRef(sessionDeleted);
+  const sessionManagerRef = useRef(sessionManager);
+  
+  useEffect(() => {
+    sessionDeletedRef.current = sessionDeleted;
+  }, [sessionDeleted]);
+  
+  useEffect(() => {
+    sessionManagerRef.current = sessionManager;
+  }, [sessionManager]);
 
-  const createNewSession = async () => {
-    try {
-      const session = await sessionManager.createSession('experimental', 'default-user', undefined, version);
-      await sessionManager.updateSession(session.id, { status: 'active' });
-      
-      // Force page refresh to ensure clean state across all components
-      // Preserve current pathname instead of redirecting to hub
-      const currentPath = window.location.pathname;
-      window.location.href = `${currentPath}?session=${session.id}`;
-      
-      // This code won't execute due to navigation, but kept for type safety
-      return session;
-    } catch (error) {
-      console.error('[useSessionLifecycle] Error creating new session:', error);
-      throw error;
-    }
-  };
+  // Simple polling (1s visible / 2s hidden) instead of subscription
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollInFlightRef = useRef(false);
+  const lastSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!currentSession) return;
+    // Clear any existing timer when session changes or is missing
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
 
-    let interval: NodeJS.Timeout;
-    let isVisible = !document.hidden;
+    if (!sessionId) {
+      lastSessionIdRef.current = null;
+      return;
+    }
 
-    const sendHeartbeat = async () => {
-      if (!isVisible) return;
+    lastSessionIdRef.current = sessionId;
+
+    const runPoll = async () => {
+      if (pollInFlightRef.current) return;
+      pollInFlightRef.current = true;
       try {
-        await sessionManager.sendHeartbeat(currentSession.id);
-      } catch (error) {
-        try {
-          const session = await sessionManager.getSession(currentSession.id);
-          if (!session) {
-            setSessionDeleted(true);
-            setCurrentSession(null);
-          }
-        } catch {
+        const updatedSession = await sessionManagerRef.current.getSession(sessionId, 'useSessionLifecycle');
+
+        if (sessionDeletedRef.current) return;
+
+        if (!updatedSession) {
+          sessionDeletedRef.current = true;
           setSessionDeleted(true);
           setCurrentSession(null);
+          sessionManagerRef.current.setCurrentSession(null);
+          return;
         }
+
+        if (updatedSession.status === 'completed') {
+          sessionDeletedRef.current = true;
+          setSessionDeleted(true);
+          setCurrentSession(null);
+          sessionManagerRef.current.setCurrentSession(null);
+          return;
+        }
+
+        let shouldUpdate = false;
+        setCurrentSession(prev => {
+          if (!prev) return updatedSession;
+          
+          const hasChanges = 
+            prev.messages.length !== updatedSession.messages.length ||
+            prev.status !== updatedSession.status ||
+            prev.mode !== updatedSession.mode ||
+            prev.aiConfig?.status !== updatedSession.aiConfig?.status;
+          
+          shouldUpdate = hasChanges;
+          return hasChanges ? updatedSession : prev;
+        });
+        // Skip any downstream work if nothing changed
+        if (!shouldUpdate) return;
+      } catch (error) {
+        // silent; next tick will retry
+      } finally {
+        pollInFlightRef.current = false;
       }
     };
 
-    const handleVisibilityChange = () => {
-      isVisible = !document.hidden;
-      if (isVisible) sendHeartbeat();
-    };
-
-    sendHeartbeat();
-    interval = setInterval(sendHeartbeat, 10000);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // Immediate fetch, then interval
+    runPoll();
+    const intervalMs = typeof document === 'undefined' ? 1000 : (!document.hidden ? 1000 : 2000);
+    pollTimerRef.current = setInterval(runPoll, intervalMs);
 
     return () => {
-      clearInterval(interval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
     };
-  }, [currentSession, sessionManager]);
+  }, [sessionId]);
+
+  // Send heartbeat periodically via sessionManager shared heartbeat
+  useEffect(() => {
+    const sessionId = currentSession?.id;
+    if (!sessionId || sessionDeleted) {
+      return;
+    }
+
+    const stop = sessionManager.startHeartbeat(sessionId, 5000);
+    return () => {
+      stop();
+    };
+  }, [currentSession?.id, sessionDeleted]);
+
+  const terminateSession = useCallback(async (reason: string) => {
+    if (!currentSession?.id) return;
+
+    try {
+      await sessionManager.endSession(currentSession.id);
+      setSessionTerminated(true);
+      setSessionDeleted(true);
+      setCurrentSession(null);
+      sessionManager.setCurrentSession(null);
+    } catch (error) {
+      console.error('[useSessionLifecycle] Failed to terminate:', error);
+    }
+  }, [currentSession?.id, sessionManager]);
+
+  const updateAIConfig = useCallback(async (
+    provider: string,
+    model: string,
+    apiKey: string
+  ) => {
+    if (!currentSession?.id) {
+      throw new Error('No active session');
+    }
+
+    try {
+      const updated = await sessionManager.updateSessionAIConfig(
+        currentSession.id,
+        provider,
+        model,
+        apiKey
+      );
+      setCurrentSession(updated);
+      return updated;
+    } catch (error) {
+      console.error('[useSessionLifecycle] Failed to update AI config:', error);
+      throw error;
+    }
+  }, [currentSession?.id, sessionManager]);
+
+  const createNewSession = useCallback(async () => {
+    setSessionDeleted(false);
+    setSessionTerminated(false);
+    setCurrentSession(null);
+    
+    try {
+      const session = await sessionManager.createSession({ clientName: version.name });
+      sessionManager.setCurrentSession(session.id);
+      
+      const url = new URL(window.location.href);
+      url.searchParams.set('session', session.id);
+      window.history.replaceState({}, '', url.toString());
+      
+      setCurrentSession(session);
+      return session;
+    } catch (error) {
+      console.error('[useSessionLifecycle] Failed to create session:', error);
+      throw error;
+    }
+  }, [sessionManager, version.name]);
 
   return {
     currentSession,
@@ -188,7 +221,8 @@ export function useSessionLifecycle() {
     setSessionDeleted,
     sessionTerminated,
     setSessionTerminated,
+    terminateSession,
+    updateAIConfig,
     createNewSession,
   };
 }
-

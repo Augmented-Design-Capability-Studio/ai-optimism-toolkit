@@ -5,6 +5,8 @@ import { Home as HomeIcon } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import { SessionAIStatusIndicator, SessionAISettings, BackendStatusIndicator, BackendSettings } from '../status';
 import { Session } from '../../services/sessionManager';
+import type { AISessionConfigStatus } from '../../services/sessionManager';
+import { getAIConfig } from '../../services/sessionAIConfig';
 import { useState } from 'react';
 
 interface AppBarProps {
@@ -12,12 +14,27 @@ interface AppBarProps {
   color?: string;
   currentSession?: Session | null;
   onLogout: () => void;
+  onAIConfigUpdate?: (sessionId: string, aiConfig: AISessionConfigStatus | null) => void;
 }
 
-export function AppBar({ title, color = 'primary.main', currentSession, onLogout }: AppBarProps) {
+export function AppBar({ title, color = 'primary.main', currentSession, onLogout, onAIConfigUpdate }: AppBarProps) {
   const router = useRouter();
   const [backendSettingsOpen, setBackendSettingsOpen] = useState(false);
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
+
+  // Lightweight update: just refresh aiConfig, not the whole session
+  const handleAIConfigChange = async () => {
+    if (!currentSession?.id) return;
+    try {
+      const updatedConfig = await getAIConfig(currentSession.id);
+      onAIConfigUpdate?.(currentSession.id, updatedConfig);
+    } catch (error) {
+      // If getAIConfig fails, the next session poll will pick it up
+      console.warn('[AppBar] Could not immediately update AI config:', error);
+      // Still notify parent that config might have changed (could be null now)
+      onAIConfigUpdate?.(currentSession.id, null);
+    }
+  };
 
   return (
     <>
@@ -46,12 +63,15 @@ export function AppBar({ title, color = 'primary.main', currentSession, onLogout
                 <SessionAIStatusIndicator 
                   sessionId={currentSession.id} 
                   mode={currentSession.mode}
+                  aiConfig={currentSession.aiConfig}  // Use AI config from session (no separate polling needed)
                   onClick={() => setAiSettingsOpen(true)}
                 />
                 <SessionAISettings
                   open={aiSettingsOpen}
                   sessionId={currentSession.id}
+                  aiConfig={currentSession.aiConfig}  // Use AI config from session (no separate API call needed)
                   onClose={() => setAiSettingsOpen(false)}
+                  onConfigChange={handleAIConfigChange}  // Lightweight update after setting config
                 />
               </>
             )}

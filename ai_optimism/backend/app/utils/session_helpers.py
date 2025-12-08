@@ -3,7 +3,7 @@ from typing import Optional
 from sqlmodel import Session as DBSession, select
 from ..models.session import (
     Session, SessionResponse, MessageResponse, 
-    AISessionConfig, MessageUpdateItem
+    AISessionConfig, MessageUpdateItem, AISessionConfigResponse
 )
 from .encryption import decrypt_api_key
 
@@ -14,8 +14,28 @@ except ImportError:
     SQLAMetaData = None
 
 
-def session_to_response(session: Session) -> SessionResponse:
-    """Convert ORM Session to SessionResponse"""
+def session_to_response(session: Session, db: Optional[DBSession] = None) -> SessionResponse:
+    """Convert ORM Session to SessionResponse, optionally including AI config"""
+    # Load AI config if database session is provided
+    ai_config_response = None
+    if db:
+        ai_config = db.exec(
+            select(AISessionConfig).where(AISessionConfig.sessionId == session.id)
+        ).first()
+        
+        if ai_config:
+            ai_config_response = AISessionConfigResponse(
+                sessionId=ai_config.sessionId,
+                provider=ai_config.provider,
+                model=ai_config.model,
+                endpoint=ai_config.endpoint,
+                status=ai_config.status,
+                lastValidated=ai_config.lastValidated,
+                setBy=ai_config.setBy,
+                setAt=ai_config.setAt,
+                errorMessage=ai_config.errorMessage,
+            )
+    
     return SessionResponse(
         id=session.id,
         mode=session.mode,
@@ -30,7 +50,8 @@ def session_to_response(session: Session) -> SessionResponse:
         ipAddress=getattr(session, 'ipAddress', None),
         version=getattr(session, 'version', None),
         systemPrompt=getattr(session, 'systemPrompt', None),
-        messages=[MessageResponse.from_orm_message(m) for m in session.messages]
+        messages=[MessageResponse.from_orm_message(m) for m in session.messages],
+        aiConfig=ai_config_response
     )
 
 

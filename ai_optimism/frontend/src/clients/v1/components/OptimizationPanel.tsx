@@ -145,7 +145,7 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
       const problemId = problemData.id;
       addLog(`✅ Problem created with ID: ${problemId}`);
 
-      // Step 2: Execute optimization
+      // Step 2: Execute optimization with real-time progress via SSE
       addLog(`⚙️ Running optimization (${maxIterations} iterations, population: ${populationSize})...`);
       setIteration(0);
 
@@ -173,6 +173,7 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
         },
       };
       
+      // Start optimization (returns run_id immediately)
       const executeResponse = await fetch(backendApi.optimization.execute, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -180,60 +181,152 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
       });
 
       if (!executeResponse.ok) {
-        throw new Error(`Optimization failed: ${executeResponse.statusText}`);
+        const errorData = await executeResponse.json().catch(() => ({ detail: executeResponse.statusText }));
+        throw new Error(errorData.detail || `Optimization failed: ${executeResponse.statusText}`);
       }
 
-      const executeData = await executeResponse.json();
+      const { run_id } = await executeResponse.json();
+      addLog(`📡 Connected to optimization stream (Run ID: ${run_id})`);
+
+      // Open SSE connection for real-time progress
+      return new Promise<void>((resolve, reject) => {
+        const eventSource = new EventSource(backendApi.optimization.stream(run_id));
+        let hasCompleted = false;
+
+        eventSource.onmessage = (event) => {
+          try {
+            const progress = JSON.parse(event.data);
+            
+            // Update progress in real-time
+            if (progress.iteration !== undefined) {
+              setIteration(progress.iteration);
+            }
+            
+            if (progress.best_score !== null && progress.best_score !== undefined) {
+              setBestScore(progress.best_score);
+            }
+
+            // Handle completion
+            if (progress.status === 'completed') {
+              if (!hasCompleted) {
+                hasCompleted = true;
+                eventSource.close();
+                
       addLog(`✅ Optimization completed!`);
 
-      // Update results
-      if (executeData.results && executeData.results.length > 0) {
-        setResults(executeData.results);
-        setBestScore(executeData.results[0].score);
+                // Get final results from the progress data or fetch from status endpoint
+                if (progress.results && progress.results.length > 0) {
+                  setResults(progress.results);
+                  setBestScore(progress.results[0].score);
         setIteration(maxIterations);
-        addLog(`🎯 Best score: ${executeData.results[0].score.toFixed(4)}`);
-        addLog(`📊 Found ${executeData.results.length} solutions`);
+                  addLog(`🎯 Best score: ${progress.results[0].score.toFixed(4)}`);
+                  addLog(`📊 Found ${progress.results.length} solutions`);
 
-        // Notify parent component with both results and full data (includes heuristic_map)
-        onResultsUpdate?.(executeData.results, executeData);
+                  // Notify parent component
+                  onResultsUpdate?.(progress.results, {
+                    run_id: progress.run_id || run_id,
+                    results: progress.results,
+                    best_design: progress.results[0],
+                    heuristic_map: progress.heuristic_map,
+                    objective_bounds: progress.objective_bounds,  // Include bounds for normalization
+                  });
 
         // Create optimization run message bubble if we have a session
-        if (currentSessionId && executeData.run_id) {
-          try {
-            const bestDesign = executeData.best_design || executeData.results[0];
-            const messageContent = `Optimization completed successfully!\n\n` +
-              `Best Score: ${bestDesign.score.toFixed(6)}\n` +
+                  if (currentSessionId && (progress.run_id || run_id)) {
+                    sessionManager.addMessage(
+                      currentSessionId,
+                      'ai',
+                      `Optimization completed successfully!\n\n` +
+                        `Best Score: ${progress.results[0].score.toFixed(6)}\n` +
               `Population Size: ${populationSize}\n` +
               `Max Iterations: ${maxIterations}\n` +
-              `Solutions Found: ${executeData.results.length}\n\n` +
-              `Run ID: ${executeData.run_id}`;
-
-            await sessionManager.addMessage(
-              currentSessionId,
-              'ai',
-              messageContent,
+                        `Solutions Found: ${progress.results.length}\n\n` +
+                        `Run ID: ${progress.run_id || run_id}`,
               {
                 type: 'optimization-run',
-                runId: executeData.run_id,
+                        runId: progress.run_id || run_id,
                 status: 'completed',
-                bestScore: bestDesign.score,
-                results: executeData.results,
+                        bestScore: progress.results[0].score,
+                        results: progress.results,
                 config: {
                   population_size: populationSize,
                   max_iterations: maxIterations,
                 },
-                optimizationPacket: optimizationPacket, // Store full packet sent to server
-                heuristic_map: executeData.heuristic_map, // Store heuristic map if available
-              }
-            );
-          } catch (error) {
-            console.error('[OptimizationPanel] Error creating optimization message:', error);
-            // Don't fail the optimization if message creation fails
-          }
-        }
-      }
+                        optimizationPacket: optimizationPacket,
+                        heuristic_map: progress.heuristic_map,
+                      }
+                    ).catch((error) => {
+                      console.error('[OptimizationPanel] Error creating optimization message:', error);
+                    });
+                  }
+                } else {
+                  // Fallback: fetch results from status endpoint
+                  fetch(backendApi.optimization.status(run_id))
+                    .then(res => res.json())
+                    .then(statusData => {
+                      if (statusData.results && statusData.results.length > 0) {
+                        setResults(statusData.results);
+                        setBestScore(statusData.results[0].score);
+                        onResultsUpdate?.(statusData.results, statusData);
+                      }
+                    })
+                    .catch(err => console.error('[OptimizationPanel] Error fetching final results:', err));
+                }
 
-      setStatus('completed');
+                setStatus('completed');
+                resolve();
+              }
+            } else if (progress.status === 'error') {
+              if (!hasCompleted) {
+                hasCompleted = true;
+                eventSource.close();
+                const errorMsg = progress.error || 'Unknown error occurred';
+                addLog(`❌ Optimization error: ${errorMsg}`);
+                setStatus('error');
+                reject(new Error(errorMsg));
+              }
+            }
+          } catch (error) {
+            console.error('[OptimizationPanel] Error parsing SSE message:', error);
+          }
+        };
+
+        eventSource.onerror = (error) => {
+          console.error('[OptimizationPanel] SSE error:', error);
+          if (!hasCompleted) {
+            hasCompleted = true;
+            eventSource.close();
+            // Check if optimization completed but SSE connection dropped
+            fetch(backendApi.optimization.status(run_id))
+              .then(res => res.json())
+              .then(statusData => {
+                if (statusData.status === 'completed') {
+                  // Optimization completed, just connection dropped
+                  if (statusData.results && statusData.results.length > 0) {
+                    setResults(statusData.results);
+                    setBestScore(statusData.results[0].score);
+                    setIteration(maxIterations);
+                    setStatus('completed');
+                    onResultsUpdate?.(statusData.results, statusData);
+                    resolve();
+          }
+                } else if (statusData.status === 'error') {
+                  setStatus('error');
+                  reject(new Error(statusData.error || 'Optimization failed'));
+                } else {
+                  // Still running or unknown, treat as connection error
+                  addLog('⚠️ Connection lost, but optimization may still be running...');
+                  setStatus('error');
+                  reject(new Error('Connection to optimization stream lost'));
+                }
+              })
+              .catch(() => {
+                setStatus('error');
+                reject(new Error('Connection to optimization stream lost'));
+              });
+          }
+        };
+      });
     } catch (error) {
       addLog(`❌ Error: ${error instanceof Error ? error.message : String(error)}`);
       setStatus('error');

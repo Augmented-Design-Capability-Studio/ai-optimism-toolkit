@@ -1,11 +1,21 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Callable
 from sqlmodel import Session, select
 from ..models.optimization import (
     OptimizationProblem, OptimizationConfig,
     OptimizationProblemDB, OptimizationRunDB
 )
 from ..utils.common import generate_id
+from ..utils.constraint_analysis import (
+    analyze_constraint, create_violation_objective_name,
+    create_violation_evaluator, get_constraint_modifier_weights,
+    get_constraint_weight
+)
+from ..utils.seed_designs import generate_seed_designs
+from ..utils.objective_setup import estimate_bounds, create_objective_function
+from ..utils.result_formatter import format_optimization_results
+from .progress_tracking_optimizer import ProgressTrackingOptimizer
 import time
+import threading
 
 class OptimizationService:
     def __init__(self):
@@ -93,7 +103,7 @@ class OptimizationService:
         
         return results
     
-    def run_optimization(self, config: OptimizationConfig) -> Dict:
+    def run_optimization(self, config: OptimizationConfig, progress_callback=None, run_id=None) -> Dict:
         """Run optimization and save results to database"""
         # Try to get problem from database first
         problem = None
@@ -246,219 +256,36 @@ class OptimizationService:
             return eval_dict
 
         # 4. Prepare Seed Designs
-        # Generate constraint-aware seed designs
-        seed_designs = []
-        max_attempts = 1000
-        
-        print(f"Generating seed designs with {len(problem.constraints or [])} constraints...")
-        
-        for seed_idx in range(min(10, config.population_size)):
-            # Try to generate a valid design
-            for attempt in range(max_attempts):
-                design = {}
-                for var in problem.variables:
-                    if var.type == 'categorical' and var.categories:
-                        design[var.name] = random.randint(0, len(var.categories) - 1)
-                    else:
-                        min_val = var.min if var.min is not None else 0
-                        max_val = var.max if var.max is not None else 100
-                        design[var.name] = random.uniform(min_val, max_val)
-                
-                # Check if design satisfies all constraints
-                all_constraints_satisfied = True
-                for constraint in (problem.constraints or []):
-                    try:
-                        # Build complete evaluation context with variables, attributes, and properties
-                        eval_dict = build_evaluation_context(design)
-                        if not safe_eval(constraint.expression, eval_dict):
-                            all_constraints_satisfied = False
-                            break
-                    except Exception as e:
-                        # If evaluation fails, treat as constraint violation
-                        all_constraints_satisfied = False
-                        break
-                
-                if all_constraints_satisfied:
-                    # Convert to tuple for hashability
-                    seed_designs.append(tuple(sorted(design.items())))
-                    print(f"  Seed {seed_idx + 1}: Valid design found on attempt {attempt + 1}")
-                    break
-            else:
-                # If we couldn't find a valid design, use a simple heuristic
-                # For your cookie problem: distribute evenly within constraints
-                print(f"  Seed {seed_idx + 1}: Using heuristic design (couldn't find valid random)")
-                design = {}
-                for var in problem.variables:
-                    if var.type == 'categorical' and var.categories:
-                        design[var.name] = 0  # Use first category
-                    else:
-                        # Use middle of range
-                        min_val = var.min if var.min is not None else 0
-                        max_val = var.max if var.max is not None else 100
-                        design[var.name] = (min_val + max_val) / 2
-                seed_designs.append(tuple(sorted(design.items())))
-        
-        print(f"Generated {len(seed_designs)} seed designs")
-        
-        if len(seed_designs) == 0:
-            # Fallback if no valid seeds found: just use random ones
-             print("Warning: Could not generate valid seed designs. Proceeding with random invalid seeds.")
-             for _ in range(min(10, config.population_size)):
-                design = {}
-                for var in problem.variables:
-                    if var.type == 'categorical' and var.categories:
-                        design[var.name] = 0
-                    else:
-                        min_val = var.min if var.min is not None else 0
-                        max_val = var.max if var.max is not None else 100
-                        design[var.name] = random.uniform(min_val, max_val)
-                seed_designs.append(tuple(sorted(design.items())))
+        seed_designs = generate_seed_designs(
+            problem,
+            config.population_size,
+            build_evaluation_context
+        )
 
-        # 5. Run Optimization
-        # Before running the optimizer, register objectives now that we have seed designs
-        # Use sampling-based estimation to seed min/max normalization and produce stable 0-1 scores
-        def estimate_bounds(expr, variables, samples=500):
-            lo = float('inf')
-            hi = float('-inf')
-            for _ in range(samples):
-                sample = {}
-                for v in variables:
-                    if v.type == 'categorical' and v.categories:
-                        # Use category index - will be converted by build_evaluation_context
-                        sample[v.name] = random.randint(0, len(v.categories) - 1)
-                    else:
-                        min_val = v.min if v.min is not None else 0
-                        max_val = v.max if v.max is not None else 100
-                        sample[v.name] = random.uniform(min_val, max_val)
-                try:
-                    # Build complete evaluation context with variables, attributes, and properties
-                    eval_dict = build_evaluation_context(sample)
-                    val = float(safe_eval(expr, eval_dict))
-                    lo = min(lo, val)
-                    hi = max(hi, val)
-                except Exception:
-                    continue
-            if lo == float('inf') or hi == float('-inf'):
-                return None, None
-            return lo, hi
-
-        # --- Constraint Analysis & Violation Objectives ---
-        # Instead of hard filtering, we convert constraints to "Violation Objectives"
-        # and wire them to helpful modifiers.
+        # 5. Register Constraints as Violation Objectives
+        constraint_weights = {}  # Map of objective_name -> {modifier_name: weight}
         
-        constraint_weights = {} # Map of objective_name -> {modifier_name: weight}
-        
-        # Helper to parse simple linear constraints
-        def analyze_constraint(expression):
-            # Very basic parser for "A + B <= 10" or "A >= 5"
-            # Returns (left_vars, right_vars, operator)
-            import re
-            # Remove spaces
-            expr = expression.replace(" ", "")
-            
-            # Find operator
-            if "<=" in expr: op = "<="
-            elif ">=" in expr: op = ">="
-            elif "<" in expr: op = "<"
-            elif ">" in expr: op = ">"
-            else: return [], [], None
-            
-            left, right = expr.split(op)
-            
-            # Extract variables (simple regex for identifiers)
-            # This is a heuristic; complex math might confuse it but sufficient for A+B
-            var_pattern = r'[a-zA-Z_][a-zA-Z0-9_]*'
-            left_vars = re.findall(var_pattern, left)
-            right_vars = re.findall(var_pattern, right)
-            
-            return left_vars, right_vars, op
-
-        for i, constraint in enumerate(problem.constraints or []):
-            # Create a violation objective
-            # If constraint is "A <= B", violation is "max(0, A - B)"
-            # If constraint is "A >= B", violation is "max(0, B - A)"
-            
-            # We need to construct a python expression for the violation
-            # This is tricky with arbitrary strings. 
-            # Simplified approach: Wrap the boolean check. If False, return large penalty?
-            # Better: Try to construct a distance function if possible.
-            
-            # For now, we'll use a generic "Constraint_{i}" objective that returns 1.0 if violated, 0.0 if not.
-            # But to guide the optimizer, we need gradients.
-            # Let's try to parse it for the Heuristic Map at least.
-            
+        for constraint in (problem.constraints or []):
+            # Analyze constraint to extract variables and operator
             left_vars, right_vars, op = analyze_constraint(constraint.expression)
+            violation_name = create_violation_objective_name(constraint)
             
-            # Use constraint title if available, then description, then expression
-            # This makes the heuristic map more readable
-            if constraint.title and constraint.title.strip():
-                violation_name = f"Violation: {constraint.title}"
-            elif constraint.description and constraint.description.strip():
-                violation_name = f"Violation: {constraint.description}"
-            else:
-                # Fallback to expression, but limit length for readability
-                expr_display = constraint.expression if len(constraint.expression) <= 30 else constraint.expression[:27] + "..."
-                violation_name = f"Violation({expr_display})"
+            # Create violation evaluator
+            violation_evaluator = create_violation_evaluator(
+                constraint.expression,
+                build_evaluation_context
+            )
             
-            # Define the violation evaluator
-            def make_violation_evaluator(expr):
-                def evaluate(design):
-                    d = dict(design) if isinstance(design, tuple) else design
-                    # Build complete evaluation context with variables, attributes, and properties
-                    eval_dict = build_evaluation_context(d)
-                    try:
-                        if safe_eval(expr, eval_dict):
-                            return 1.0 # Satisfied - contributes to score (higher is better)
-                        else:
-                            return 0.0 # Violated - contributes nothing (penalty)
-                    except Exception as e:
-                        print(f"Warning: Error evaluating constraint '{expr}': {e}")
-                        return 0.0 # On error, treat as violated
-                return evaluate
-                
-            # Register this as a MINIMIZE objective
-            # Note: We add it to the library but maybe not the main objective function yet?
-            # Actually, we should add it to the main objective function with a HIGH weight
-            # so the optimizer prioritizes feasibility.
-            
-            # For the Heuristic Map, we want to wire modifiers to this violation.
-            # If "A <= 50", and we violate it (A > 50), we want to DECREASE A.
-            # Violation Objective Goal: MINIMIZE.
-            # Modifier "dec_A" helps MINIMIZE violation -> Positive Weight.
-            
-            weights = {}
-            if op == "<=" or op == "<":
-                # LHS <= RHS. To fix violation (LHS > RHS), Decrease LHS, Increase RHS
-                for v in left_vars:
-                    weights[f"dec_{v}"] = 1.0
-                    weights[f"inc_{v}"] = -1.0
-                for v in right_vars:
-                    weights[f"inc_{v}"] = 1.0
-                    weights[f"dec_{v}"] = -1.0
-            elif op == ">=" or op == ">":
-                # LHS >= RHS. To fix violation (LHS < RHS), Increase LHS, Decrease RHS
-                for v in left_vars:
-                    weights[f"inc_{v}"] = 1.0
-                    weights[f"dec_{v}"] = -1.0
-                for v in right_vars:
-                    weights[f"dec_{v}"] = 1.0
-                    weights[f"inc_{v}"] = -1.0
-            
+            # Get modifier weights for this constraint
+            weights = get_constraint_modifier_weights(left_vars, right_vars, op)
             if weights:
                 constraint_weights[violation_name] = weights
                 
-            # Add the objective to the system
-            # We use a custom evaluator that wraps the constraint
-            library.add_objective(make_violation_evaluator(constraint.expression), violation_name)
+            # Register violation objective
+            library.add_objective(violation_evaluator, violation_name)
             
-            # Determine constraint type and weight
-            constraint_type = getattr(constraint, 'type', 'hard')  # Default to hard for backward compatibility
-            # For hard constraints, use extremely high weight to ensure they dominate
-            # For soft constraints, use user-specified weight (default 10.0)
-            constraint_weight = getattr(constraint, 'weight', 10.0) if constraint_type == 'soft' else 100000.0
-            
-            # Hard constraints: use extremely high weight (100000.0) to ensure they're absolutely prioritized
-            # Soft constraints: use user-specified weight (default 10.0)
+            # Add to objective function with appropriate weight
+            constraint_weight = get_constraint_weight(constraint)
             objective_function.add_objective_by_weight(
                 library.get_objective(violation_name), 
                 constraint_weight
@@ -470,7 +297,12 @@ class OptimizationService:
         
         for obj_config in problem.objectives:
             # Try to estimate bounds using sampling; fall back to seed examples if sampling fails
-            est_min, est_max = estimate_bounds(obj_config.expression, problem.variables, samples=500)
+            est_min, est_max = estimate_bounds(
+                obj_config.expression,
+                problem.variables,
+                build_evaluation_context,
+                samples=500
+            )
             # If sampling failed, use seed designs min/max
             if est_min is None or est_max is None:
                 est_min = float('inf')
@@ -495,48 +327,13 @@ class OptimizationService:
             else:
                 objective_bounds[obj_config.name] = {"min": None, "max": None}
 
-            def make_objective_func(expr, goal, constraints, init_min, init_max):
-                obs_min = init_min if init_min not in (None, float('inf')) else 0.0
-                obs_max = init_max if init_max not in (None, float('-inf')) else 1.0
-
-                def evaluate(design):
-                    design_dict = dict(design) if isinstance(design, tuple) else design
-
-                    # Note: We no longer hard-fail on constraints here because 
-                    # constraints are now their own objectives!
-                    
-                    # Build complete evaluation context with variables, attributes, and properties
-                    eval_dict = build_evaluation_context(design_dict)
-                    
-                    try:
-                        raw_val = float(safe_eval(expr, eval_dict))
-                    except Exception:
-                        return 0.0
-
-                    nonlocal obs_min, obs_max
-                    # Expand-only running min/max to avoid rapid rescaling
-                    if raw_val < obs_min:
-                        obs_min = raw_val
-                    if raw_val > obs_max:
-                        obs_max = raw_val
-
-                    # Min-max normalize to 0-1, avoid divide-by-zero
-                    if obs_max > obs_min:
-                        normalized = (raw_val - obs_min) / (obs_max - obs_min)
-                    else:
-                        normalized = 0.5
-
-                    # If this is a minimize objective, invert so smaller is better
-                    if goal == 'minimize':
-                        normalized = 1.0 - normalized
-
-                    # Clamp
-                    normalized = max(0.0, min(1.0, normalized))
-                    return normalized
-
-                return evaluate
-
-            obj_func = make_objective_func(obj_config.expression, obj_config.goal, problem.constraints or [], est_min, est_max)
+            obj_func = create_objective_function(
+                obj_config.expression,
+                obj_config.goal,
+                est_min,
+                est_max,
+                build_evaluation_context
+            )
             library.add_objective(obj_func, obj_config.name)
             # Use objective weight if provided, default to 1.0
             objective_weight = obj_config.weight if obj_config.weight is not None else 1.0
@@ -583,10 +380,11 @@ class OptimizationService:
 
         heuristic_map.add_heuristic_weights(weights_map)
 
-        optimizer = Optimizer(
+        optimizer = ProgressTrackingOptimizer(
             design_selector=SimpleDesignSelector(),
             modifier_selector=AdaptiveModifierSelector(),
-            stopping_criteria=lambda **kwargs: False # Run until max_iterations
+            stopping_criteria=lambda **kwargs: False,  # Run until max_iterations
+            progress_callback=progress_callback
         )
 
         final_population = optimizer.optimize(
@@ -598,85 +396,12 @@ class OptimizationService:
         )
 
         # 6. Format Results - Filter out designs that violate hard constraints
-        # Get more iterations to filter from (up to 50 to ensure we find valid solutions)
         top_iterations = final_population.top_N_iterations(50)
-        results = []
-        hard_constraints = [c for c in (problem.constraints or []) if getattr(c, 'type', 'hard') == 'hard']
-        
-        print(f"Filtering results: {len(hard_constraints)} hard constraints, {len(top_iterations)} top iterations")
-        
-        for iter in top_iterations:
-            # Convert tuple design back to dict
-            design_dict = dict(iter.design) if isinstance(iter.design, tuple) else iter.design
-            
-            # Check if design violates any hard constraints
-            violates_hard_constraint = False
-            if hard_constraints:
-                # Build complete evaluation context with variables, attributes, and properties
-                eval_dict = build_evaluation_context(design_dict)
-                for constraint in hard_constraints:
-                    try:
-                        constraint_result = safe_eval(constraint.expression, eval_dict)
-                        if not constraint_result:
-                            violates_hard_constraint = True
-                            print(f"Design violates hard constraint '{constraint.title or constraint.expression}': {constraint.expression}")
-                            break
-                    except Exception as e:
-                        print(f"Error evaluating hard constraint '{constraint.title or constraint.expression}' ({constraint.expression}): {e}")
-                        violates_hard_constraint = True
-                        break
-            
-            # Skip designs that violate hard constraints
-            if violates_hard_constraint:
-                continue
-            
-            # Convert categorical indices to category names for frontend
-            formatted_vars = {}
-            for var in problem.variables:
-                if var.name in design_dict:
-                    if var.type == 'categorical' and var.categories:
-                        idx = design_dict[var.name]
-                        # Convert index to category name
-                        if isinstance(idx, (int, float)) and 0 <= int(idx) < len(var.categories):
-                            formatted_vars[var.name] = var.categories[int(idx)]
-                        else:
-                            formatted_vars[var.name] = design_dict[var.name]
-                    else:
-                        formatted_vars[var.name] = design_dict[var.name]
-            
-            results.append({
-                "variables": formatted_vars,  # Use formatted_vars with category names
-                "score": iter.score,
-                "objectives": {o.name: s for o, s in iter.objective_scores.items()}
-            })
-            
-            # Limit to top 5 valid results
-            if len(results) >= 5:
-                break
-        
-        # If no valid results found (all violate hard constraints), use best available with warning
-        if not results and top_iterations:
-            print("WARNING: No solutions satisfy all hard constraints. Returning best solution with constraint violations.")
-            iter = top_iterations[0]
-            design_dict = dict(iter.design) if isinstance(iter.design, tuple) else iter.design
-            formatted_vars = {}
-            for var in problem.variables:
-                if var.name in design_dict:
-                    if var.type == 'categorical' and var.categories:
-                        idx = design_dict[var.name]
-                        if isinstance(idx, (int, float)) and 0 <= int(idx) < len(var.categories):
-                            formatted_vars[var.name] = var.categories[int(idx)]
-                        else:
-                            formatted_vars[var.name] = design_dict[var.name]
-                    else:
-                        formatted_vars[var.name] = design_dict[var.name]
-            
-            results.append({
-                "variables": formatted_vars,
-                "score": iter.score,
-                "objectives": {o.name: s for o, s in iter.objective_scores.items()},
-                "warning": "This solution violates hard constraints"
-            })
+        results = format_optimization_results(
+            top_iterations,
+            problem,
+            build_evaluation_context
+        )
 
         # Format heuristic map for frontend
         # Structure: { objectives: [], modifiers: [], weights: { obj: { mod: weight } } }

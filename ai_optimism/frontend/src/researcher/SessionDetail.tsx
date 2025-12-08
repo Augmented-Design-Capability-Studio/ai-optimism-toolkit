@@ -3,13 +3,13 @@
  */
 
 import { Paper, Box, Typography } from '@mui/material';
-import { useState, useEffect, memo, useRef } from 'react';
+import { useState, useEffect, memo, useRef, useCallback } from 'react';
 import { Session, useSessionManager } from '../core/services/sessionManager';
+import type { AISessionConfigStatus } from '../core/services/sessionManager';
 import { SessionHeader } from './SessionHeader';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { SystemPromptDialog } from './SystemPromptDialog';
-import { getAIConfig } from '../core/services/sessionAIConfig';
 
 interface SessionDetailProps {
   session: Session | null;
@@ -21,6 +21,7 @@ interface SessionDetailProps {
   onSendMessage: (sessionId: string, message: string, metadata?: any) => void;
   onRequestAIResponse?: (sessionId: string) => void;
   onRefresh?: () => void;
+  onAIConfigUpdate?: (sessionId: string, aiConfig: AISessionConfigStatus | null) => void;
 }
 
 export const SessionDetail = memo(function SessionDetail({
@@ -33,12 +34,26 @@ export const SessionDetail = memo(function SessionDetail({
   onSendMessage,
   onRequestAIResponse,
   onRefresh,
+  onAIConfigUpdate,
 }: SessionDetailProps) {
   const [hasAIConfig, setHasAIConfig] = useState(false);
   const [isGeneratingControls, setIsGeneratingControls] = useState(false);
   const [systemPromptDialogOpen, setSystemPromptDialogOpen] = useState(false);
   const hasAIConfigRef = useRef(false);
   const sessionManager = useSessionManager();
+
+  // Handle lightweight AI config update (just updates aiConfig field, not whole session)
+  const handleAIConfigUpdate = useCallback((sessionId: string, aiConfig: AISessionConfigStatus | null) => {
+    if (session?.id === sessionId) {
+      // Update local state
+      const hasConfig = !!aiConfig;
+      setHasAIConfig(hasConfig);
+      hasAIConfigRef.current = hasConfig;
+      
+      // Notify parent to update session state
+      onAIConfigUpdate?.(sessionId, aiConfig);
+    }
+  }, [session?.id, onAIConfigUpdate]);
 
   // Handle toggle ready to formalize
   const handleToggleReadyToFormalize = async () => {
@@ -78,6 +93,7 @@ export const SessionDetail = memo(function SessionDetail({
   };
 
   // Check if session has AI config
+  // AI config is now always included in session response, so no separate API call needed
   useEffect(() => {
     if (!session?.id) {
       setHasAIConfig(false);
@@ -85,28 +101,13 @@ export const SessionDetail = memo(function SessionDetail({
       return;
     }
 
-    const checkAIConfig = async () => {
-      try {
-        const config = await getAIConfig(session.id);
-        const hasConfig = config !== null;
-        // Only update state if value actually changed
-        if (hasConfig !== hasAIConfigRef.current) {
-          hasAIConfigRef.current = hasConfig;
-          setHasAIConfig(hasConfig);
-        }
-      } catch (error) {
-        if (hasAIConfigRef.current) {
-          hasAIConfigRef.current = false;
-          setHasAIConfig(false);
-        }
-      }
-    };
-
-    checkAIConfig();
-    // Poll every 3 seconds to detect when AI config is added
-    const interval = setInterval(checkAIConfig, 3000);
-    return () => clearInterval(interval);
-  }, [session?.id]);
+    // Use aiConfig from session
+    const hasConfig = !!session.aiConfig;
+    if (hasConfig !== hasAIConfigRef.current) {
+      hasAIConfigRef.current = hasConfig;
+      setHasAIConfig(hasConfig);
+    }
+  }, [session?.id, session?.aiConfig]);
 
   // Handle generating controls from JSON data
   const handleGenerateControls = async (jsonData: any) => {
@@ -162,6 +163,7 @@ export const SessionDetail = memo(function SessionDetail({
         onTerminate={onTerminate}
         onDelete={onDelete}
         onEditSystemPrompt={handleEditSystemPrompt}
+        onAIConfigUpdate={handleAIConfigUpdate}
       />
       
       <MessageList 

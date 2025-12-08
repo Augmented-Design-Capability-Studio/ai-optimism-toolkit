@@ -25,7 +25,9 @@ async def get_ai_config(session_id: str, db: DBSession = Depends(get_session)):
     ).first()
     
     if not ai_config:
-        raise HTTPException(status_code=404, detail="AI config not found for this session")
+        # Return 204 No Content instead of 404 - config is optional, not an error
+        from fastapi import Response
+        return Response(status_code=204)
     
     return AISessionConfigResponse(
         sessionId=ai_config.sessionId,

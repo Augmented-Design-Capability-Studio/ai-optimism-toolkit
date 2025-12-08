@@ -28,6 +28,7 @@ export default function ResearcherDashboard() {
     handleDeleteSession,
     handleFormalizeProblem,
     handleModeToggle,
+    handleAIConfigUpdate,
   } = useResearcherSessions();
 
   // Handle sending message
@@ -35,7 +36,21 @@ export default function ResearcherDashboard() {
     await sessionManager.addMessage(sessionId, 'researcher', message, metadata);
     // Set status back to active since we've responded
     await sessionManager.updateSession(sessionId, { status: 'active' });
-    await loadSessions();
+    
+    // Immediately refresh the selected session to show the new message
+    if (selectedSession?.id === sessionId) {
+      try {
+        const updatedSession = await sessionManager.getSession(sessionId);
+        if (updatedSession) {
+          setSelectedSession(updatedSession);
+        }
+      } catch (error) {
+        console.warn('[ResearcherDashboard] Could not immediately refresh session after sending message:', error);
+      }
+    }
+    
+    // Also refresh the sessions list (but don't wait for it)
+    loadSessions();
   };
 
   // Handle requesting AI response on client's behalf
@@ -157,6 +172,7 @@ export default function ResearcherDashboard() {
               onSendMessage={handleSendMessage}
               onRequestAIResponse={handleRequestAIResponse}
               onRefresh={loadSessions}
+              onAIConfigUpdate={handleAIConfigUpdate}
             />
           </Box>
           

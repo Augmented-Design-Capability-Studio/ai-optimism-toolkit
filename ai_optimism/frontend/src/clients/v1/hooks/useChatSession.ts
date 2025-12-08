@@ -153,6 +153,18 @@ export function useChatSession() {
         return;
       }
 
+      // Immediately refresh session to get the new message (for immediate display)
+      // This ensures the message appears right away without waiting for subscription poll
+      try {
+        const updatedSession = await sessionManager.getSession(currentSession.id);
+        if (updatedSession) {
+          setCurrentSession(updatedSession);
+        }
+      } catch (error) {
+        // Ignore errors - subscription will pick it up
+        console.warn('[useChatSession] Could not immediately refresh session after sending message:', error);
+      }
+
       if (!isResearcherControlledMode) {
         const sessionMessages = Array.isArray(currentSession.messages)
           ? currentSession.messages
@@ -166,7 +178,7 @@ export function useChatSession() {
 
         if (needsSync && setMessages) {
           setMessages(backendChatMessages);
-          await new Promise((resolve) => setTimeout(resolve, 50));
+          // No delay - update immediately for responsive UI
         }
 
         sendMessage({

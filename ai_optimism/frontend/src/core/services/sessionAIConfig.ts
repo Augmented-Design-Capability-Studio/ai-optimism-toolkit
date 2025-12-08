@@ -72,8 +72,8 @@ export async function getAIConfig(sessionId: string): Promise<AISessionConfigSta
     const response = await apiClient.get(`/sessions/${sessionId}/ai-config`);
     return response.data;
   } catch (error: any) {
-    // 404 means no config exists yet - this is expected and not an error
-    if (error.response?.status === 404) {
+    // 204 (No Content) or 404 means no config exists yet - this is expected and not an error
+    if (error.response?.status === 204 || error.response?.status === 404) {
       return null;
     }
     throw error;

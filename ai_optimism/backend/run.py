@@ -273,6 +273,42 @@ if __name__ == "__main__":
         print(f"  {tunnel_url}")
         print("=" * 70 + "\n")
     
-    # Start the FastAPI server
+    # Start the FastAPI server with custom log format including timestamps
     print("[Backend] Starting FastAPI server on http://0.0.0.0:8000")
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "app.main:app", 
+        host="0.0.0.0", 
+        port=8000, 
+        reload=True,
+        log_config={
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "default": {
+                    "format": "%(asctime)s | %(levelname)s | %(message)s",
+                    "datefmt": "%Y-%m-%d %H:%M:%S"
+                },
+                "access": {
+                    "format": "%(asctime)s | %(levelname)s | %(message)s",
+                    "datefmt": "%Y-%m-%d %H:%M:%S"
+                },
+            },
+            "handlers": {
+                "default": {
+                    "formatter": "default",
+                    "class": "logging.StreamHandler",
+                    "stream": "ext://sys.stdout",
+                },
+                "access": {
+                    "formatter": "access",
+                    "class": "logging.StreamHandler",
+                    "stream": "ext://sys.stdout",
+                },
+            },
+            "loggers": {
+                "uvicorn": {"handlers": ["default"], "level": "INFO"},
+                "uvicorn.error": {"handlers": ["default"], "level": "INFO"},
+                "uvicorn.access": {"handlers": ["access"], "level": "INFO", "propagate": False},
+            },
+        }
+    )

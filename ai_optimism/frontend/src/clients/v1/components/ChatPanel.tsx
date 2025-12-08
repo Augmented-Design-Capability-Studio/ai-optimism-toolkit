@@ -11,14 +11,15 @@ import { FormalizeButton } from '../components/FormalizeButton';
 import { GenerateControlsButton } from '../components/GenerateControlsButton';
 import { useChatSession } from '../hooks/useChatSession';
 import { useSessionManager } from '@/core/services/sessionManager';
-import type { Message } from '@/core/services/sessionManager';
+import type { Message, Session } from '@/core/services/sessionManager';
 import { aggregateControlsFromMessages } from '../services/controlsAggregator';
 
 interface ChatPanelProps {
   onControlsGenerated?: (controls: unknown) => void;
+  onSessionUpdate?: (session: Session | null) => void;
 }
 
-export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
+export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -48,6 +49,44 @@ export function ChatPanel({ onControlsGenerated }: ChatPanelProps) {
     resetFormalization,
     createNewSession,
   } = useChatSession();
+
+  // Notify parent when session updates (to sync AppBar's currentSession)
+  // Use ref to avoid dependency on callback to prevent infinite loops
+  const onSessionUpdateRef = useRef(onSessionUpdate);
+  const lastNotifiedSessionRef = useRef<string | null>(null);
+  const lastNotifiedUpdatedAtRef = useRef<number | null>(null);
+  const lastNotifiedMsgLenRef = useRef<number | null>(null);
+  useEffect(() => {
+    onSessionUpdateRef.current = onSessionUpdate;
+  }, [onSessionUpdate]);
+  
+  useEffect(() => {
+    const sess = currentSession;
+    if (!sess) {
+      if (lastNotifiedSessionRef.current !== null) {
+        lastNotifiedSessionRef.current = null;
+        lastNotifiedUpdatedAtRef.current = null;
+        lastNotifiedMsgLenRef.current = null;
+        onSessionUpdateRef.current?.(null);
+      }
+      return;
+    }
+
+    const msgLen = Array.isArray(sess.messages) ? sess.messages.length : 0;
+    const updatedAt = typeof sess.updatedAt === 'number' ? sess.updatedAt : null;
+
+    const same =
+      lastNotifiedSessionRef.current === sess.id &&
+      lastNotifiedUpdatedAtRef.current === updatedAt &&
+      lastNotifiedMsgLenRef.current === msgLen;
+
+    if (same) return;
+
+    lastNotifiedSessionRef.current = sess.id;
+    lastNotifiedUpdatedAtRef.current = updatedAt;
+    lastNotifiedMsgLenRef.current = msgLen;
+    onSessionUpdateRef.current?.(sess);
+  }, [currentSession]);
 
   // Restore locally completed messages from localStorage on mount or session change
   useEffect(() => {

@@ -17,6 +17,9 @@ interface BackendContextType {
             listProblems: string;
             execute: string;
             clear: string;
+            stream: (runId: string) => string;
+            status: (runId: string) => string;
+            serverStatus: string;
         };
         sessions: {
             create: string;
@@ -46,6 +49,9 @@ const getBackendApi = (url: string) => ({
         clear: `${url}/api/optimization/problems/clear/`,
         getRuns: `${url}/api/optimization/runs/`,
         getRun: (id: string) => `${url}/api/optimization/runs/${id}`,
+        stream: (runId: string) => `${url}/api/optimization/execute/stream/${runId}`,
+        status: (runId: string) => `${url}/api/optimization/execute/status/${runId}`,
+        serverStatus: `${url}/api/optimization/execute/status/`,
     },
     sessions: {
         create: `${url}/api/sessions/`,
@@ -111,19 +117,22 @@ export const BackendProvider: React.FC<{ children: ReactNode }> = ({ children })
         loadConfig();
     }, []);
 
-    const setBackendUrl = (url: string) => {
+    // Memoize setBackendUrl callback to prevent recreating it
+    const setBackendUrl = React.useCallback((url: string) => {
         setBackendUrlState(url);
         localStorage.setItem(STORAGE_KEY, url);
         // Dispatch custom event for same-window updates
         window.dispatchEvent(new CustomEvent('backend-updated'));
         console.log('[Backend] Updated URL:', url);
-    };
+    }, []);
 
-    const state = { backendUrl };
+    // Memoize state object to prevent unnecessary re-renders
+    const state = useMemo(() => ({ backendUrl }), [backendUrl]);
     const backendApi = useMemo(() => getBackendApi(backendUrl), [backendUrl]);
+    const contextValue = useMemo(() => ({ state, setBackendUrl, backendApi }), [state, setBackendUrl, backendApi]);
 
     return (
-        <BackendContext.Provider value={{ state, setBackendUrl, backendApi }}>
+        <BackendContext.Provider value={contextValue}>
             {children}
         </BackendContext.Provider>
     );

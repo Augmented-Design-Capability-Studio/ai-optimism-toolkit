@@ -86,6 +86,7 @@ class SessionResponse(BaseModel):
     version: Optional[str] = None
     systemPrompt: Optional[str] = None
     messages: List[MessageResponse] = []
+    aiConfig: Optional["AISessionConfigResponse"] = None  # Include AI config status in session response
 
     class Config:
         from_attributes = True

@@ -24,12 +24,14 @@ import {
     VisibilityOff,
     Close as CloseIcon,
 } from '@mui/icons-material';
-import { getAIConfig, setAIConfig, deleteAIConfig, type AISessionConfigStatus } from '../../services/sessionAIConfig';
+import { setAIConfig, deleteAIConfig } from '../../services/sessionAIConfig';
 import type { AIProvider } from '../../services/ai';
+import type { AISessionConfigStatus } from '../../services/sessionManager';
 
 interface SessionAISettingsProps {
     open: boolean;
     sessionId: string;
+    aiConfig?: AISessionConfigStatus | null;  // AI config from session (included in session response)
     onClose: () => void;
     onConfigChange?: () => void;
 }
@@ -52,12 +54,12 @@ const staticProviders = {
 
 export const SessionAISettings: React.FC<SessionAISettingsProps> = ({ 
     open, 
-    sessionId, 
+    sessionId,
+    aiConfig,  // AI config from session (included in session response)
     onClose,
     onConfigChange,
 }) => {
-    const [config, setConfig] = useState<AISessionConfigStatus | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [config, setConfig] = useState<AISessionConfigStatus | null>(aiConfig || null);
     const [pushing, setPushing] = useState(false);
     const [disconnecting, setDisconnecting] = useState(false);
     
@@ -69,31 +71,14 @@ export const SessionAISettings: React.FC<SessionAISettingsProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    // Load config when dialog opens
+    // Update config when prop changes (from session updates)
     useEffect(() => {
-        if (open && sessionId) {
-            loadConfig();
+        setConfig(aiConfig || null);
+        if (aiConfig) {
+            setProvider(aiConfig.provider as AIProvider);
+            setModel(aiConfig.model);
         }
-    }, [open, sessionId]);
-
-    const loadConfig = async () => {
-        setLoading(true);
-        try {
-            const sessionConfig = await getAIConfig(sessionId);
-            setConfig(sessionConfig);
-            if (sessionConfig) {
-                setProvider(sessionConfig.provider as AIProvider);
-                setModel(sessionConfig.model);
-            }
-        } catch (error: any) {
-            if (error.response?.status !== 404) {
-                console.error('[SessionAISettings] Failed to load config:', error);
-            }
-            setConfig(null);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [aiConfig]);
 
     const handleDisconnect = async () => {
         if (!config || disconnecting) {
@@ -143,24 +128,7 @@ export const SessionAISettings: React.FC<SessionAISettingsProps> = ({
             setSuccess(true);
             
             // Verify the push succeeded
-            let verified = false;
-            for (let attempt = 0; attempt < 5; attempt++) {
-                await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)));
-                try {
-                    await loadConfig();
-                    const verifyConfig = await getAIConfig(sessionId);
-                    if (verifyConfig && verifyConfig.status === 'connected') {
-                        verified = true;
-                        break;
-                    }
-                } catch (verifyError) {
-                    console.log('[SessionAISettings] Verification attempt', attempt + 1, 'failed:', verifyError);
-                }
-            }
-            
-            if (!verified) {
-                console.warn('[SessionAISettings] Could not verify API key was saved after push');
-            }
+            // Config will be updated via aiConfig prop when parent refreshes session
             
             if (onConfigChange) {
                 onConfigChange();

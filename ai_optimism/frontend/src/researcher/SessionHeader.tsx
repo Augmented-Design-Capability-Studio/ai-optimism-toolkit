@@ -22,6 +22,8 @@ import ScienceIcon from '@mui/icons-material/Science';
 import EditIcon from '@mui/icons-material/Edit';
 import { Session, useSessionManager } from '../core/services/sessionManager';
 import { SessionAIStatusIndicator, SessionAISettings } from '../core/components/status';
+import { getAIConfig } from '../core/services/sessionAIConfig';
+import type { AISessionConfigStatus } from '../core/services/sessionManager';
 
 interface SessionHeaderProps {
   session: Session;
@@ -30,6 +32,7 @@ interface SessionHeaderProps {
   onTerminate: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
   onEditSystemPrompt?: (sessionId: string) => void;
+  onAIConfigUpdate?: (sessionId: string, aiConfig: AISessionConfigStatus | null) => void;
 }
 
 export function SessionHeader({
@@ -39,9 +42,23 @@ export function SessionHeader({
   onTerminate,
   onDelete,
   onEditSystemPrompt,
+  onAIConfigUpdate,
 }: SessionHeaderProps) {
   const sessionManager = useSessionManager();
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
+
+  // Lightweight update: just refresh aiConfig, not the whole session
+  const handleAIConfigChange = async () => {
+    try {
+      const updatedConfig = await getAIConfig(session.id);
+      onAIConfigUpdate?.(session.id, updatedConfig);
+    } catch (error) {
+      // If getAIConfig fails, the next session poll will pick it up
+      console.warn('[SessionHeader] Could not immediately update AI config:', error);
+      // Still notify parent that config might have changed (could be null now)
+      onAIConfigUpdate?.(session.id, null);
+    }
+  };
   const handleExport = () => {
     // Generate chat log text
     const header = `Chat Session: ${session.id}\nCreated: ${new Date(session.createdAt).toLocaleString()}\nStatus: ${session.status}\nMode: ${session.mode}\n${'='.repeat(80)}\n\n`;
@@ -103,12 +120,15 @@ export function SessionHeader({
           <SessionAIStatusIndicator 
             sessionId={session.id} 
             mode={session.mode}
+            aiConfig={session.aiConfig}  // Use AI config from session (no separate polling needed)
             onClick={() => setAiSettingsOpen(true)}
           />
           <SessionAISettings
             open={aiSettingsOpen}
             sessionId={session.id}
+            aiConfig={session.aiConfig}  // Use AI config from session (no separate API call needed)
             onClose={() => setAiSettingsOpen(false)}
+            onConfigChange={handleAIConfigChange}  // Lightweight update after setting config
           />
         </Box>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>

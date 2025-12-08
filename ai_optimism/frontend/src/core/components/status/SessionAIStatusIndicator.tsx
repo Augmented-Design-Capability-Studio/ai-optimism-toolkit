@@ -7,14 +7,14 @@ import {
     Error as ErrorIcon,
     Close as CloseIcon,
 } from '@mui/icons-material';
-import { getAIConfig, type AISessionConfigStatus } from '../../services/sessionAIConfig';
-import type { SessionMode } from '../../services/sessionManager';
+import type { SessionMode, AISessionConfigStatus as SessionAIConfig } from '../../services/sessionManager';
 
 interface SessionAIStatusIndicatorProps {
     sessionId: string;
     mode?: SessionMode;
     onClick?: () => void;
     onDisconnect?: () => void;
+    aiConfig?: SessionAIConfig | null;  // Optional: if provided, use this instead of polling
 }
 
 export const SessionAIStatusIndicator: React.FC<SessionAIStatusIndicatorProps> = ({ 
@@ -22,49 +22,16 @@ export const SessionAIStatusIndicator: React.FC<SessionAIStatusIndicatorProps> =
     mode,
     onClick,
     onDisconnect,
+    aiConfig: aiConfigProp,  // Use aiConfig from session if provided
 }) => {
-    const [config, setConfig] = useState<AISessionConfigStatus | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [config, setConfig] = useState<SessionAIConfig | null>(aiConfigProp || null);
     const [disconnecting, setDisconnecting] = useState(false);
-    const configRef = useRef<AISessionConfigStatus | null>(null);
 
-    const loadConfig = async (showLoading = false) => {
-        if (showLoading) {
-            setLoading(true);
-        }
-        
-        try {
-            const sessionConfig = await getAIConfig(sessionId);
-            setConfig(sessionConfig);
-            configRef.current = sessionConfig;
-        } catch (error: any) {
-            if (error.response?.status === 404) {
-                setConfig(null);
-                configRef.current = null;
-            } else {
-                console.error('[SessionAIStatusIndicator] Failed to load config:', error);
-            }
-        } finally {
-            if (showLoading) {
-                setLoading(false);
-            }
-        }
-    };
-
+    // Update config when prop changes (from session updates)
+    // AI config is now always included in session response, so no separate API call needed
     useEffect(() => {
-        if (!sessionId) return;
-        
-        loadConfig(true);
-        
-        // Poll every 3 seconds to detect when researcher pushes API key
-        const pollInterval = setInterval(() => {
-            if (!configRef.current) {
-                loadConfig(false);
-            }
-        }, 3000);
-        
-        return () => clearInterval(pollInterval);
-    }, [sessionId]);
+        setConfig(aiConfigProp || null);
+    }, [aiConfigProp]);
 
     const handleDisconnect = async () => {
         if (!config || disconnecting || !onDisconnect) {
@@ -81,7 +48,8 @@ export const SessionAIStatusIndicator: React.FC<SessionAIStatusIndicatorProps> =
         setDisconnecting(true);
         try {
             await onDisconnect();
-            await loadConfig(true);
+            // Config will be updated via prop when session refreshes
+            setConfig(null);
         } finally {
             setDisconnecting(false);
         }
@@ -91,7 +59,6 @@ export const SessionAIStatusIndicator: React.FC<SessionAIStatusIndicatorProps> =
         if (mode === 'experimental') {
             return 'default';
         }
-        if (loading) return 'default';
         if (!config) return 'default';
         switch (config.status) {
             case 'connected':
@@ -104,7 +71,6 @@ export const SessionAIStatusIndicator: React.FC<SessionAIStatusIndicatorProps> =
     };
 
     const getStatusIcon = () => {
-        if (loading) return null;
         if (!config) return null;
         switch (config.status) {
             case 'connected':
@@ -120,7 +86,6 @@ export const SessionAIStatusIndicator: React.FC<SessionAIStatusIndicatorProps> =
         if (mode === 'experimental') {
             return 'Experimental Mode';
         }
-        if (loading) return 'Loading...';
         if (!config) return 'No AI Config';
         if (config.status === 'connected') {
             return `${config.provider}: ${config.model}`;

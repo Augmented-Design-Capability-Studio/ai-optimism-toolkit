@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSessionManager, Session } from '../core/services/sessionManager';
+import type { AISessionConfigStatus } from '../core/services/sessionManager';
 import { executeFormalization } from '../core/services/formalizationHelper';
 import { getAIConfigKey } from '../core/services/sessionAIConfig';
 
@@ -27,6 +28,10 @@ export const useResearcherSessions = () => {
     ).join('|');
   };
   
+  // Track last load time to throttle rapid requests (e.g., on tab wake)
+  const lastLoadTimeRef = useRef<number>(0);
+  const MIN_LOAD_INTERVAL = 3000; // Minimum 3 seconds between loads
+  
   // Load sessions - wrapped in useCallback to keep reference stable
   const loadSessions = useCallback(async () => {
     // Skip if already loading to prevent overlapping requests
@@ -34,7 +39,16 @@ export const useResearcherSessions = () => {
       return;
     }
     
+    // Throttle loads - don't load if last load was too recent (prevents burst on tab wake)
+    const now = Date.now();
+    const timeSinceLastLoad = now - lastLoadTimeRef.current;
+    if (timeSinceLastLoad < MIN_LOAD_INTERVAL && lastLoadTimeRef.current > 0) {
+      console.log(`[useResearcherSessions] SKIP throttled load | Last load ${Math.round(timeSinceLastLoad/1000)}s ago`);
+      return;
+    }
+    
     isLoadingRef.current = true;
+    lastLoadTimeRef.current = now;
     try {
     const activeSessions = await sessionManager.getActiveSessions();
     const currentSessionIds = new Set(activeSessions.map(s => s.id));
@@ -89,13 +103,83 @@ export const useResearcherSessions = () => {
     }
   }, [sessionManager]);
 
-  // Initial load and polling
+  // Track sessions in ref to avoid closure issues
+  const sessionsRef = useRef<Session[]>([]);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
+
+  // Initial load and adaptive polling based on visibility and activity
   useEffect(() => {
     loadSessions();
-    const interval = setInterval(() => {
-      loadSessions();
-    }, 2000);
-    return () => clearInterval(interval);
+    
+    let interval: NodeJS.Timeout;
+    let isVisible = typeof document !== 'undefined' ? !document.hidden : true;
+    let currentInterval = 5000; // Start with default 5s
+    
+    const updatePollingInterval = () => {
+      // Clear existing interval
+      if (interval) {
+        clearInterval(interval);
+      }
+      
+      // Calculate adaptive interval:
+      // - If tab is hidden: poll every 15 seconds (less urgent)
+      // - If tab is visible and has active sessions: poll every 5 seconds (responsive)
+      // - If tab is visible but no active sessions: poll every 10 seconds (less frequent)
+      const currentSessions = sessionsRef.current;
+      const hasActiveSessions = currentSessions.length > 0 && currentSessions.some(s => s.status !== 'completed');
+      const baseInterval = isVisible 
+        ? (hasActiveSessions ? 5000 : 10000)  // 5s with sessions, 10s without
+        : 15000;  // 15s when tab hidden
+      
+      currentInterval = baseInterval;
+      
+      interval = setInterval(() => {
+        // Re-check visibility and session count on each poll
+        const currentVisible = typeof document !== 'undefined' ? !document.hidden : true;
+        const currentSessions = sessionsRef.current;
+        const currentHasActiveSessions = currentSessions.length > 0 && currentSessions.some(s => s.status !== 'completed');
+        
+        // Only poll if tab is visible, or if we have active sessions (even when hidden)
+        if (currentVisible || currentHasActiveSessions) {
+          loadSessions();
+          
+          // Check if we need to update the interval based on current state
+          const newInterval = currentVisible 
+            ? (currentHasActiveSessions ? 5000 : 10000)
+            : 15000;
+          
+          // Only recreate interval if it changed significantly (more than 2s difference)
+          if (Math.abs(newInterval - currentInterval) > 2000) {
+            isVisible = currentVisible;
+            updatePollingInterval();
+          }
+        }
+      }, baseInterval);
+    };
+    
+    // Set up initial interval
+    updatePollingInterval();
+    
+    // Handle visibility changes to adjust polling frequency
+    const handleVisibilityChange = () => {
+      isVisible = typeof document !== 'undefined' ? !document.hidden : true;
+      updatePollingInterval();
+    };
+    
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
   }, [loadSessions]);
 
   // Handle terminate session
@@ -289,6 +373,19 @@ export const useResearcherSessions = () => {
     await loadSessions();
   }, [sessionManager, loadSessions]);
 
+  // Handle lightweight AI config update (just updates aiConfig field, not whole session)
+  const handleAIConfigUpdate = useCallback((sessionId: string, aiConfig: AISessionConfigStatus | null) => {
+    // Update sessions array
+    setSessions(prev => prev.map(s => 
+      s.id === sessionId ? { ...s, aiConfig } : s
+    ));
+    
+    // Update selectedSession if it matches
+    setSelectedSession(prev => 
+      prev?.id === sessionId ? { ...prev, aiConfig } : prev
+    );
+  }, []);
+
   const handleCreateSessionMemo = useCallback(async () => {
     const newSession = await sessionManager.createSession('experimental');
     setSelectedSession(newSession);
@@ -309,6 +406,7 @@ export const useResearcherSessions = () => {
     handleFormalizeProblem: handleFormalizeProblemMemo,
     handleModeToggle: handleModeToggleMemo,
     handleCreateSession: handleCreateSessionMemo,
+    handleAIConfigUpdate,
   }), [
     sessions,
     selectedSession,
@@ -321,5 +419,6 @@ export const useResearcherSessions = () => {
     handleFormalizeProblemMemo,
     handleModeToggleMemo,
     handleCreateSessionMemo,
+    handleAIConfigUpdate,
   ]);
 }
