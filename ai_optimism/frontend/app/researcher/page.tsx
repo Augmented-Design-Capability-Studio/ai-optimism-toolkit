@@ -31,8 +31,8 @@ export default function ResearcherDashboard() {
   } = useResearcherSessions();
 
   // Handle sending message
-  const handleSendMessage = async (sessionId: string, message: string) => {
-    await sessionManager.addMessage(sessionId, 'researcher', message);
+  const handleSendMessage = async (sessionId: string, message: string, metadata?: any) => {
+    await sessionManager.addMessage(sessionId, 'researcher', message, metadata);
     // Set status back to active since we've responded
     await sessionManager.updateSession(sessionId, { status: 'active' });
     await loadSessions();
@@ -156,6 +156,7 @@ export default function ResearcherDashboard() {
               onDelete={handleDeleteSession}
               onSendMessage={handleSendMessage}
               onRequestAIResponse={handleRequestAIResponse}
+              onRefresh={loadSessions}
             />
           </Box>
           

@@ -35,6 +35,7 @@ class Session(SQLModel, table=True):
     readyToFormalize: Optional[bool] = False
     ipAddress: Optional[str] = None  # Store client IP address
     version: Optional[str] = None  # Store frontend version (v1, v2, v3, etc.)
+    systemPrompt: Optional[str] = None  # Custom system prompt for this session
     
     messages: List[Message] = Relationship(
         back_populates="session",
@@ -83,6 +84,7 @@ class SessionResponse(BaseModel):
     readyToFormalize: Optional[bool] = False
     ipAddress: Optional[str] = None
     version: Optional[str] = None
+    systemPrompt: Optional[str] = None
     messages: List[MessageResponse] = []
 
     class Config:
@@ -109,6 +111,7 @@ class UpdateSessionRequest(SQLModel):
     researcherId: Optional[str] = None
     isAIResponding: Optional[bool] = None
     readyToFormalize: Optional[bool] = None
+    systemPrompt: Optional[str] = None
     messages: Optional[List[MessageUpdateItem]] = None
 
 class AddMessageRequest(SQLModel):

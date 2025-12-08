@@ -232,6 +232,7 @@ export default function ClientV1Page() {
 
                   <Box sx={{ height: '100%', overflow: 'hidden' }}>
                     <ControlsPanel 
+                      key={`controls-${currentSession?.id || 'no-session'}`}
                       controls={generatedControls} 
                       initialValues={variableValues}
                       onControlsUpdate={handleControlsUpdate}

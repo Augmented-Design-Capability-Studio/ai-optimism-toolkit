@@ -59,8 +59,27 @@ export function useChatSession() {
   const { messages, sendMessage, status, error, setMessages } = useChat({
     id: chatId,
     transport,
+    maxSteps: 1, // Reduce retries - only 1 attempt instead of default 3
     onError: (error) => {
       console.error('[useChatSession] Chat error:', error);
+      
+      // Check if this is a quota error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isQuotaError = 
+        errorMessage.includes('quota') ||
+        errorMessage.includes('Quota exceeded') ||
+        errorMessage.includes('QUOTA_EXCEEDED') ||
+        errorMessage.includes('rate limit') ||
+        errorMessage.includes('429');
+      
+      if (isQuotaError) {
+        // Show user-friendly error message
+        alert(
+          'API quota exceeded. Please wait a minute before sending another message.\n\n' +
+          'Your request limit is 5 requests per minute. Each failed request may retry multiple times, ' +
+          'so please wait at least 12 seconds between messages to avoid hitting the limit.'
+        );
+      }
     },
   });
 

@@ -14,6 +14,7 @@ export { MarkdownInput } from './input/MarkdownInput';
 export { MarkdownContent } from './messages/MarkdownContent';
 export { FormalizationMessage } from './messages/FormalizationMessage';
 export { OptimizationRunMessage } from './messages/OptimizationRunMessage';
+export { NormalMessageContent } from './messages/NormalMessageContent';
 export { JSONBlockCollapsible } from './messages/JSONBlockCollapsible';
 export { ErrorDisplay } from './messages/ErrorDisplay';
 export { markdownStyles, markdownStylesLight } from './messages/utils/markdownStyles';

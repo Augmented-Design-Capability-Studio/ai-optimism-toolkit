@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { CHAT_SYSTEM_PROMPT } from '../../../../../src/clients/v1/config/prompts';
+import { CHAT_SYSTEM_PROMPT } from '../../../../../src/core/config/prompts';
 
 export const runtime = 'edge';
 
@@ -68,6 +68,22 @@ export async function POST(
     
     const model = google(aiConfig.model || 'gemini-2.5-flash');
 
+    // Get session system prompt (or use default) - fetch once for both draft and regular generation
+    let baseSystemPrompt = CHAT_SYSTEM_PROMPT;
+    try {
+      const sessionResponse = await fetch(`${baseUrl}/sessions/${sessionId}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (sessionResponse.ok) {
+        const session = await sessionResponse.json();
+        if (session.systemPrompt) {
+          baseSystemPrompt = session.systemPrompt;
+        }
+      }
+    } catch (error) {
+      console.warn('[AI Response API] Could not fetch session system prompt, using default:', error);
+    }
+
     // If draft is provided, format/improve it instead of generating from conversation
     if (requestBody.draft && requestBody.draft.trim()) {
       console.log('[AI Response API] Formatting draft text for session:', sessionId);
@@ -103,7 +119,7 @@ ${requestBody.draft}
 Please improve and format this draft message. Make it clear, professional, and appropriate for the conversation context. Preserve the researcher's intent and main points, but improve clarity, grammar, and structure. Return only the improved text without any additional commentary or explanation.`;
 
       // Hybrid system prompt: researcher-friendly but still provides optimization guidance
-      const researcherFormatSystemPrompt = `${CHAT_SYSTEM_PROMPT}
+      const researcherFormatSystemPrompt = `${baseSystemPrompt}
 
 IMPORTANT CONTEXT FOR DRAFT FORMATTING:
 - You are helping a RESEARCHER colleague format their draft message, not a user seeking optimization help
@@ -175,11 +191,11 @@ IMPORTANT CONTEXT FOR DRAFT FORMATTING:
       model: aiConfig.model,
     });
 
-    // Generate AI response (non-streaming)
+    // Generate AI response (non-streaming) - use baseSystemPrompt already fetched above
     const { text } = await generateText({
       model,
       messages: aiMessages,
-      system: CHAT_SYSTEM_PROMPT,
+      system: baseSystemPrompt,
     });
 
     console.log('[AI Response API] Generated response length:', text.length);

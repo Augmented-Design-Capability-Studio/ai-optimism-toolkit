@@ -1,45 +1,29 @@
 /**
  * Normal message bubble for regular user/researcher/AI messages
- * Supports JSON block extraction and collapsible display (like client side)
+ * Uses shared NormalMessageContent component
  */
 
-import { Box } from '@mui/material';
 import { Message } from '../../core/services/sessionManager';
-import { MarkdownContent, splitTextWithJSON, JSONBlockCollapsible } from '../../core/components/shared/chat';
+import { NormalMessageContent } from '../../core/components/shared/chat';
 
 interface NormalMessageBubbleProps {
   message: Message;
+  onGenerateControls?: (jsonData: any) => void;
+  isGeneratingControls?: boolean;
 }
 
-export function NormalMessageBubble({ message }: NormalMessageBubbleProps) {
-  // Split content into parts with JSON blocks (like client side)
-  const contentParts = splitTextWithJSON(message.content);
-  const hasJSON = contentParts.some(p => p.type === 'json');
-
-  // If no JSON blocks, render simple markdown
-  if (!hasJSON) {
-    return <MarkdownContent content={message.content} variant="default" />;
-  }
-
-  // If JSON blocks exist, render with collapsible JSON sections
+export function NormalMessageBubble({ 
+  message, 
+  onGenerateControls,
+  isGeneratingControls = false,
+}: NormalMessageBubbleProps) {
   return (
-    <Box>
-      {contentParts.map((part, index) => {
-        if (part.type === 'json') {
-          return (
-            <JSONBlockCollapsible key={`json-${index}`} jsonContent={part.content} />
-          );
-        } else {
-          return (
-            <MarkdownContent
-              key={`text-${index}`}
-              content={part.content}
-              variant="default"
-            />
-          );
-        }
-      })}
-    </Box>
+    <NormalMessageContent
+      content={message.content}
+      variant="default"
+      onGenerateControls={onGenerateControls}
+      isGeneratingControls={isGeneratingControls}
+    />
   );
 }
 

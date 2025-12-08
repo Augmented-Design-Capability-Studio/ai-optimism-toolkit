@@ -167,7 +167,7 @@ export function ObjectiveEditDialog({
             }}
             onBlur={(e) => {
               const parsed = parseFloat(e.target.value);
-              if (!isNaN(parsed) && parsed >= 0.01) {
+              if (!isNaN(parsed) && parsed > 0) {
                 setEditedObjective({
                   ...editedObjective,
                   weight: parsed,
@@ -187,8 +187,8 @@ export function ObjectiveEditDialog({
                 setWeightInput(lastValid.toString());
               }
             }}
-            helperText="Relative importance when combining multiple objectives. Higher weight = more important. Default: 1.0"
-            InputProps={{ inputProps: { min: 0.01, step: 0.1 } }}
+            helperText="Relative importance when combining multiple objectives. Higher weight = more important. Default: 1.0. Must be greater than 0."
+            InputProps={{ inputProps: { min: 0.0001, step: 0.001 } }}
             fullWidth
           />
         </Stack>

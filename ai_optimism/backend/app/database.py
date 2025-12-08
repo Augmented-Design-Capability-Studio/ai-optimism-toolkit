@@ -18,6 +18,7 @@ EXPECTED_SCHEMA: Dict[str, Dict[str, tuple]] = {
     'session': {
         'ipAddress': ('TEXT', True),  # Optional column for IP tracking
         'version': ('TEXT', True),  # Optional column for frontend version (v1, v2, v3, etc.)
+        'systemPrompt': ('TEXT', True),  # Optional column for custom system prompt per session
     },
     # Add more tables/columns here as needed for future migrations
 }

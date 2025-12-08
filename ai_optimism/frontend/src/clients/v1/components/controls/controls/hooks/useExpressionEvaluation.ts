@@ -37,15 +37,9 @@ export function useExpressionEvaluation({
           if (variable.type === 'categorical' && variable.categories) {
             const index = values[variable.name];
             if (typeof index === 'number' && variable.categories[index]) {
+              // Store category name - backend will wrap it in CategoricalVariable
+              // which allows direct attribute access like variable.attribute_name
               variablesForEval[variable.name] = variable.categories[index];
-            }
-            
-            // Inject variable attributes into evaluation context
-            // Expressions can reference them as: {variable_name}_attributes[category]['attr']
-            // e.g., lunch_1_dish_attributes[lunch_1_dish]['cost']
-            if (variable.attributes) {
-              const attributesKey = `${variable.name}_attributes`;
-              variablesForEval[attributesKey] = variable.attributes;
             }
           }
         });
@@ -55,6 +49,13 @@ export function useExpressionEvaluation({
         const propertyExpressions = parsedControls.properties?.map(prop => prop.expression) || [];
         let propertyValues: Record<string, any> = {};
 
+        // Prepare variable definitions for backend (needed to wrap categorical variables)
+        const variableDefinitions = parsedControls.variables?.map(v => ({
+          name: v.name,
+          type: v.type,
+          attributes: v.attributes || undefined,
+        })) || [];
+
         if (propertyExpressions.length > 0) {
           const propertyResponse = await fetch(BACKEND_API.evaluate, {
             method: 'POST',
@@ -62,6 +63,7 @@ export function useExpressionEvaluation({
             body: JSON.stringify({
               expressions: propertyExpressions,
               variables: variablesForEval,
+              variable_definitions: variableDefinitions,
             }),
           });
 
@@ -100,6 +102,7 @@ export function useExpressionEvaluation({
           body: JSON.stringify({
             expressions: Array.from(expressions),
             variables: variablesForEval,
+            variable_definitions: variableDefinitions,
           }),
         });
 

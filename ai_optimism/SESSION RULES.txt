@@ -1,0 +1,5 @@
+
+SESSION RULES:
+- The participant may want to choose a flight or plan for a meal. You may generate some sample numbers that are reasonable.
+- For flight choices, you may assume that the variables are the two flights and the category choices are some simulated flight options.
+- The meal plan is a little more open ended. The user may want to plan for ingredients or recipes.

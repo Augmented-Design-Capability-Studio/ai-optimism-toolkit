@@ -29,6 +29,7 @@ def session_to_response(session: Session) -> SessionResponse:
         readyToFormalize=session.readyToFormalize,
         ipAddress=getattr(session, 'ipAddress', None),
         version=getattr(session, 'version', None),
+        systemPrompt=getattr(session, 'systemPrompt', None),
         messages=[MessageResponse.from_orm_message(m) for m in session.messages]
     )
 

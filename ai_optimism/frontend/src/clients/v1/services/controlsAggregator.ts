@@ -452,11 +452,15 @@ function migrateControls(controls: Controls): Controls {
                   // Mark property for removal
                   propertiesToRemove.push(property.name);
 
-                  // Update expressions to use new syntax: {variable_name}_attributes[{variable_name}]
+                  // Update expressions to use direct attribute access: variable.attribute_name
+                  // Pattern: property_name[variable_name]['attribute'] -> variable_name.attribute
+                  // We need to extract the attribute name from the expression
                   const newPattern = new RegExp(
-                    `${property.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\[\\s*${variable.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\]`,
+                    `${property.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\[\\s*${variable.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\]\\s*\\[\\s*['"]([^'"]+)['"]\\s*\\]`,
                     'g'
                   );
+                  // For now, keep the old pattern for backward compatibility but note it should be variable.attribute
+                  // The actual replacement will be done by checking what attribute is being accessed
                   const replacement = `${variable.name}_attributes[${variable.name}]`;
 
                   // Update objectives

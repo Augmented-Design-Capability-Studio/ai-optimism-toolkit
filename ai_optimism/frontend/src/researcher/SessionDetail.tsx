@@ -4,10 +4,11 @@
 
 import { Paper, Box, Typography } from '@mui/material';
 import { useState, useEffect, memo, useRef } from 'react';
-import { Session } from '../core/services/sessionManager';
+import { Session, useSessionManager } from '../core/services/sessionManager';
 import { SessionHeader } from './SessionHeader';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
+import { SystemPromptDialog } from './SystemPromptDialog';
 import { getAIConfig } from '../core/services/sessionAIConfig';
 
 interface SessionDetailProps {
@@ -17,8 +18,9 @@ interface SessionDetailProps {
   onFormalize: (sessionId: string) => void;
   onTerminate: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
-  onSendMessage: (sessionId: string, message: string) => void;
+  onSendMessage: (sessionId: string, message: string, metadata?: any) => void;
   onRequestAIResponse?: (sessionId: string) => void;
+  onRefresh?: () => void;
 }
 
 export const SessionDetail = memo(function SessionDetail({
@@ -30,9 +32,50 @@ export const SessionDetail = memo(function SessionDetail({
   onDelete,
   onSendMessage,
   onRequestAIResponse,
+  onRefresh,
 }: SessionDetailProps) {
   const [hasAIConfig, setHasAIConfig] = useState(false);
+  const [isGeneratingControls, setIsGeneratingControls] = useState(false);
+  const [systemPromptDialogOpen, setSystemPromptDialogOpen] = useState(false);
   const hasAIConfigRef = useRef(false);
+  const sessionManager = useSessionManager();
+
+  // Handle toggle ready to formalize
+  const handleToggleReadyToFormalize = async () => {
+    if (!session?.id) return;
+    const newValue = !session.readyToFormalize;
+    await sessionManager.updateSession(session.id, { readyToFormalize: newValue });
+    if (onRefresh) {
+      await onRefresh();
+    }
+  };
+
+  // Handle reset formalization
+  const handleResetFormalization = async (sessionId: string) => {
+    if (window.confirm('Reset formalization status to allow re-formalization?')) {
+      await sessionManager.updateSession(sessionId, { 
+        status: 'active',
+        readyToFormalize: false 
+      });
+      if (onRefresh) {
+        await onRefresh();
+      }
+    }
+  };
+
+  // Handle edit system prompt
+  const handleEditSystemPrompt = (sessionId: string) => {
+    setSystemPromptDialogOpen(true);
+  };
+
+  // Handle save system prompt
+  const handleSaveSystemPrompt = async (sessionId: string, systemPrompt: string) => {
+    // Update session with new system prompt
+    await sessionManager.updateSession(sessionId, { systemPrompt });
+    if (onRefresh) {
+      await onRefresh();
+    }
+  };
 
   // Check if session has AI config
   useEffect(() => {
@@ -65,6 +108,36 @@ export const SessionDetail = memo(function SessionDetail({
     return () => clearInterval(interval);
   }, [session?.id]);
 
+  // Handle generating controls from JSON data
+  const handleGenerateControls = async (jsonData: any) => {
+    if (!session?.id || isGeneratingControls) return;
+
+    setIsGeneratingControls(true);
+    try {
+      // Create a controls-generation message with the JSON data
+      await sessionManager.addMessage(
+        session.id,
+        'researcher',
+        'Controls generated from JSON components',
+        {
+          type: 'controls-generation',
+          controlsGenerated: true,
+          structuredData: jsonData,
+        }
+      );
+
+      // Refresh sessions to show the new message
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error: any) {
+      console.error('[SessionDetail] Error generating controls:', error);
+      alert(`Failed to generate controls: ${error.message || 'Unknown error'}`);
+    } finally {
+      setIsGeneratingControls(false);
+    }
+  };
+
   if (!session) {
     return (
       <Paper sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -86,14 +159,16 @@ export const SessionDetail = memo(function SessionDetail({
         session={session}
         isFormalizingId={isFormalizingId}
         onModeToggle={onModeToggle}
-        onFormalize={onFormalize}
         onTerminate={onTerminate}
         onDelete={onDelete}
+        onEditSystemPrompt={handleEditSystemPrompt}
       />
       
       <MessageList 
         messages={session.messages} 
         isFormalizingSession={isFormalizingId === session.id}
+        onGenerateControls={handleGenerateControls}
+        isGeneratingControls={isGeneratingControls}
       />
 
       {session.status !== 'formalized' && (
@@ -103,9 +178,22 @@ export const SessionDetail = memo(function SessionDetail({
           onRequestAIResponse={onRequestAIResponse}
           disabled={session.status === 'completed'}
           sessionStatus={session.status}
+          readyToFormalize={session.readyToFormalize || false}
+          isFormalizing={isFormalizingId === session.id}
           hasAIConfig={hasAIConfig}
+          onToggleReadyToFormalize={handleToggleReadyToFormalize}
+          onFormalize={onFormalize}
+          onResetFormalization={handleResetFormalization}
         />
       )}
+
+      <SystemPromptDialog
+        open={systemPromptDialogOpen}
+        sessionId={session.id}
+        currentSystemPrompt={session.systemPrompt}
+        onClose={() => setSystemPromptDialogOpen(false)}
+        onSave={handleSaveSystemPrompt}
+      />
     </Paper>
   );
 });

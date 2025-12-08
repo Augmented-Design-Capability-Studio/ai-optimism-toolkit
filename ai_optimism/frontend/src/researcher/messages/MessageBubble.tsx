@@ -22,9 +22,15 @@ import { ControlsGenerationMessageBubble } from './ControlsGenerationMessageBubb
 
 interface MessageBubbleProps {
   message: Message;
+  onGenerateControls?: (jsonData: any) => void;
+  isGeneratingControls?: boolean;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ 
+  message, 
+  onGenerateControls,
+  isGeneratingControls = false,
+}: MessageBubbleProps) {
   const isSpecialType = isSpecialMessageType(message);
   const isShort = isShortMessage(message);
 
@@ -74,7 +80,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         ) : message.metadata?.type === 'controls-generation' ? (
           <ControlsGenerationMessageBubble message={message} />
         ) : (
-          <NormalMessageBubble message={message} />
+          <NormalMessageBubble 
+            message={message} 
+            onGenerateControls={onGenerateControls}
+            isGeneratingControls={isGeneratingControls}
+          />
         )}
       </Paper>
     </Box>

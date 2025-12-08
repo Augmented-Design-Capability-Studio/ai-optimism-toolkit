@@ -13,16 +13,13 @@ import {
   ToggleButton,
   IconButton,
   Tooltip,
-  Checkbox,
-  FormControlLabel,
 } from '@mui/material';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import StopIcon from '@mui/icons-material/Stop';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import ScienceIcon from '@mui/icons-material/Science';
+import EditIcon from '@mui/icons-material/Edit';
 import { Session, useSessionManager } from '../core/services/sessionManager';
 import { SessionAIStatusIndicator, SessionAISettings } from '../core/components/status';
 
@@ -30,18 +27,18 @@ interface SessionHeaderProps {
   session: Session;
   isFormalizingId: string | null;
   onModeToggle: (sessionId: string, mode: 'ai' | 'experimental') => void;
-  onFormalize: (sessionId: string) => void;
   onTerminate: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
+  onEditSystemPrompt?: (sessionId: string) => void;
 }
 
 export function SessionHeader({
   session,
   isFormalizingId,
   onModeToggle,
-  onFormalize,
   onTerminate,
   onDelete,
+  onEditSystemPrompt,
 }: SessionHeaderProps) {
   const sessionManager = useSessionManager();
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
@@ -69,27 +66,6 @@ export function SessionHeader({
     URL.revokeObjectURL(url);
   };
 
-  const handleResetFormalization = async () => {
-    if (window.confirm('Reset formalization status to allow re-formalization?')) {
-      // Backend-routed: Updates session status through backend API
-      await sessionManager.updateSession(session.id, { 
-        status: 'active',
-        readyToFormalize: false 
-      });
-      // Force immediate UI update by triggering parent's loadSessions
-      // The onModeToggle function will call loadSessions which refreshes the UI
-      setTimeout(() => {
-        onModeToggle(session.id, session.mode);
-      }, 0);
-    }
-  };
-
-  const handleToggleReadyToFormalize = async () => {
-    const newValue = !session.readyToFormalize;
-    // Backend-routed: Updates readyToFormalize flag through backend API
-    // This ensures the flag is synced across all devices accessing the researcher dashboard
-    await sessionManager.updateSession(session.id, { readyToFormalize: newValue });
-  };
 
   return (
     <Box sx={{ p: 1.5, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'divider' }}>
@@ -187,59 +163,29 @@ export function SessionHeader({
 
         <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
 
-        {/* Ready to Formalize Toggle */}
-        {session.status !== 'formalized' && (
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={session.readyToFormalize === true}
-                onChange={handleToggleReadyToFormalize}
-                size="small"
-                sx={{
-                  color: session.readyToFormalize ? 'success.main' : 'default',
-                  '&.Mui-checked': {
-                    color: 'success.main',
-                  },
-                }}
-              />
-            }
-            label={
-              <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
-                Ready to Formalize
-              </Typography>
-            }
-            sx={{ mr: 1 }}
-          />
+        {/* Edit System Prompt Button */}
+        {onEditSystemPrompt && (
+          <>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<EditIcon />}
+              onClick={() => onEditSystemPrompt(session.id)}
+              title="Edit Master Prompt"
+              sx={{
+                borderColor: 'purple',
+                color: 'purple',
+                '&:hover': {
+                  borderColor: 'purple',
+                  backgroundColor: 'rgba(128, 0, 128, 0.04)',
+                },
+              }}
+            >
+              PROMPT
+            </Button>
+            <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
+          </>
         )}
-
-        {/* Formalization Button */}
-        <Button
-          variant="contained"
-          color={session.status === 'formalized' ? 'warning' : 'secondary'}
-          size="small"
-          startIcon={
-            isFormalizingId === session.id ? undefined :
-              session.status === 'formalized' ? <RefreshIcon /> : <AutoFixHighIcon />
-          }
-          onClick={session.status === 'formalized' ? handleResetFormalization : () => {
-            // Frontend-triggered: Formalization uses frontend AI (as requested)
-            // The formalization result and status update are then saved through backend API
-            // This works the same way as when a user clicks the formalize button
-            onFormalize(session.id);
-          }}
-          disabled={
-            isFormalizingId === session.id ||
-            session.messages.length < 2
-          }
-        >
-          {isFormalizingId === session.id
-            ? 'Formalizing...'
-            : session.status === 'formalized'
-              ? 'Reset Formalization'
-              : 'Formalize Problem'}
-        </Button>
-
-        <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', md: 'block' } }} />
 
         {/* Action Buttons */}
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>

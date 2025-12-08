@@ -201,29 +201,26 @@ class OptimizationService:
         def build_evaluation_context(design_dict):
             """
             Build complete evaluation context including:
-            1. Variables (with categorical indices converted to category names)
-            2. Attribute dictionaries (e.g., outbound_flight_attributes)
-            3. Properties (evaluated and added to context)
+            1. Variables (with categorical indices converted to CategoricalVariable objects)
+            2. Properties (evaluated and added to context)
             """
-            from ..utils.evaluation import safe_eval
+            from ..utils.evaluation import safe_eval, CategoricalVariable
             
-            # Step 1: Convert categorical indices to category names
+            # Step 1: Convert categorical indices to CategoricalVariable objects
             eval_dict = design_dict.copy()
             for var in problem.variables:
                 if var.type == 'categorical' and var.categories and var.name in eval_dict:
                     idx = eval_dict[var.name]
-                    # If it's an index (integer), convert to category name
+                    # If it's an index (integer), convert to category name and wrap in CategoricalVariable
                     if isinstance(idx, (int, float)) and 0 <= int(idx) < len(var.categories):
-                        eval_dict[var.name] = var.categories[int(idx)]
+                        category_name = var.categories[int(idx)]
+                        # Wrap in CategoricalVariable if attributes exist, otherwise just use category name
+                        if var.attributes:
+                            eval_dict[var.name] = CategoricalVariable(category_name, var.attributes)
+                        else:
+                            eval_dict[var.name] = category_name
             
-            # Step 2: Add attribute dictionaries for categorical variables
-            for var in problem.variables:
-                if var.type == 'categorical' and var.attributes:
-                    # Add attributes dictionary as {var_name}_attributes
-                    attributes_key = f"{var.name}_attributes"
-                    eval_dict[attributes_key] = var.attributes
-            
-            # Step 3: Evaluate properties and add them to the evaluation context
+            # Step 2: Evaluate properties and add them to the evaluation context
             if problem.properties:
                 for prop in problem.properties:
                     try:

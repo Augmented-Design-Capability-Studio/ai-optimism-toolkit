@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { getFormalizationPrompt } from '../../../../../src/clients/v1/config/prompts';
+import { getFormalizationPrompt } from '../../../../../src/core/config/prompts';
 import { extractJSONBlocks } from '../../../../../src/core/components/shared/chat/messages/utils/jsonExtractors';
 import { aggregateControlsFromMessages } from '../../../../../src/clients/v1/services/controlsAggregator';
 

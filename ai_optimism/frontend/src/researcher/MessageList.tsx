@@ -11,9 +11,16 @@ import { MessageBubble, FormalizingIndicator } from './messages';
 interface MessageListProps {
   messages: Message[];
   isFormalizingSession?: boolean;
+  onGenerateControls?: (jsonData: any) => void;
+  isGeneratingControls?: boolean;
 }
 
-export function MessageList({ messages, isFormalizingSession }: MessageListProps) {
+export function MessageList({ 
+  messages, 
+  isFormalizingSession,
+  onGenerateControls,
+  isGeneratingControls = false,
+}: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(messages.length);
 
@@ -29,7 +36,12 @@ export function MessageList({ messages, isFormalizingSession }: MessageListProps
   return (
     <Box sx={{ flex: 1, overflow: 'auto', p: 2, pb: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
       {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
+        <MessageBubble 
+          key={message.id} 
+          message={message}
+          onGenerateControls={onGenerateControls}
+          isGeneratingControls={isGeneratingControls}
+        />
       ))}
 
       {isFormalizingSession && <FormalizingIndicator />}

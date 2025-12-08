@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText, convertToCoreMessages } from 'ai';
-import { CHAT_SYSTEM_PROMPT } from '../../../src/clients/v1/config/prompts';
+import { CHAT_SYSTEM_PROMPT } from '../../../src/core/config/prompts';
 
 export const runtime = 'edge';
 
@@ -155,11 +155,27 @@ export async function POST(req: Request) {
         lastMessage: coreMessages[coreMessages.length - 1],
       });
       
+      // Get session system prompt (or use default)
+      let systemPrompt = CHAT_SYSTEM_PROMPT;
+      try {
+        const sessionResponse = await fetch(`${baseUrl}/sessions/${sessionId}`, {
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (sessionResponse.ok) {
+          const session = await sessionResponse.json();
+          if (session.systemPrompt) {
+            systemPrompt = session.systemPrompt;
+          }
+        }
+      } catch (error) {
+        console.warn('[Chat API] Could not fetch session system prompt, using default:', error);
+      }
+
       console.log('[Chat API] Calling streamText with model:', finalModel);
       const result = await streamText({
         model,
         messages: coreMessages,
-        system: CHAT_SYSTEM_PROMPT,
+        system: systemPrompt,
       });
 
       console.log('[Chat API] Stream created successfully, returning response...');
@@ -174,7 +190,31 @@ export async function POST(req: Request) {
         message: streamError instanceof Error ? streamError.message : 'Unknown error',
         stack: streamError instanceof Error ? streamError.stack : undefined,
       });
+      
       const errorMessage = streamError instanceof Error ? streamError.message : 'Stream error';
+      
+      // Check if this is a quota/rate limit error
+      const isQuotaError = 
+        errorMessage.includes('quota') ||
+        errorMessage.includes('Quota exceeded') ||
+        errorMessage.includes('rate limit') ||
+        errorMessage.includes('rate_limit') ||
+        errorMessage.includes('RATE_LIMIT_EXCEEDED') ||
+        errorMessage.includes('RESOURCE_EXHAUSTED') ||
+        errorMessage.includes('429');
+      
+      if (isQuotaError) {
+        // Return 429 status to indicate rate limit (client should not retry)
+        return new Response(JSON.stringify({ 
+          error: 'QUOTA_EXCEEDED',
+          message: 'API quota exceeded. Please wait before sending another message.',
+          details: errorMessage,
+        }), { 
+          status: 429,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      
       return new Response(JSON.stringify({ 
         error: 'Failed to start stream', 
         details: errorMessage 

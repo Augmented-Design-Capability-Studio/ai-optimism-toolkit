@@ -61,6 +61,25 @@ export function useFormalization({
       return true;
     } catch (error) {
       console.error('[useFormalization] Error:', error);
+      
+      // Save error as a formalization message so it appears in the UI
+      const errorMessage = error instanceof Error ? error.message : 'Failed to formalize problem';
+      try {
+        await sessionManager.addMessage(
+          currentSession.id,
+          'ai',
+          `❌ Formalization failed: ${errorMessage}\n\nPlease check the conversation and try again, or contact support if the issue persists.`,
+          {
+            type: 'formalization',
+            incomplete: true,
+            error: true,
+            errorDetails: errorMessage,
+          }
+        );
+      } catch (saveError) {
+        console.error('[useFormalization] Failed to save error message:', saveError);
+      }
+      
       throw error;
     }
   };

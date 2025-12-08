@@ -22,6 +22,9 @@ interface MarkdownInputProps {
   isGeneratingAI?: boolean;
   aiButtonDisabled?: boolean;
   aiButtonTooltip?: string;
+  // Optional preview props (for external control)
+  showPreview?: boolean;
+  onPreviewChange?: (checked: boolean) => void;
 }
 
 export const MarkdownInput = memo(function MarkdownInput({
@@ -36,8 +39,11 @@ export const MarkdownInput = memo(function MarkdownInput({
   isGeneratingAI = false,
   aiButtonDisabled = false,
   aiButtonTooltip,
+  showPreview: externalShowPreview,
+  onPreviewChange: externalOnPreviewChange,
 }: MarkdownInputProps) {
-  const [showPreview, setShowPreview] = useState(false);
+  const [internalShowPreview, setInternalShowPreview] = useState(false);
+  const showPreview = externalShowPreview !== undefined ? externalShowPreview : internalShowPreview;
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
@@ -47,8 +53,13 @@ export const MarkdownInput = memo(function MarkdownInput({
   }, [value, disabled, isLoading, onSubmit]);
 
   const handlePreviewChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    setShowPreview(event.target.checked);
-  }, []);
+    const checked = event.target.checked;
+    if (externalOnPreviewChange) {
+      externalOnPreviewChange(checked);
+    } else {
+      setInternalShowPreview(checked);
+    }
+  }, [externalOnPreviewChange]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onChange(e.target.value);
@@ -97,32 +108,34 @@ export const MarkdownInput = memo(function MarkdownInput({
             }}
           />
         </Box>
-        {/* Preview checkbox outside input box, next to action buttons */}
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={showPreview}
-              onChange={handlePreviewChange}
-              size="small"
-              disabled={disabled || isLoading}
-              sx={{
-                padding: '2px',
-                '& .MuiSvgIcon-root': {
-                  fontSize: '1rem',
-                },
-              }}
-            />
-          }
-          label="Preview"
-          sx={{
-            m: 0,
-            alignSelf: 'flex-end',
-            '& .MuiFormControlLabel-label': {
-              fontSize: '0.75rem',
-              ml: 0.5,
-            },
-          }}
-        />
+        {/* Preview checkbox - only show if not externally controlled */}
+        {externalShowPreview === undefined && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={showPreview}
+                onChange={handlePreviewChange}
+                size="small"
+                disabled={disabled || isLoading}
+                sx={{
+                  padding: '2px',
+                  '& .MuiSvgIcon-root': {
+                    fontSize: '1rem',
+                  },
+                }}
+              />
+            }
+            label="Preview"
+            sx={{
+              m: 0,
+              alignSelf: 'flex-end',
+              '& .MuiFormControlLabel-label': {
+                fontSize: '0.75rem',
+                ml: 0.5,
+              },
+            }}
+          />
+        )}
         {showAIButton && onRequestAI && (
           <Tooltip 
             title={aiButtonTooltip || (isGeneratingAI ? 'Generating...' : 'Draft AI response')}

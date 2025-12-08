@@ -4,9 +4,10 @@
  */
 
 import { useState } from 'react';
-import { Box, Accordion, AccordionSummary, AccordionDetails, Typography, Chip } from '@mui/material';
+import { Box, Accordion, AccordionSummary, AccordionDetails, Typography, Chip, IconButton, Tooltip } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CodeIcon from '@mui/icons-material/Code';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 interface JSONBlockCollapsibleProps {
   jsonContent: string;
@@ -14,6 +15,7 @@ interface JSONBlockCollapsibleProps {
 
 export function JSONBlockCollapsible({ jsonContent }: JSONBlockCollapsibleProps) {
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   // Try to format JSON nicely
   let formattedJSON = jsonContent;
@@ -23,6 +25,16 @@ export function JSONBlockCollapsible({ jsonContent }: JSONBlockCollapsibleProps)
   } catch {
     // If not valid JSON, use as-is
   }
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(formattedJSON);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy JSON:', error);
+    }
+  };
   
   return (
     <Accordion
@@ -71,22 +83,42 @@ export function JSONBlockCollapsible({ jsonContent }: JSONBlockCollapsibleProps)
         </Box>
       </AccordionSummary>
       <AccordionDetails sx={{ px: 1.5, pb: 1.5, pt: 0 }}>
-        <Box
-          component="pre"
-          sx={{
-            bgcolor: 'grey.100',
-            p: 1.5,
-            borderRadius: 1,
-            overflow: 'auto',
-            fontSize: '0.75rem',
-            fontFamily: 'monospace',
-            m: 0,
-            maxHeight: '400px',
-            border: 1,
-            borderColor: 'divider',
-          }}
-        >
-          {formattedJSON}
+        <Box sx={{ position: 'relative' }}>
+          <Box
+            component="pre"
+            sx={{
+              bgcolor: 'grey.100',
+              p: 1.5,
+              borderRadius: 1,
+              overflow: 'auto',
+              fontSize: '0.75rem',
+              fontFamily: 'monospace',
+              m: 0,
+              maxHeight: '400px',
+              border: 1,
+              borderColor: 'divider',
+            }}
+          >
+            {formattedJSON}
+          </Box>
+          <Tooltip title={copied ? 'Copied!' : 'Copy JSON'}>
+            <IconButton
+              size="small"
+              onClick={handleCopy}
+              sx={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                bgcolor: 'background.paper',
+                boxShadow: 1,
+                '&:hover': {
+                  bgcolor: 'grey.200',
+                },
+              }}
+            >
+              <ContentCopyIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
         </Box>
       </AccordionDetails>
     </Accordion>

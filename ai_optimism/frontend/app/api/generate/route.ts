@@ -1,7 +1,7 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { getGenerateControlsPrompt } from '../../../src/clients/v1/config/prompts';
+import { getGenerateControlsPrompt } from '../../../src/core/config/prompts';
 import {
   mergeSimpleBoundConstraints,
   isValidProperty,

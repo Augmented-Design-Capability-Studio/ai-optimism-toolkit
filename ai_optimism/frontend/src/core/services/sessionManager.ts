@@ -70,6 +70,7 @@ export interface Session {
   readyToFormalize?: boolean;
   ipAddress?: string | null;  // Client IP address
   version?: string | null;  // Frontend version (v1, v2, v3, etc.)
+  systemPrompt?: string | null;  // Custom system prompt for this session
 }
 
 class SessionManager {

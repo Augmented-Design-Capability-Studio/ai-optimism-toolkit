@@ -175,7 +175,7 @@ export function ConstraintEditDialog({
               }}
               onBlur={(e) => {
                 const parsed = parseFloat(e.target.value);
-                if (!isNaN(parsed) && parsed >= 0) {
+                if (!isNaN(parsed) && parsed > 0) {
                   setEditedConstraint({
                     ...editedConstraint,
                     weight: parsed,
@@ -195,8 +195,8 @@ export function ConstraintEditDialog({
                   setWeightInput(lastValid.toString());
                 }
               }}
-              helperText="Higher weight = stronger preference to satisfy this constraint"
-              InputProps={{ inputProps: { min: 0, step: 0.1 } }}
+              helperText="Higher weight = stronger preference to satisfy this constraint. Must be greater than 0."
+              InputProps={{ inputProps: { min: 0.0001, step: 0.001 } }}
               fullWidth
             />
           )}

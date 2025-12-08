@@ -55,6 +55,7 @@ async def create_session(
         readyToFormalize=False,
         ipAddress=ip_address,
         version=request.version,
+        systemPrompt=None,  # Default to None, can be set later via update
     )
     db.add(session)
     db.commit()

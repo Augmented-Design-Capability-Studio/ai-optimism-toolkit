@@ -45,6 +45,48 @@ export function VariableWidget({ variable, value, onChange, onEdit }: VariableWi
 
   const widgetType = getWidgetType();
 
+  // Handle mouse drag for knob widget - moved to top level to satisfy Rules of Hooks
+  useEffect(() => {
+    // Only set up drag handlers if widget is a knob and dragging is active
+    if (widgetType !== 'knob' || !isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!knobRef.current) return;
+      
+      const rect = knobRef.current.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      let degrees = (angle * 180) / Math.PI + 90;
+      if (degrees < 0) degrees += 360;
+      
+      // Map angle to value (135° to 405° = 270° range)
+      const startAngle = 135;
+      const adjustedAngle = degrees < 135 ? degrees + 360 : degrees;
+      const normalizedAngle = Math.max(135, Math.min(405, adjustedAngle));
+      const ratio = (normalizedAngle - startAngle) / 270;
+      
+      const vMin = variable.min ?? 0;
+      const vMax = variable.max ?? 100;
+      const newValue = vMin + ratio * (vMax - vMin);
+      const clampedValue = Math.max(vMin, Math.min(vMax, newValue));
+      onChange(variable.type === 'discrete' ? Math.round(clampedValue) : clampedValue);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, widgetType, variable.min, variable.max, variable.type, onChange]);
+
   // Determine if toggle should be vertical
   const isVerticalToggle = widgetType === 'toggle' && categoryMetrics && 
     (categoryMetrics.count > 4 || (categoryMetrics.avgLength > 8 && categoryMetrics.count > 2));
@@ -87,46 +129,6 @@ export function VariableWidget({ variable, value, onChange, onEdit }: VariableWi
       e.preventDefault();
       setIsDragging(true);
     };
-
-    useEffect(() => {
-      if (!isDragging) return;
-
-      const handleMouseMove = (e: MouseEvent) => {
-        if (!knobRef.current) return;
-        
-        const rect = knobRef.current.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        
-        const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
-        let degrees = (angle * 180) / Math.PI + 90;
-        if (degrees < 0) degrees += 360;
-        
-        // Map angle to value (135° to 405° = 270° range)
-        const startAngle = 135;
-        const adjustedAngle = degrees < 135 ? degrees + 360 : degrees;
-        const normalizedAngle = Math.max(135, Math.min(405, adjustedAngle));
-        const ratio = (normalizedAngle - startAngle) / 270;
-        
-        const vMin = variable.min ?? 0;
-        const vMax = variable.max ?? 100;
-        const newValue = vMin + ratio * (vMax - vMin);
-        const clampedValue = Math.max(vMin, Math.min(vMax, newValue));
-        onChange(variable.type === 'discrete' ? Math.round(clampedValue) : clampedValue);
-      };
-
-      const handleMouseUp = () => {
-        setIsDragging(false);
-      };
-
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-
-      return () => {
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }, [isDragging, variable.min, variable.max, variable.type, onChange]);
 
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', my: 0, px: 0.5 }}>

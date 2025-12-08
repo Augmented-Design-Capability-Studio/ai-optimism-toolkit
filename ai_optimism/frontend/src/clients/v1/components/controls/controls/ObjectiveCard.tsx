@@ -19,8 +19,29 @@ interface ObjectiveCardProps {
   onVariableClick?: (variableName: string) => void;
 }
 
+// Python reserved keywords and built-in functions to exclude from variable highlighting
+const RESERVED_WORDS = new Set([
+  // Python keywords
+  'if', 'else', 'elif', 'for', 'while', 'def', 'class', 'import', 'from', 'as',
+  'return', 'break', 'continue', 'pass', 'try', 'except', 'finally', 'raise',
+  'with', 'lambda', 'yield', 'global', 'nonlocal', 'assert', 'del', 'in', 'is',
+  'not', 'and', 'or', 'True', 'False', 'None',
+  // Built-in functions
+  'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'bytearray', 'bytes', 'callable',
+  'chr', 'classmethod', 'compile', 'complex', 'delattr', 'dict', 'dir', 'divmod',
+  'enumerate', 'eval', 'exec', 'filter', 'float', 'format', 'frozenset', 'getattr',
+  'globals', 'hasattr', 'hash', 'help', 'hex', 'id', 'input', 'int', 'isinstance',
+  'issubclass', 'iter', 'len', 'list', 'locals', 'map', 'max', 'memoryview', 'min',
+  'next', 'object', 'oct', 'open', 'ord', 'pow', 'print', 'property', 'range',
+  'repr', 'reversed', 'round', 'set', 'setattr', 'slice', 'sorted', 'staticmethod',
+  'str', 'sum', 'super', 'tuple', 'type', 'vars', 'zip', '__import__',
+  // Common math functions (if used in expressions)
+  'math', 'sqrt', 'sin', 'cos', 'tan', 'log', 'exp', 'pi', 'e',
+]);
+
 // Parse expression to identify variable names for clickable chips
 // Moved outside component to avoid recreating on every render
+// Excludes Python keywords and built-in functions
 const parseExpression = (expr: string): (string | { type: 'variable'; name: string })[] => {
   const tokens: (string | { type: 'variable'; name: string })[] = [];
   const variablePattern = /[a-zA-Z_][a-zA-Z0-9_]*/g;
@@ -31,7 +52,13 @@ const parseExpression = (expr: string): (string | { type: 'variable'; name: stri
     if (match.index > lastIndex) {
       tokens.push(expr.slice(lastIndex, match.index));
     }
-    tokens.push({ type: 'variable', name: match[0] });
+    const name = match[0];
+    // Only treat as variable if it's not a reserved word
+    if (RESERVED_WORDS.has(name)) {
+      tokens.push(name); // Add as plain text, not a chip
+    } else {
+      tokens.push({ type: 'variable', name });
+    }
     lastIndex = match.index + match[0].length;
   }
 

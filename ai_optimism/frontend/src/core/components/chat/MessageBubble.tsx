@@ -7,17 +7,17 @@ import SmartToyIcon from '@mui/icons-material/SmartToy';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { SessionMode } from '../../services/sessionManager';
-import { FormalizationMessage, OptimizationRunMessage, MarkdownContent, splitTextWithJSON, JSONBlockCollapsible, ErrorDisplay } from '../shared/chat';
+import { FormalizationMessage, OptimizationRunMessage, NormalMessageContent, ErrorDisplay } from '../shared/chat';
 
 interface MessageBubbleProps {
   message: any;
   mode: SessionMode;
   isGeneratingControls?: boolean;
-  onGenerateControls?: (formalizationText: string) => void;
+  onGenerateControls?: (jsonData: string | any) => void; // Accepts both string and object
 }
 
 export const MessageBubble = memo(function MessageBubble({ message, mode, isGeneratingControls = false, onGenerateControls }: MessageBubbleProps) {
-  const { messageRole, textContent, contentParts, hasJSON } = useMemo(() => {
+  const { messageRole, textContent } = useMemo(() => {
     let role = message.role;
     let content = '';
   
@@ -39,17 +39,27 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
         content = JSON.stringify(message);
       }
     }
-  
-    const parts = splitTextWithJSON(content);
-    const hasJson = parts.some(p => p.type === 'json');
     
     return {
       messageRole: role,
       textContent: content,
-      contentParts: parts,
-      hasJSON: hasJson,
     };
   }, [message, mode]);
+  
+  // Wrapper for onGenerateControls that handles both objects and strings
+  const handleGenerateControls = useMemo(() => {
+    if (!onGenerateControls) return undefined;
+    return (jsonData: any) => {
+      // If it's already a string, pass it through
+      // If it's an object, pass it directly (ChatPanel can handle both)
+      if (typeof jsonData === 'string') {
+        onGenerateControls(jsonData);
+      } else {
+        // Pass object directly - ChatPanel will handle it
+        onGenerateControls(jsonData);
+      }
+    };
+  }, [onGenerateControls]);
   
   const displayRole = messageRole === 'researcher' ? 'assistant' : messageRole;
   
@@ -122,7 +132,11 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
           color: displayRole === 'user' ? 'primary.contrastText' : 'text.primary',
           ...(isFormalization && {
             border: 2,
-            borderColor: isIncomplete ? 'warning.main' : 'success.main',
+            borderColor: message.metadata?.error === true 
+              ? 'error.main' 
+              : isIncomplete 
+                ? 'warning.main' 
+                : 'success.main',
           }),
           ...(isOptimizationRun && {
             border: 2,
@@ -142,6 +156,8 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
           <FormalizationMessage
             content={textContent}
             isIncomplete={isIncomplete}
+            isError={message.metadata?.error === true}
+            errorDetails={message.metadata?.errorDetails as string | undefined}
             onGenerateControls={onGenerateControls}
             isGeneratingControls={isGeneratingControls}
             variant="light"
@@ -192,23 +208,12 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
               )}
               
               {!shouldHideGeneratingContent && (
-                <Box>
-                  {contentParts.map((part, index) => {
-                    if (part.type === 'json') {
-                      return (
-                        <JSONBlockCollapsible key={`json-${index}`} jsonContent={part.content} />
-                      );
-                    } else {
-                      return (
-                        <MarkdownContent
-                          key={`text-${index}`}
-                          content={part.content}
-                          variant="light"
-                        />
-                      );
-                    }
-                  })}
-                </Box>
+                <NormalMessageContent
+                  content={textContent}
+                  variant="light"
+                  onGenerateControls={handleGenerateControls}
+                  isGeneratingControls={isGeneratingControls}
+                />
               )}
             </Box>
           ) : (
