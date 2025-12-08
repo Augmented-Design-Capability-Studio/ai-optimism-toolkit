@@ -7,16 +7,23 @@ import sys
 import time
 import requests
 import threading
+import socket
 from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 env_path = Path(__file__).parent / '.env'
-load_dotenv(env_path)
+if env_path.exists():
+    load_dotenv(env_path)
+    print(f"[Config] Loaded .env from {env_path}")
+else:
+    print(f"[Config] Warning: .env file not found at {env_path}")
 
 # Load .env.local to override (for local development)
 env_local_path = Path(__file__).parent / '.env.local'
-load_dotenv(env_local_path, override=True)
+if env_local_path.exists():
+    load_dotenv(env_local_path, override=True)
+    print(f"[Config] Loaded .env.local from {env_local_path} (overrides .env)")
 
 cloudflared_process = None
 cloudflared_monitor_thread = None
@@ -238,6 +245,18 @@ if __name__ == "__main__":
     tunnel_name = os.getenv('CLOUDFLARE_TUNNEL_NAME', '').strip()
     tunnel_domain = os.getenv('CLOUDFLARE_TUNNEL_DOMAIN', '').strip()
     tunnel_url = None
+    
+    # Debug: Show what was loaded (helpful for troubleshooting)
+    if tunnel_name:
+        print(f"[Config] CLOUDFLARE_TUNNEL_NAME found: '{tunnel_name}'")
+    else:
+        raw_value = os.getenv('CLOUDFLARE_TUNNEL_NAME')
+        if raw_value is None:
+            print("[Config] CLOUDFLARE_TUNNEL_NAME not set in environment")
+        elif raw_value.strip() == '':
+            print("[Config] CLOUDFLARE_TUNNEL_NAME is set but empty (check for spaces or empty value in .env)")
+        else:
+            print(f"[Config] CLOUDFLARE_TUNNEL_NAME found but stripped to empty: '{raw_value}'")
     
     if tunnel_name:
         cloudflared_tunnel_name = tunnel_name
