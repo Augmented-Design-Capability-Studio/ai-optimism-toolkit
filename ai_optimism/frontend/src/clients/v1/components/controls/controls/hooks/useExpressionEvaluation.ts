@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { Controls } from '../types';
-import { BACKEND_API } from '../../../../../../core/config/backend';
+import { BACKEND_API } from '@/core/config/backend';
 
 interface UseExpressionEvaluationProps {
   parsedControls: Controls | null;

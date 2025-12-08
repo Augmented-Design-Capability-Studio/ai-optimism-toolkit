@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { Session, Message } from '../../../services/sessionManager';
+import { Session, Message } from '@/core/services/sessionManager';
 import { convertToUseChatMessages } from '../utils/messageConverters';
 import { getRealUserMessageCount } from '../utils/sessionHelpers';
-import { detectFormalizationReadiness } from '../../../services/formalizationHelper';
-import { parseStructuredData, getUpdateType } from '../../../utils/structuredDataParser';
+import { detectFormalizationReadiness } from '@/core/services/formalizationHelper';
+import { parseStructuredData, getUpdateType } from '@/core/utils/structuredDataParser';
 
 interface UseMessageSyncProps {
   currentSession: Session | null;

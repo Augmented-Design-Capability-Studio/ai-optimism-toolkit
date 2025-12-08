@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Session } from '../../../services/sessionManager';
+import { Session } from '@/core/services/sessionManager';
 import { extractMessageText } from '../utils/messageConverters';
 
 interface DisplayMessage {

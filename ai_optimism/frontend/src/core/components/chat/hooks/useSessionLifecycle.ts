@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { useSessionManager, Session } from '../../../services/sessionManager';
-import { useVersion } from '../../../contexts/VersionContext';
+import { useSessionManager, Session } from '@/core/services/sessionManager';
+import { useVersion } from '@/core/contexts/VersionContext';
 
 export function useSessionLifecycle() {
   const sessionManager = useSessionManager();

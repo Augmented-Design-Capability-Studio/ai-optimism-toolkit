@@ -24,10 +24,10 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import InfoIcon from '@mui/icons-material/Info';
 import { useState, type ChangeEvent, type FocusEvent } from 'react';
-import { useBackend } from '../../../core/contexts/BackendContext';
-import { useSessionManager } from '../../../core/services/sessionManager';
+import { useBackend } from '@/core/contexts/BackendContext';
+import { useSessionManager } from '@/core/services/sessionManager';
 import type { Controls } from './controls/controls/types';
-import { Session } from '../../../core/services/sessionManager';
+import { Session } from '@/core/services/sessionManager';
 
 type OptimizationStatus = 'idle' | 'running' | 'paused' | 'completed' | 'error';
 

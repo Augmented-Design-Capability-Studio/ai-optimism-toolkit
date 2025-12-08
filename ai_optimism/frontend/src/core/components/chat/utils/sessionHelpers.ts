@@ -1,4 +1,4 @@
-import { Session, Message } from '../../../services/sessionManager';
+import { Session, Message } from '@/core/services/sessionManager';
 
 /**
  * Get real user messages count (excluding Initialize)

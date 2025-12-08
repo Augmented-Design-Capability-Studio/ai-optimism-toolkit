@@ -4,7 +4,7 @@
  */
 
 import type { Controls, Variable, Objective, Constraint, Property } from '../components/controls/controls/types';
-import type { Message } from '../../../core/services/sessionManager';
+import type { Message } from '@/core/services/sessionManager';
 
 /**
  * Aggregate Controls from session messages

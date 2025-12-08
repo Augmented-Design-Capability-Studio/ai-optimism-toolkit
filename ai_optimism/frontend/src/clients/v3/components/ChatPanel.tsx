@@ -6,7 +6,7 @@ import {
   ChatHeader,
   MessagesList,
   ChatInput,
-} from '../../../core/components/chat';
+} from '@/core/components/chat';
 import { useChatSession } from '../hooks/useChatSession';
 
 interface ChatPanelProps {

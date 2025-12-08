@@ -2,15 +2,15 @@
 
 import { useState, useRef } from 'react';
 import { useChat } from '@ai-sdk/react';
-import { useSessionManager, SessionMode } from '../../../core/services/sessionManager';
-import { useBackend } from '../../../core/contexts/BackendContext';
-import { useSessionLifecycle } from '../../../core/components/chat/hooks/useSessionLifecycle';
-import { useChatTransport } from '../../../core/components/chat/hooks/useChatTransport';
-import { useMessageSync } from '../../../core/components/chat/hooks/useMessageSync';
-import { useDisplayMessages } from '../../../core/components/chat/hooks/useDisplayMessages';
-import { useFormalization } from '../../../core/components/chat/hooks/useFormalization';
-import { isResearcherControlled } from '../../../core/components/chat/utils/sessionHelpers';
-import { convertToUseChatMessages } from '../../../core/components/chat/utils/messageConverters';
+import { useSessionManager, SessionMode } from '@/core/services/sessionManager';
+import { useBackend } from '@/core/contexts/BackendContext';
+import { useSessionLifecycle } from '@/core/components/chat/hooks/useSessionLifecycle';
+import { useChatTransport } from '@/core/components/chat/hooks/useChatTransport';
+import { useMessageSync } from '@/core/components/chat/hooks/useMessageSync';
+import { useDisplayMessages } from '@/core/components/chat/hooks/useDisplayMessages';
+import { useFormalization } from '@/core/components/chat/hooks/useFormalization';
+import { isResearcherControlled } from '@/core/components/chat/utils/sessionHelpers';
+import { convertToUseChatMessages } from '@/core/components/chat/utils/messageConverters';
 
 export function useChatSession() {
   const { state: backendState } = useBackend();

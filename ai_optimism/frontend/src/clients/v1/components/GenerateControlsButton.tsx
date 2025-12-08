@@ -3,7 +3,7 @@
 import { Box, Button, Typography, CircularProgress, IconButton, Tooltip } from '@mui/material';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { SessionMode, Session } from '../../../core/services/sessionManager';
+import { SessionMode, Session } from '@/core/services/sessionManager';
 
 interface GenerateControlsButtonProps {
   displayMessagesLength: number;

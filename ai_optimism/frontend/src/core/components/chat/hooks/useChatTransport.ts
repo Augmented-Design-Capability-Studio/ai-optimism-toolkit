@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { DefaultChatTransport } from 'ai';
-import { Session } from '../../../services/sessionManager';
+import { Session } from '@/core/services/sessionManager';
 
 interface UseChatTransportProps {
   currentSession: Session | null;

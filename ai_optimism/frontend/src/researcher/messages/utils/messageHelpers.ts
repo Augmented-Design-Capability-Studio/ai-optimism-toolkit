@@ -2,7 +2,7 @@
  * Helper functions for message type checking and sizing
  */
 
-import { Message } from '../../../core/services/sessionManager';
+import { Message } from '@/core/services/sessionManager';
 
 /**
  * Check if message is a special type that should always be full width

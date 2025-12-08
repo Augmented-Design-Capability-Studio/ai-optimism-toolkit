@@ -1,4 +1,4 @@
-import { Session } from '../../../services/sessionManager';
+import { Session } from '@/core/services/sessionManager';
 
 interface UseFormalizationProps {
   currentSession: Session | null;

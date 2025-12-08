@@ -3,7 +3,7 @@
 import { Box, Button, Typography, CircularProgress } from '@mui/material';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import { memo } from 'react';
-import { SessionMode, Session } from '../../../core/services/sessionManager';
+import { SessionMode, Session } from '@/core/services/sessionManager';
 
 interface FormalizeButtonProps {
   mode: SessionMode;

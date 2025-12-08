@@ -1,4 +1,4 @@
-import { Message } from '../../../services/sessionManager';
+import { Message } from '@/core/services/sessionManager';
 
 export type UseChatMessage = {
   id: string;

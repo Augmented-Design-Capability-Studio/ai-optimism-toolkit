@@ -6,12 +6,12 @@ import {
   ChatHeader,
   MessagesList,
   ChatInput,
-} from '../../../core/components/chat';
+} from '@/core/components/chat';
 import { FormalizeButton } from '../components/FormalizeButton';
 import { GenerateControlsButton } from '../components/GenerateControlsButton';
 import { useChatSession } from '../hooks/useChatSession';
-import { useSessionManager } from '../../../core/services/sessionManager';
-import type { Message } from '../../../core/services/sessionManager';
+import { useSessionManager } from '@/core/services/sessionManager';
+import type { Message } from '@/core/services/sessionManager';
 import { aggregateControlsFromMessages } from '../services/controlsAggregator';
 
 interface ChatPanelProps {
