@@ -8,6 +8,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import LockIcon from '@mui/icons-material/Lock';
 import TuneIcon from '@mui/icons-material/Tune';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import type { Constraint } from './types';
 
 interface ConstraintCardProps {
@@ -62,6 +63,12 @@ export function ConstraintCard({
   const constraintTypeBg = isHard
     ? (isSatisfied ? 'success.50' : 'error.50')
     : (isSatisfied ? 'success.25' : 'warning.50');
+  
+  // Constraints are already normalized: 1.0 if satisfied, 0.0 if violated
+  const normalizedValue = isSatisfied ? 1.0 : 0.0;
+  // For hard constraints, use very high weight (100000), for soft use user-specified (default 10.0)
+  const weight = isHard ? 100000.0 : (constraint.weight ?? 10.0);
+  const contribution = normalizedValue * weight;
 
   return (
     <Card
@@ -75,6 +82,7 @@ export function ConstraintCard({
         transition: 'all 0.2s',
         gridColumn: 'span 6',
         gridRow: 'span 2',
+        minHeight: '180px', // Dynamic height for consistent sizing
         boxSizing: 'border-box',
         border: 2,
         borderColor: constraintTypeColor,
@@ -87,124 +95,206 @@ export function ConstraintCard({
         },
       }}
     >
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 0.25 }}>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25, flexWrap: 'wrap' }}>
-            {isSatisfied ? (
-              <CheckCircleIcon sx={{ fontSize: 14, color: constraintTypeColor }} />
-            ) : (
-              <WarningIcon sx={{ fontSize: 14, color: constraintTypeColor }} />
-            )}
-            <Typography
-              variant="caption"
-              fontWeight="bold"
-              sx={{
-                fontSize: '0.7rem',
-                color: constraintTypeColor,
-              }}
-            >
-              {isSatisfied ? 'SATISFIED' : 'VIOLATED'}
-            </Typography>
-            <Chip
-              label={isHard ? 'HARD' : 'SOFT'}
-              size="small"
-              sx={{
-                height: 18,
-                fontSize: '0.65rem',
-                bgcolor: isHard ? 'error.main' : 'warning.main',
-                color: 'white',
-                fontWeight: 'bold',
-              }}
-            />
-          </Box>
-          {constraint.title && (
-            <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 'bold', display: 'block', mb: 0.25 }}>
-              {constraint.title}
-            </Typography>
-          )}
-          {constraint.description && (
-            <Typography variant="caption" sx={{ fontSize: '0.65rem', display: 'block', color: 'text.secondary' }}>
-              {constraint.description}
-            </Typography>
-          )}
-        </Box>
-        {onEdit && (
-          <IconButton
-            size="small"
-            onClick={onEdit}
-            className="edit-button"
-            sx={{
-              opacity: 0,
-              transition: 'opacity 0.2s',
-              ml: 0.5,
-              p: 0.25,
-            }}
-          >
-            <EditIcon sx={{ fontSize: 14 }} />
-          </IconButton>
-        )}
-      </Box>
-
-      {/* Expression */}
-      <Box sx={{ display: 'flex', alignItems: 'center', my: 0.25 }}>
-        <Typography
+      {/* Edit Button - Top Right Corner */}
+      {onEdit && (
+        <IconButton
+          size="small"
+          onClick={onEdit}
+          className="edit-button"
           sx={{
-            fontFamily: 'monospace',
-            fontSize: '0.7rem',
-            flex: 1,
-            wordBreak: 'break-word',
-            lineHeight: 1.3,
+            position: 'absolute',
+            top: 4,
+            right: 4,
+            opacity: 0,
+            transition: 'opacity 0.2s',
+            p: 0.25,
+            zIndex: 1,
           }}
         >
-          {constraint.expression}
-        </Typography>
-      </Box>
+          <EditIcon sx={{ fontSize: 14 }} />
+        </IconButton>
+      )}
 
-      {/* Value and Progress */}
-      {currentValue !== undefined && limit !== undefined && typeof currentValue === 'number' && typeof limit === 'number' && (
-        <Box sx={{ mb: dependencies.length > 0 ? 0.3 : 0, mt: 0.3 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.15 }}>
-            <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-              Current: {currentValue.toFixed(2)}
-            </Typography>
-            <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>
-              Limit: {operator ? `${operator}${limit.toFixed(2)}` : limit.toFixed(2)}
-            </Typography>
-          </Box>
-          <LinearProgress
-            variant="determinate"
-            value={progressPercentage || 0}
+      {/* Top: Status badges - match height with objective card */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5, height: 24 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {isSatisfied ? (
+            <CheckCircleIcon sx={{ fontSize: 14, color: constraintTypeColor }} />
+          ) : (
+            <WarningIcon sx={{ fontSize: 14, color: constraintTypeColor }} />
+          )}
+          <Typography
+            variant="caption"
+            fontWeight="bold"
             sx={{
-              height: 4,
-              borderRadius: 2,
-              bgcolor: 'grey.300',
-              '& .MuiLinearProgress-bar': {
-                bgcolor: isSatisfied ? 'success.main' : 'error.main',
-              },
+              fontSize: '0.7rem',
+              color: constraintTypeColor,
+              textTransform: 'uppercase',
+            }}
+          >
+            {isSatisfied ? 'SATISFIED' : 'VIOLATED'}
+          </Typography>
+          <Chip
+            label={isHard ? 'HARD' : 'SOFT'}
+            size="small"
+            sx={{
+              height: 18,
+              fontSize: '0.65rem',
+              bgcolor: isHard ? 'error.main' : 'warning.main',
+              color: 'white',
+              fontWeight: 'bold',
             }}
           />
         </Box>
-      )}
+      </Box>
 
-      {/* Dependencies */}
-      {dependencies.length > 0 && (
-        <Box sx={{ display: 'flex', gap: 0.4, flexWrap: 'wrap', mt: 'auto' }}>
-          {dependencies.map((dep) => (
-            <Chip
-              key={dep}
-              label={dep}
-              size="small"
-              onClick={() => onVariableClick?.(dep)}
-              sx={{
-                height: 18,
-                fontSize: '0.65rem',
-                cursor: onVariableClick ? 'pointer' : 'default',
+      {/* Two Column Layout: Title/Description/Expression (left) and Scores (right) */}
+      <Box sx={{ display: 'flex', gap: 1, flex: 1, minHeight: 0 }}>
+        {/* Left Column: Title, Description, and Expression */}
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            minWidth: 0,
+            minHeight: 0,
+          }}
+        >
+          <Typography
+            variant="subtitle2"
+            fontWeight="bold"
+            sx={{
+              fontSize: '0.8rem',
+              lineHeight: 1.2,
+              mb: 0.25,
+            }}
+          >
+            {constraint.title}
+          </Typography>
+          {constraint.description && (
+            <Typography 
+              variant="caption" 
+              color="text.secondary" 
+              sx={{ 
+                fontSize: '0.65rem', 
+                display: 'block', 
+                mb: 0.5,
+                lineHeight: 1.3,
               }}
-            />
-          ))}
+            >
+              {constraint.description}
+            </Typography>
+          )}
+          <Box
+            sx={{
+              flex: 1,
+              bgcolor: 'background.paper',
+              borderRadius: 1,
+              px: 1,
+              py: 0.4,
+              overflow: 'auto',
+              minHeight: 0,
+            }}
+          >
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', mb: 0.2 }}>
+              Expression
+            </Typography>
+            <Typography
+              sx={{
+                fontFamily: 'monospace',
+                fontSize: '0.75rem',
+                lineHeight: 1.4,
+                wordBreak: 'break-word',
+              }}
+            >
+              {constraint.expression}
+            </Typography>
+          </Box>
         </Box>
-      )}
+
+        {/* Right Column: Scores - Narrow vertical stack */}
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center',
+          justifyContent: 'flex-start',
+          gap: 0.2,
+          minWidth: 65,
+          pt: 0.2,
+          pb: 0.4,
+        }}>
+        <Box sx={{ 
+          bgcolor: 'background.paper', 
+          borderRadius: 1, 
+          px: 0.75, 
+          py: 0.4,
+          textAlign: 'center',
+          width: '100%',
+        }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1 }}>
+            Normalized
+          </Typography>
+          <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.75rem', color: 'text.primary', lineHeight: 1 }}>
+            {normalizedValue.toFixed(3)}
+          </Typography>
+        </Box>
+        
+          {/* Multiply symbol */}
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem', lineHeight: 1, my: -0.1 }}>
+            ×
+          </Typography>
+          
+          <Box sx={{ 
+            bgcolor: 'background.paper', 
+            borderRadius: 1, 
+            px: 0.75, 
+            py: 0.4,
+            textAlign: 'center',
+            width: '100%',
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.3, mb: 0.2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', lineHeight: 1 }}>
+                Weight
+              </Typography>
+              <Tooltip 
+                title={constraint.description || (isHard 
+                  ? "Hard constraint weight (100000) - violations are heavily penalized" 
+                  : "Soft constraint weight - violations add penalty to objective")}
+              >
+                <ArrowDownwardIcon sx={{ fontSize: 12, color: constraintTypeColor, cursor: 'help' }} />
+              </Tooltip>
+            </Box>
+            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.75rem', color: constraintTypeColor, lineHeight: 1 }}>
+              {weight >= 1000 ? weight.toExponential(1) : weight.toFixed(1)}
+            </Typography>
+          </Box>
+
+          {/* Divider above contribution */}
+          <Box sx={{ 
+            width: '100%', 
+            height: '1px', 
+            bgcolor: 'divider', 
+            my: 0.1,
+          }} />
+
+          <Box sx={{ 
+            bgcolor: 'background.paper', 
+            borderRadius: 1, 
+            px: 0.75, 
+            py: 0.5,
+            textAlign: 'center',
+            width: '100%',
+          }}>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1 }}>
+              Contrib
+            </Typography>
+            <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1rem', color: constraintTypeColor, lineHeight: 1 }}>
+              {contribution >= 1000 ? contribution.toExponential(2) : contribution.toFixed(3)}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+
     </Card>
   );
 }

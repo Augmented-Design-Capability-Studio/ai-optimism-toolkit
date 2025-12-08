@@ -191,6 +191,36 @@ export function ObjectiveEditDialog({
             InputProps={{ inputProps: { min: 0.0001, step: 0.001 } }}
             fullWidth
           />
+
+          {/* Normalization Bounds (read-only, from optimization) */}
+          <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+              Normalization Range
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                label="Min"
+                type="number"
+                value={editedObjective.min ?? ''}
+                InputProps={{ readOnly: true }}
+                helperText={editedObjective.min !== undefined ? "Estimated minimum value" : "Will be set after optimization run"}
+                placeholder="N/A"
+                fullWidth
+              />
+              <TextField
+                label="Max"
+                type="number"
+                value={editedObjective.max ?? ''}
+                InputProps={{ readOnly: true }}
+                helperText={editedObjective.max !== undefined ? "Estimated maximum value" : "Will be set after optimization run"}
+                placeholder="N/A"
+                fullWidth
+              />
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              These bounds are estimated during optimization runs and used for normalization. They cannot be edited manually.
+            </Typography>
+          </Box>
         </Stack>
       </DialogContent>
 

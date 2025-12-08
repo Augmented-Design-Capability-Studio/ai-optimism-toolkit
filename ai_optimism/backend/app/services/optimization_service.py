@@ -465,6 +465,9 @@ class OptimizationService:
             )
 
 
+        # Store objective bounds for frontend normalization
+        objective_bounds = {}
+        
         for obj_config in problem.objectives:
             # Try to estimate bounds using sampling; fall back to seed examples if sampling fails
             est_min, est_max = estimate_bounds(obj_config.expression, problem.variables, samples=500)
@@ -482,6 +485,15 @@ class OptimizationService:
                         est_max = max(est_max, v)
                     except Exception:
                         continue
+            
+            # Store bounds for this objective (convert inf to None for JSON serialization)
+            if est_min != float('inf') and est_max != float('-inf'):
+                objective_bounds[obj_config.name] = {
+                    "min": est_min if est_min != float('inf') else None,
+                    "max": est_max if est_max != float('-inf') else None
+                }
+            else:
+                objective_bounds[obj_config.name] = {"min": None, "max": None}
 
             def make_objective_func(expr, goal, constraints, init_min, init_max):
                 obs_min = init_min if init_min not in (None, float('inf')) else 0.0
@@ -741,7 +753,8 @@ class OptimizationService:
             "config": config.model_dump(),
             "results": results,
             "best_design": results[0] if results else None,
-            "heuristic_map": hm_data
+            "heuristic_map": hm_data,
+            "objective_bounds": objective_bounds  # Min/max bounds for normalization
         }
 
     def clear_problems(self) -> Dict:

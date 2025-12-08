@@ -228,8 +228,18 @@ function mergeObjectives(existing: Objective[], newObjs: Objective[]): Objective
   for (const newObj of newObjs) {
     const existingIdx = existingMap.get(newObj.name);
     if (existingIdx !== undefined) {
-      // Objective exists, replace with new version (latest wins)
-      merged[existingIdx] = newObj;
+      // Objective exists, merge intelligently to preserve bounds
+      const existingObj = merged[existingIdx];
+      // Check if new objective has valid numeric bounds (not null, not undefined, is a number)
+      const hasValidMin = typeof newObj.min === 'number' && !isNaN(newObj.min);
+      const hasValidMax = typeof newObj.max === 'number' && !isNaN(newObj.max);
+      
+      merged[existingIdx] = {
+        ...newObj,
+        // Always preserve existing bounds unless new ones are valid numbers
+        min: hasValidMin ? newObj.min : (existingObj.min !== undefined ? existingObj.min : newObj.min),
+        max: hasValidMax ? newObj.max : (existingObj.max !== undefined ? existingObj.max : newObj.max),
+      };
     } else {
       // New objective, add it
       merged.push(newObj);
@@ -355,11 +365,17 @@ function mergeConstraints(existing: Constraint[], newCons: Constraint[], variabl
       merged[existingIdx] = {
         ...merged[existingIdx],
         description: newCon.description || merged[existingIdx].description,
-        title: newCon.title || merged[existingIdx].title,
+        title: newCon.title || merged[existingIdx].title || `Constraint ${existingIdx + 1}`, // Ensure title is always set
+        type: newCon.type !== undefined ? newCon.type : merged[existingIdx].type,
+        weight: newCon.weight !== undefined ? newCon.weight : merged[existingIdx].weight,
       };
     } else {
-      // New constraint, add it
-      merged.push(newCon);
+      // New constraint, ensure it has a title
+      const constraintWithTitle = {
+        ...newCon,
+        title: newCon.title || `Constraint ${merged.length + 1}`,
+      };
+      merged.push(constraintWithTitle);
       existingMap.set(newCon.expression, merged.length - 1);
     }
   }

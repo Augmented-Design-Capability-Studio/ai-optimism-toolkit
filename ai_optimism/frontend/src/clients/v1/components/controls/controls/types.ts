@@ -32,6 +32,8 @@ export interface Objective {
   goal: 'minimize' | 'maximize';
   description: string;
   weight?: number; // Weight for combining multiple objectives (default: 1.0)
+  min?: number; // Estimated minimum value for normalization
+  max?: number; // Estimated maximum value for normalization
 }
 
 export interface Property {
@@ -43,7 +45,7 @@ export interface Property {
 export interface Constraint {
   expression: string;
   description: string;
-  title?: string;
+  title: string; // Required - used in visualization and display
   type?: 'hard' | 'soft'; // Hard: must be satisfied, Soft: preferred but can be violated
   weight?: number; // For soft constraints: penalty weight (default: 10.0)
 }

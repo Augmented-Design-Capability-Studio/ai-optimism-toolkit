@@ -28,6 +28,8 @@ class Objective(BaseModel):
     goal: Literal["minimize", "maximize"]
     description: str
     weight: Optional[float] = 1.0  # Weight for combining multiple objectives (default: 1.0)
+    min: Optional[float] = None  # Estimated minimum value for normalization
+    max: Optional[float] = None  # Estimated maximum value for normalization
 
 class Property(BaseModel):
     name: str

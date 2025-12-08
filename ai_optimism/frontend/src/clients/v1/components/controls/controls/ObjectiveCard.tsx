@@ -13,7 +13,7 @@ import type { Objective } from './types';
 
 interface ObjectiveCardProps {
   objective: Objective;
-  currentValue?: number; // Raw normalized value (0-1)
+  currentValue?: number; // Raw value from expression evaluation (not normalized)
   dependencies: string[];
   onEdit?: () => void;
   onVariableClick?: (variableName: string) => void;
@@ -78,9 +78,42 @@ export const ObjectiveCard = memo(function ObjectiveCard({
 }: ObjectiveCardProps) {
   const isMaximize = objective.goal === 'maximize';
   const weight = objective.weight ?? 1.0;
+  
+  // Normalize the raw value using bounds
+  const normalizedValue = useMemo(() => {
+    // Check if currentValue is a valid number (not undefined, null, or NaN)
+    if (currentValue === undefined || currentValue === null || isNaN(currentValue as number)) {
+      return undefined;
+    }
+    
+    // Check if bounds are valid numbers
+    if (objective.min === undefined || objective.min === null || isNaN(objective.min) ||
+        objective.max === undefined || objective.max === null || isNaN(objective.max)) {
+      return undefined;
+    }
+    
+    const { min, max } = objective;
+    if (max <= min) {
+      return 0.5; // Default if bounds are invalid
+    }
+    
+    // Min-max normalize to 0-1
+    const currentNum = currentValue as number;
+    let normalized = (currentNum - min) / (max - min);
+    
+    // If this is a minimize objective, invert so smaller is better
+    if (!isMaximize) {
+      normalized = 1.0 - normalized;
+    }
+    
+    // Clamp to 0-1
+    return Math.max(0.0, Math.min(1.0, normalized));
+  }, [currentValue, objective.min, objective.max, isMaximize, objective.name]);
+  
   // For minimize objectives, the normalized value is already inverted (1.0 - raw), so we show effective weight
   const effectiveWeight = isMaximize ? weight : -weight;
-  const weightedContribution = currentValue !== undefined ? currentValue * weight : undefined;
+  // Contribution uses normalized value (0-1) multiplied by weight
+  const weightedContribution = normalizedValue !== undefined ? normalizedValue * weight : undefined;
 
   // Memoize expression parsing and dependency set for O(1) lookups
   const expressionTokens = useMemo(() => parseExpression(objective.expression), [objective.expression]);
@@ -89,7 +122,7 @@ export const ObjectiveCard = memo(function ObjectiveCard({
   return (
     <Card
       sx={{
-        p: 1,
+        p: 0.75,
         width: '100%',
         height: '100%',
         display: 'flex',
@@ -98,6 +131,7 @@ export const ObjectiveCard = memo(function ObjectiveCard({
         transition: 'all 0.2s',
         gridColumn: 'span 6',
         gridRow: 'span 2',
+        minHeight: '200px', // Dynamic height to accommodate "Raw" row
         boxSizing: 'border-box',
         border: 2,
         borderColor: isMaximize ? 'success.main' : 'info.main',
@@ -130,8 +164,8 @@ export const ObjectiveCard = memo(function ObjectiveCard({
         </IconButton>
       )}
 
-      {/* Top: MAXIMIZE badge and edit button */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+      {/* Top: MAXIMIZE badge and edit button - match height with constraint card */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5, height: 24 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           {isMaximize ? (
             <TrendingUpIcon sx={{ fontSize: 14, color: 'success.main' }} />
@@ -198,6 +232,7 @@ export const ObjectiveCard = memo(function ObjectiveCard({
               py: 0.4,
               overflow: 'auto',
               minHeight: 0,
+              maxHeight: '55px', // Constrain height to match constraint expression container
             }}
           >
             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', mb: 0.2 }}>
@@ -243,16 +278,18 @@ export const ObjectiveCard = memo(function ObjectiveCard({
         </Box>
 
         {/* Right Column: Scores - Narrow vertical stack */}
+        {/* Note: Objective cards have extra "Raw" row, so we need more bottom padding */}
         <Box sx={{ 
           display: 'flex', 
           flexDirection: 'column', 
           alignItems: 'center',
           justifyContent: 'flex-start',
-          gap: 0.3,
+          gap: 0.2,
           minWidth: 65,
           pt: 0.2,
+          pb: 0.4,
         }}>
-          {currentValue !== undefined && (
+          {normalizedValue !== undefined ? (
             <Box sx={{ 
               bgcolor: 'background.paper', 
               borderRadius: 1, 
@@ -262,17 +299,45 @@ export const ObjectiveCard = memo(function ObjectiveCard({
               width: '100%',
             }}>
               <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1 }}>
-                Raw
+                Normalized
               </Typography>
               <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.75rem', color: 'text.primary', lineHeight: 1 }}>
-                {currentValue.toFixed(3)}
+                {normalizedValue.toFixed(3)}
               </Typography>
+              {currentValue !== undefined && (
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', display: 'block', lineHeight: 1, mt: 0.1 }}>
+                  (Raw: {currentValue.toFixed(2)})
+                </Typography>
+              )}
             </Box>
-          )}
+          ) : currentValue !== undefined && (objective.min === undefined || objective.max === undefined) ? (
+            <Tooltip title="Normalization range will be displayed after optimization run">
+              <Box sx={{ 
+                bgcolor: 'background.paper', 
+                borderRadius: 1, 
+                px: 0.75, 
+                py: 0.4,
+                textAlign: 'center',
+                width: '100%',
+              }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1 }}>
+                  Normalized
+                </Typography>
+                <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.75rem', color: 'text.secondary', lineHeight: 1 }}>
+                  N/A
+                </Typography>
+                {currentValue !== undefined && (
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.55rem', display: 'block', lineHeight: 1, mt: 0.1 }}>
+                    (Raw: {currentValue.toFixed(2)})
+                  </Typography>
+                )}
+              </Box>
+            </Tooltip>
+          ) : null}
           
-          {/* Multiply symbol */}
-          {currentValue !== undefined && (
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem', lineHeight: 1 }}>
+          {/* Multiply symbol - show when we have normalized or N/A */}
+          {(normalizedValue !== undefined || (currentValue !== undefined && (objective.min === undefined || objective.max === undefined))) && (
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.7rem', lineHeight: 1, my: -0.1 }}>
               ×
             </Typography>
           )}
@@ -290,10 +355,9 @@ export const ObjectiveCard = memo(function ObjectiveCard({
                 Weight
               </Typography>
               <Tooltip 
-                title={isMaximize 
+                title={objective.description || (isMaximize 
                   ? "Weight for combining objectives. Higher weight = more important." 
-                  : "Effective weight. For minimize objectives, the normalized value is inverted (1.0 - raw) before multiplying by this weight, so lower raw values contribute more to the score."
-                }
+                  : "Effective weight. For minimize objectives, the normalized value is inverted (1.0 - raw) before multiplying by this weight, so lower raw values contribute more to the score.")}
               >
                 {isMaximize ? (
                   <ArrowUpwardIcon sx={{ fontSize: 12, color: 'success.main', cursor: 'help' }} />
@@ -307,17 +371,15 @@ export const ObjectiveCard = memo(function ObjectiveCard({
             </Typography>
           </Box>
 
-          {/* Divider above contribution */}
-          {currentValue !== undefined && (
-            <Box sx={{ 
-              width: '100%', 
-              height: '1px', 
-              bgcolor: 'divider', 
-              my: 0.2,
-            }} />
-          )}
+          {/* Divider above contribution - always show when contribution section exists */}
+          <Box sx={{ 
+            width: '100%', 
+            height: '1px', 
+            bgcolor: 'divider', 
+            my: 0.1,
+          }} />
 
-          {currentValue !== undefined && (
+          {normalizedValue !== undefined ? (
             <Box sx={{ 
               bgcolor: 'background.paper', 
               borderRadius: 1, 
@@ -333,7 +395,25 @@ export const ObjectiveCard = memo(function ObjectiveCard({
                 {weightedContribution !== undefined ? weightedContribution.toFixed(3) : '—'}
               </Typography>
             </Box>
-          )}
+          ) : currentValue !== undefined && (objective.min === undefined || objective.max === undefined) ? (
+            <Tooltip title="Contribution will be displayed after optimization run (requires normalized value)">
+              <Box sx={{ 
+                bgcolor: 'background.paper', 
+                borderRadius: 1, 
+                px: 0.75, 
+                py: 0.5,
+                textAlign: 'center',
+                width: '100%',
+              }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', display: 'block', lineHeight: 1 }}>
+                  Contrib
+                </Typography>
+                <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1rem', color: 'text.secondary', lineHeight: 1 }}>
+                  N/A
+                </Typography>
+              </Box>
+            </Tooltip>
+          ) : null}
         </Box>
       </Box>
 
@@ -342,12 +422,15 @@ export const ObjectiveCard = memo(function ObjectiveCard({
   );
 }, (prevProps, nextProps) => {
   // Custom comparison: only re-render if props actually changed
+  // IMPORTANT: Include min/max bounds in comparison so component re-renders when bounds are added
   return (
     prevProps.objective.name === nextProps.objective.name &&
     prevProps.objective.expression === nextProps.objective.expression &&
     prevProps.objective.goal === nextProps.objective.goal &&
     prevProps.objective.description === nextProps.objective.description &&
     (prevProps.objective.weight ?? 1.0) === (nextProps.objective.weight ?? 1.0) &&
+    prevProps.objective.min === nextProps.objective.min && // Check min bound
+    prevProps.objective.max === nextProps.objective.max && // Check max bound
     prevProps.currentValue === nextProps.currentValue &&
     prevProps.dependencies.length === nextProps.dependencies.length &&
     prevProps.dependencies.every((dep, i) => dep === nextProps.dependencies[i])

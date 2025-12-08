@@ -53,6 +53,11 @@ export function ConstraintEditDialog({
   if (!editedConstraint) return null;
 
   const handleSave = () => {
+    // Ensure title is set
+    if (!editedConstraint.title || editedConstraint.title.trim() === '') {
+      // Set a default title if missing
+      editedConstraint.title = `Constraint ${Date.now()}`;
+    }
     onSave(editedConstraint);
     onClose();
   };
@@ -91,8 +96,9 @@ export function ConstraintEditDialog({
               setEditedConstraint({ ...editedConstraint, title: e.target.value })
             }
             placeholder="e.g., Max Total Price"
-            helperText="Short title for display (3-5 words)"
+            helperText="Short title for display (3-5 words) - required for visualization"
             fullWidth
+            required
           />
 
           {/* Description */}

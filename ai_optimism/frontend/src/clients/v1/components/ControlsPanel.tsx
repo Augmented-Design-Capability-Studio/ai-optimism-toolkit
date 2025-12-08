@@ -385,7 +385,7 @@ export const ControlsPanel = memo(function ControlsPanel({ controls, initialValu
                   sx={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
-                    gridAutoRows: '70px',
+                    gridAutoRows: '100px', // Increased to accommodate minHeight cards
                     gridAutoFlow: 'dense',
                     gap: 1.5,
                   }}
@@ -471,7 +471,7 @@ export const ControlsPanel = memo(function ControlsPanel({ controls, initialValu
                   sx={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(70px, 1fr))',
-                    gridAutoRows: '70px',
+                    gridAutoRows: '90px', // Increased to accommodate minHeight cards
                     gridAutoFlow: 'dense',
                     gap: 1.5,
                   }}
