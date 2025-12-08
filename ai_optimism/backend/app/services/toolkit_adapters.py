@@ -92,8 +92,13 @@ class ConfigurableModifier:
 
         # Clamp to bounds for numerical types
         if self.variable_config.get('type') in ['continuous', 'discrete']:
-            min_val = self.variable_config.get('min', float('-inf'))
-            max_val = self.variable_config.get('max', float('inf'))
+            # Normalize optional bounds so None behaves as unbounded
+            min_val = self.variable_config.get('min')
+            max_val = self.variable_config.get('max')
+            if min_val is None:
+                min_val = float('-inf')
+            if max_val is None:
+                max_val = float('inf')
             new_value = max(min_val, min(max_val, new_value))
             
             if self.variable_config.get('type') == 'discrete':
