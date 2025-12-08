@@ -29,6 +29,7 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
     isWaitingForResearcher,
     sessionTerminated,
     sessionDeleted,
+    isCreatingSession,
     createNewSession,
     handleSubmit,
   } = useChatSession();
@@ -36,12 +37,53 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
   // Notify parent when session updates (to sync AppBar's currentSession)
   // Use ref to avoid dependency on callback to prevent infinite loops
   const onSessionUpdateRef = useRef(onSessionUpdate);
+  const lastNotifiedSessionRef = useRef<string | null>(null);
+  const lastNotifiedUpdatedAtRef = useRef<number | null>(null);
+  const lastNotifiedMsgLenRef = useRef<number | null>(null);
+  const lastNotifiedAIHashRef = useRef<string | null>(null);
   useEffect(() => {
     onSessionUpdateRef.current = onSessionUpdate;
   }, [onSessionUpdate]);
   
   useEffect(() => {
-    onSessionUpdateRef.current?.(currentSession);
+    const sess = currentSession;
+    if (!sess) {
+      if (lastNotifiedSessionRef.current !== null) {
+        lastNotifiedSessionRef.current = null;
+        lastNotifiedUpdatedAtRef.current = null;
+        lastNotifiedMsgLenRef.current = null;
+        lastNotifiedAIHashRef.current = null;
+        onSessionUpdateRef.current?.(null);
+      }
+      return;
+    }
+
+    const msgLen = Array.isArray(sess.messages) ? sess.messages.length : 0;
+    const updatedAt = typeof sess.updatedAt === 'number' ? sess.updatedAt : null;
+    const aiHash = sess.aiConfig
+      ? [
+          sess.aiConfig.status,
+          sess.aiConfig.provider,
+          sess.aiConfig.model,
+          sess.aiConfig.endpoint,
+          sess.aiConfig.setBy,
+          sess.aiConfig.setAt,
+        ].join('|')
+      : null;
+
+    const same =
+      lastNotifiedSessionRef.current === sess.id &&
+      lastNotifiedUpdatedAtRef.current === updatedAt &&
+      lastNotifiedMsgLenRef.current === msgLen &&
+      lastNotifiedAIHashRef.current === aiHash;
+
+    if (same) return;
+
+    lastNotifiedSessionRef.current = sess.id;
+    lastNotifiedUpdatedAtRef.current = updatedAt;
+    lastNotifiedMsgLenRef.current = msgLen;
+    lastNotifiedAIHashRef.current = aiHash;
+    onSessionUpdateRef.current?.(sess);
   }, [currentSession]);
 
   return (
@@ -54,7 +96,7 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
         </Alert>
       )}
 
-      {sessionDeleted && (
+      {(sessionDeleted || (!currentSession && !isCreatingSession)) && (
         <Alert 
           severity="warning" 
           sx={{ m: 2 }}

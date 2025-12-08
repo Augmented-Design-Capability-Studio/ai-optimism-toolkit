@@ -44,6 +44,7 @@ export function useChatSession() {
     setSessionDeleted,
     sessionTerminated,
     setSessionTerminated,
+    isCreatingSession,
     createNewSession,
   } = useSessionLifecycle();
 
@@ -232,6 +233,7 @@ export function useChatSession() {
     isWaitingForResearcher,
     sessionTerminated,
     sessionDeleted,
+    isCreatingSession,
     apiKey: '', // No longer used, kept for backward compatibility
     provider: sessionProvider,
     model: sessionModel,

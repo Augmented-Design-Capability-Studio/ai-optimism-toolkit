@@ -93,7 +93,6 @@ export interface Session {
 
 import { SessionQueries } from './sessionQueries';
 import { SessionMutations } from './sessionMutations';
-import { SessionSubscriptions } from './sessionSubscriptions';
 
 class SessionManager {
   private readonly CURRENT_SESSION_KEY = 'wizard_current_session';

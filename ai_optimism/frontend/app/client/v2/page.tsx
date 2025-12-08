@@ -29,16 +29,52 @@ export default function ClientV2Page() {
 
   // Sync currentSession from ChatPanel's subscription (avoids duplicate subscriptions)
   const handleSessionUpdate = useCallback((session: Session | null) => {
-    setCurrentSession(session);
-    prevSessionRef.current = session;
+    setCurrentSession(prev => {
+      if (!session && !prev) return prev;
+      if (!session || !prev) {
+        prevSessionRef.current = session;
+        return session;
+      }
+      const sameId = prev.id === session.id;
+      const sameUpdatedAt = prev.updatedAt === session.updatedAt;
+      const sameMsgLen = (prev.messages?.length || 0) === (session.messages?.length || 0);
+      const aiHash = (cfg: Session['aiConfig']) => cfg
+        ? [
+            cfg.status,
+            cfg.provider,
+            cfg.model,
+            cfg.endpoint,
+            cfg.setBy,
+            cfg.setAt,
+          ].join('|')
+        : null;
+      const sameAI = aiHash(prev.aiConfig) === aiHash(session.aiConfig);
+      if (sameId && sameUpdatedAt && sameMsgLen && sameAI) {
+        return prev;
+      }
+      prevSessionRef.current = session;
+      return session;
+    });
   }, []);
 
   // Handle lightweight AI config update (just updates aiConfig field, not whole session)
   const handleAIConfigUpdate = useCallback((sessionId: string, aiConfig: AISessionConfigStatus | null) => {
-    if (currentSession?.id === sessionId) {
-      setCurrentSession(prev => prev ? { ...prev, aiConfig } : null);
-    }
-  }, [currentSession?.id]);
+    setCurrentSession(prev => {
+      if (!prev || prev.id !== sessionId) return prev;
+      const hash = (cfg: AISessionConfigStatus | null | undefined) => cfg
+        ? [
+            cfg.status,
+            cfg.provider,
+            cfg.model,
+            cfg.endpoint,
+            cfg.setBy,
+            cfg.setAt,
+          ].join('|')
+        : null;
+      if (hash(prev.aiConfig) === hash(aiConfig)) return prev;
+      return { ...prev, aiConfig };
+    });
+  }, []);
 
   return (
     <ClientAuthWrapper>

@@ -20,6 +20,7 @@ export function useChatSession() {
     setSessionDeleted,
     sessionTerminated,
     setSessionTerminated,
+    isCreatingSession,
     createNewSession,
   } = useSessionLifecycle();
 
@@ -126,6 +127,7 @@ export function useChatSession() {
     isWaitingForResearcher,
     sessionTerminated,
     sessionDeleted,
+    isCreatingSession,
     apiKey,
     provider: effectiveProvider,
     model: effectiveModel,

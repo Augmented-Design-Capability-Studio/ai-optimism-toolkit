@@ -1,14 +1,15 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSessionManager, Session } from '@/core/services/sessionManager';
-import type { AISessionConfigStatus } from '@/core/services/sessionManager';
 import { useVersion } from '@/core/contexts/VersionContext';
 
 export function useSessionLifecycle() {
   const sessionManager = useSessionManager();
   const version = useVersion();
+  const versionName = typeof version === 'string' ? version : 'v1';
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const [sessionDeleted, setSessionDeleted] = useState(false);
   const [sessionTerminated, setSessionTerminated] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
   const hasLoadedRef = useRef(false);
 
   // Load initial session once on mount
@@ -32,24 +33,23 @@ export function useSessionLifecycle() {
           }
         }
 
-        if (!session) {
-          const clientName = version.name;
-          session = await sessionManager.createSession({ clientName });
-          sessionManager.setCurrentSession(session.id);
-          
-          const url = new URL(window.location.href);
-          url.searchParams.set('session', session.id);
-          window.history.replaceState({}, '', url.toString());
+        if (session) {
+          setCurrentSession(session);
+        } else {
+          // Do not auto-create; show banner until user starts a new session
+          setSessionDeleted(true);
+          setCurrentSession(null);
+          sessionManager.setCurrentSession(null);
         }
-
-        setCurrentSession(session);
       } catch (error) {
         console.error('[useSessionLifecycle] Failed to load session:', error);
+      } finally {
+        setIsCreatingSession(false);
       }
     };
 
     loadInitialSession();
-  }, [sessionManager, version.name]);
+  }, [sessionManager, versionName]);
 
   // Extract session ID as a stable string to prevent unnecessary re-subscriptions
   const sessionId = currentSession?.id || null;
@@ -107,6 +107,17 @@ export function useSessionLifecycle() {
           return;
         }
 
+        const aiHash = (cfg: Session['aiConfig']) => cfg
+          ? [
+              cfg.status,
+              cfg.provider,
+              cfg.model,
+              cfg.endpoint,
+              cfg.setBy,
+              cfg.setAt,
+            ].join('|')
+          : null;
+
         let shouldUpdate = false;
         setCurrentSession(prev => {
           if (!prev) return updatedSession;
@@ -115,7 +126,7 @@ export function useSessionLifecycle() {
             prev.messages.length !== updatedSession.messages.length ||
             prev.status !== updatedSession.status ||
             prev.mode !== updatedSession.mode ||
-            prev.aiConfig?.status !== updatedSession.aiConfig?.status;
+            aiHash(prev.aiConfig) !== aiHash(updatedSession.aiConfig);
           
           shouldUpdate = hasChanges;
           return hasChanges ? updatedSession : prev;
@@ -159,7 +170,7 @@ export function useSessionLifecycle() {
     if (!currentSession?.id) return;
 
     try {
-      await sessionManager.endSession(currentSession.id);
+      await sessionManager.updateSession(currentSession.id, { status: 'completed' });
       setSessionTerminated(true);
       setSessionDeleted(true);
       setCurrentSession(null);
@@ -169,37 +180,14 @@ export function useSessionLifecycle() {
     }
   }, [currentSession?.id, sessionManager]);
 
-  const updateAIConfig = useCallback(async (
-    provider: string,
-    model: string,
-    apiKey: string
-  ) => {
-    if (!currentSession?.id) {
-      throw new Error('No active session');
-    }
-
-    try {
-      const updated = await sessionManager.updateSessionAIConfig(
-        currentSession.id,
-        provider,
-        model,
-        apiKey
-      );
-      setCurrentSession(updated);
-      return updated;
-    } catch (error) {
-      console.error('[useSessionLifecycle] Failed to update AI config:', error);
-      throw error;
-    }
-  }, [currentSession?.id, sessionManager]);
-
   const createNewSession = useCallback(async () => {
     setSessionDeleted(false);
     setSessionTerminated(false);
     setCurrentSession(null);
+    setIsCreatingSession(true);
     
     try {
-      const session = await sessionManager.createSession({ clientName: version.name });
+      const session = await sessionManager.createSession('experimental', 'default-user', undefined, versionName);
       sessionManager.setCurrentSession(session.id);
       
       const url = new URL(window.location.href);
@@ -211,8 +199,10 @@ export function useSessionLifecycle() {
     } catch (error) {
       console.error('[useSessionLifecycle] Failed to create session:', error);
       throw error;
+    } finally {
+      setIsCreatingSession(false);
     }
-  }, [sessionManager, version.name]);
+  }, [sessionManager, versionName]);
 
   return {
     currentSession,
@@ -221,8 +211,8 @@ export function useSessionLifecycle() {
     setSessionDeleted,
     sessionTerminated,
     setSessionTerminated,
+    isCreatingSession,
     terminateSession,
-    updateAIConfig,
     createNewSession,
   };
 }

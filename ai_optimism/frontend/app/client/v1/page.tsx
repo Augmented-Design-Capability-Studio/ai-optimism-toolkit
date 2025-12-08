@@ -49,7 +49,18 @@ export default function ClientV1Page() {
       const sameId = prev.id === session.id;
       const sameUpdatedAt = prev.updatedAt === session.updatedAt;
       const sameMsgLen = (prev.messages?.length || 0) === (session.messages?.length || 0);
-      if (sameId && sameUpdatedAt && sameMsgLen) {
+      const aiHash = (cfg: Session['aiConfig']) => cfg
+        ? [
+            cfg.status,
+            cfg.provider,
+            cfg.model,
+            cfg.endpoint,
+            cfg.setBy,
+            cfg.setAt,
+          ].join('|')
+        : null;
+      const sameAI = aiHash(prev.aiConfig) === aiHash(session.aiConfig);
+      if (sameId && sameUpdatedAt && sameMsgLen && sameAI) {
         return prev;
       }
       return session;
