@@ -273,6 +273,27 @@ if __name__ == "__main__":
         print(f"  {tunnel_url}")
         print("=" * 70 + "\n")
     
+    # Get local IP addresses for helpful startup message
+    def get_local_ip():
+        """Get the local IP address of this machine"""
+        try:
+            # Connect to a remote address to determine local IP
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(0)
+            try:
+                # Doesn't actually connect, just determines local IP
+                s.connect(('8.8.8.8', 80))
+                ip = s.getsockname()[0]
+            except Exception:
+                ip = '127.0.0.1'
+            finally:
+                s.close()
+            return ip
+        except Exception:
+            return '127.0.0.1'
+    
+    local_ip = get_local_ip()
+    
     # Start the FastAPI server with custom log format including timestamps
     print("[Backend] Starting FastAPI server on http://0.0.0.0:8000")
     uvicorn.run(
