@@ -20,6 +20,9 @@ EXPECTED_SCHEMA: Dict[str, Dict[str, tuple]] = {
         'version': ('TEXT', True),  # Optional column for frontend version (v1, v2, v3, etc.)
         'systemPrompt': ('TEXT', True),  # Optional column for custom system prompt per session
     },
+    'message': {
+        'metadata_': ('TEXT', True),  # JSON column for message metadata (nullable)
+    },
     # Add more tables/columns here as needed for future migrations
 }
 

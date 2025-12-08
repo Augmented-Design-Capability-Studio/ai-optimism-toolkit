@@ -115,7 +115,8 @@ class UpdateSessionRequest(SQLModel):
     systemPrompt: Optional[str] = None
     messages: Optional[List[MessageUpdateItem]] = None
 
-class AddMessageRequest(SQLModel):
+class AddMessageRequest(BaseModel):
+    """Request model for adding messages (uses BaseModel to avoid SQLModel metadata shadowing)"""
     sender: str
     content: str
     metadata: Optional[Dict[str, Any]] = None
