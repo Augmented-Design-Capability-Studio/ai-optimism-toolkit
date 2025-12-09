@@ -173,6 +173,7 @@ export default function ResearcherDashboard() {
               onRequestAIResponse={handleRequestAIResponse}
               onRefresh={loadSessions}
               onAIConfigUpdate={handleAIConfigUpdate}
+              onUpdateSelectedSession={setSelectedSession}
             />
           </Box>
           

@@ -267,6 +267,11 @@ export default function ClientV1Page() {
     }
     lastProcessedControlsRef.current = controlsHash;
     
+    // Reset the restore guard to prevent useEffect from overwriting newly generated controls
+    // This ensures that when GENERATE CONTROLS is clicked, the new controls replace the old ones
+    hasRestoredForSessionRef.current = null;
+    lastExplicitControlsTimeRef.current = Date.now();
+    
     // CRITICAL: If bounds exist (tracked by ref), we MUST preserve them
     // Use a functional update to get the latest state, avoiding stale closure issues
     if (hasBoundsRef.current && controls && typeof controls === 'object' && 'objectives' in controls) {
@@ -313,11 +318,10 @@ export default function ClientV1Page() {
         return controls;
       });
     } else {
-      // No bounds exist, just set the controls normally
+      // No bounds exist, just set the controls normally - this replaces previous controls
       setGeneratedControls(controls);
     }
     
-    lastExplicitControlsTimeRef.current = Date.now();
     // Note: ChatPanel already saves controls to session with the message
   };
 

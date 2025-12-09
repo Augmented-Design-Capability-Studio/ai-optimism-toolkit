@@ -39,13 +39,19 @@ async def evaluate_expressions(request: EvaluationRequest):
     
     Supports:
     - Arithmetic: +, -, *, /, //, %, **
-    - Comparisons: <, <=, >, >=, ==, !=
+    - Comparisons: <, <=, >, >=, ==, !=, in, not in
     - Boolean operations: and, or
     - Conditionals: a if condition else b
-    - Functions: abs, min, max, sum, round, sqrt, exp, log, sin, cos, tan
+    - Math functions: abs, min, max, sum, round, sqrt, exp, log, log10, log2, sin, cos, tan, asin, acos, atan, degrees, radians, ceil, floor, fabs
+    - Collection functions: set, len, sorted (with size limits)
+    - Type conversions: int, float, str, bool
+    - Logic functions: all, any
+    - List comprehensions and generator expressions
     - Dictionary/array subscript: obj[key], obj[key1][key2]
     - Variables: Any numeric, string, or dictionary values provided in variables dict
     - Categorical variables: Wrapped in CategoricalVariable for attribute access
+    
+    Security: All expressions are evaluated with size limits, depth limits, and iteration limits to prevent DoS attacks.
     """
     # Build evaluation context with categorical variables wrapped
     eval_dict = build_evaluation_context(

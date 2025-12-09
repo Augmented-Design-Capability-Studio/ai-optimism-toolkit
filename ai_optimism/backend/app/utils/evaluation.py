@@ -1,140 +1,66 @@
+"""
+Safe expression evaluation using AST
+Safely evaluates Python expressions with security guards and limits
+"""
 import ast
-import operator
-import math
 from typing import Dict, Any
-from datetime import datetime
 
-# Safe operators for ast evaluation
-SAFE_OPERATORS = {
-    ast.Add: operator.add,
-    ast.Sub: operator.sub,
-    ast.Mult: operator.mul,
-    ast.Div: operator.truediv,
-    ast.FloorDiv: operator.floordiv,
-    ast.Mod: operator.mod,
-    ast.Pow: operator.pow,
-    ast.USub: operator.neg,
-    ast.UAdd: operator.pos,
-    ast.Eq: operator.eq,
-    ast.NotEq: operator.ne,
-    ast.Lt: operator.lt,
-    ast.LtE: operator.le,
-    ast.Gt: operator.gt,
-    ast.GtE: operator.ge,
-}
+from .evaluation_config import (
+    SAFE_OPERATORS,
+    SAFE_FUNCTIONS,
+    MAX_EXPRESSION_LENGTH,
+    MAX_NESTING_DEPTH,
+    MAX_COMPREHENSION_ITEMS,
+)
+from .evaluation_wrappers import CategoricalVariable, ISODateTimeWrapper
 
-# Safe functions
-SAFE_FUNCTIONS = {
-    'abs': abs,
-    'min': min,
-    'max': max,
-    'sum': sum,
-    'round': round,
-    'pow': pow,
-    'sqrt': math.sqrt,
-    'exp': math.exp,
-    'log': math.log,
-    'sin': math.sin,
-    'cos': math.cos,
-    'tan': math.tan,
-    'all': all,
-    'any': any,
-}
-
-
-class CategoricalVariable:
-    """
-    Wrapper that makes categorical variables accessible with direct attribute access.
-    Allows expressions like variable.attribute_name instead of variable_attributes[variable]['attribute_name']
-    """
-    def __init__(self, category_name: str, attributes: Dict[str, Any]):
-        self._category = category_name
-        self._attributes = attributes
-    
-    def __str__(self):
-        return self._category
-    
-    def __repr__(self):
-        return f"CategoricalVariable('{self._category}')"
-    
-    def __getattr__(self, name):
-        # When accessing .price, .arrival_time, etc.
-        if self._category in self._attributes:
-            if name in self._attributes[self._category]:
-                value = self._attributes[self._category][name]
-                # If it's an ISO datetime string, return a datetime-like object
-                if isinstance(value, str) and 'T' in value and value.count('-') >= 2:
-                    return ISODateTimeWrapper(value)
-                return value
-        raise AttributeError(f"Attribute '{name}' not found for category '{self._category}'")
-    
-    # Make it work in comparisons and arithmetic (if needed)
-    def __eq__(self, other):
-        return str(self) == str(other)
-    
-    def __ne__(self, other):
-        return str(self) != str(other)
-    
-    def __hash__(self):
-        return hash(self._category)
-
-
-class ISODateTimeWrapper:
-    """
-    Wrapper for ISO datetime strings that allows .hour, .minute access
-    without requiring datetime.fromisoformat() which isn't available in safe_eval
-    """
-    def __init__(self, iso_string: str):
-        self._iso_string = iso_string
-        # Parse ISO string manually: "2023-12-18T14:30:00"
-        try:
-            date_part, time_part = iso_string.split('T')
-            year, month, day = map(int, date_part.split('-'))
-            time_parts = time_part.split(':')
-            self._hour = int(time_parts[0])
-            self._minute = int(time_parts[1].split('.')[0]) if len(time_parts) > 1 else 0
-            self._second = int(time_parts[2].split('.')[0]) if len(time_parts) > 2 else 0
-        except (ValueError, IndexError):
-            # If parsing fails, default to 0
-            self._hour = 0
-            self._minute = 0
-            self._second = 0
-    
-    @property
-    def hour(self):
-        return self._hour
-    
-    @property
-    def minute(self):
-        return self._minute
-    
-    @property
-    def second(self):
-        return self._second
-    
-    def __str__(self):
-        return self._iso_string
-    
-    def __repr__(self):
-        return f"ISODateTimeWrapper('{self._iso_string}')"
+# Re-export for backward compatibility
+__all__ = ['safe_eval', 'CategoricalVariable', 'ISODateTimeWrapper']
 
 
 def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
     """
     Safely evaluate a Python expression using AST
-    Supports arithmetic, comparisons, conditionals, common math functions, list comprehensions,
-    generator expressions, and attribute access (including dictionary key access via dot notation)
+    
+    Supports:
+    - Arithmetic: +, -, *, /, //, %, **
+    - Comparisons: <, <=, >, >=, ==, !=, in, not in
+    - Boolean operations: and, or
+    - Conditionals: a if condition else b
+    - Functions: abs, min, max, sum, round, sqrt, exp, log, sin, cos, tan, etc.
+    - List comprehensions and generator expressions
+    - Attribute access: obj.attr
+    - Dictionary/array subscript: obj[key]
+    
+    Security features:
+    - Expression length limit
+    - Nesting depth limit
+    - Comprehension iteration limit
+    - Only whitelisted operators and functions
+    - No code execution, file access, or introspection
     """
     try:
+        # Check expression length
+        if len(expression) > MAX_EXPRESSION_LENGTH:
+            raise ValueError(f"Expression too long: {len(expression)} > {MAX_EXPRESSION_LENGTH}")
+        
         # Parse the expression into an AST
         tree = ast.parse(expression, mode='eval')
         
-        def eval_node(node, local_vars: Dict[str, Any] = None):
+        # Track nesting depth
+        max_depth = [0]  # Use list to allow modification in nested calls
+        
+        def eval_node(node, local_vars: Dict[str, Any] = None, current_depth: int = 0):
             if local_vars is None:
                 local_vars = variables
             
+            # Track and check nesting depth
+            max_depth[0] = max(max_depth[0], current_depth)
+            if max_depth[0] > MAX_NESTING_DEPTH:
+                raise ValueError(f"Expression nesting too deep: {max_depth[0]} > {MAX_NESTING_DEPTH}")
+            
             if isinstance(node, ast.Expression):
-                return eval_node(node.body, local_vars)
+                return eval_node(node.body, local_vars, current_depth)
             
             elif isinstance(node, ast.Constant):
                 return node.value
@@ -150,8 +76,8 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
             
             elif isinstance(node, ast.BinOp):
                 # Binary operations (+ - * / etc)
-                left = eval_node(node.left, local_vars)
-                right = eval_node(node.right, local_vars)
+                left = eval_node(node.left, local_vars, current_depth + 1)
+                right = eval_node(node.right, local_vars, current_depth + 1)
                 op_type = type(node.op)
                 if op_type in SAFE_OPERATORS:
                     return SAFE_OPERATORS[op_type](left, right)
@@ -160,7 +86,7 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
             
             elif isinstance(node, ast.UnaryOp):
                 # Unary operations (- +)
-                operand = eval_node(node.operand, local_vars)
+                operand = eval_node(node.operand, local_vars, current_depth + 1)
                 op_type = type(node.op)
                 if op_type in SAFE_OPERATORS:
                     return SAFE_OPERATORS[op_type](operand)
@@ -168,14 +94,29 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
                     raise ValueError(f"Unsupported unary operator: {op_type}")
             
             elif isinstance(node, ast.Compare):
-                # Comparison operations (< <= > >= == !=)
-                left = eval_node(node.left, local_vars)
+                # Comparison operations (< <= > >= == != in not in)
+                left = eval_node(node.left, local_vars, current_depth + 1)
                 for op, comparator in zip(node.ops, node.comparators):
-                    right = eval_node(comparator, local_vars)
+                    right = eval_node(comparator, local_vars, current_depth + 1)
                     op_type = type(op)
                     if op_type in SAFE_OPERATORS:
-                        if not SAFE_OPERATORS[op_type](left, right):
-                            return False
+                        # Special handling for 'in' and 'not in' operators
+                        if op_type == ast.In:
+                            # Only allow membership testing in safe containers (list, tuple, str)
+                            if not isinstance(right, (list, tuple, str)):
+                                raise TypeError(f"'in' operator only supports list, tuple, or str, got {type(right)}")
+                            if not SAFE_OPERATORS[op_type](left, right):
+                                return False
+                        elif op_type == ast.NotIn:
+                            # Only allow membership testing in safe containers (list, tuple, str)
+                            if not isinstance(right, (list, tuple, str)):
+                                raise TypeError(f"'not in' operator only supports list, tuple, or str, got {type(right)}")
+                            if not SAFE_OPERATORS[op_type](left, right):
+                                return False
+                        else:
+                            # Standard comparison operators
+                            if not SAFE_OPERATORS[op_type](left, right):
+                                return False
                         left = right  # Chain comparisons
                     else:
                         raise ValueError(f"Unsupported comparison: {op_type}")
@@ -188,7 +129,7 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
                     # For 'and': return first falsy value or last value
                     result = None
                     for value_node in node.values:
-                        result = eval_node(value_node, local_vars)
+                        result = eval_node(value_node, local_vars, current_depth + 1)
                         # Convert to bool for truthiness check
                         if not bool(result):
                             return result
@@ -197,7 +138,7 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
                     # For 'or': return first truthy value or last value
                     result = None
                     for value_node in node.values:
-                        result = eval_node(value_node, local_vars)
+                        result = eval_node(value_node, local_vars, current_depth + 1)
                         # Convert to bool for truthiness check
                         if bool(result):
                             return result
@@ -207,16 +148,16 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
             
             elif isinstance(node, ast.IfExp):
                 # Ternary/conditional expression (a if condition else b)
-                condition = eval_node(node.test, local_vars)
+                condition = eval_node(node.test, local_vars, current_depth + 1)
                 if condition:
-                    return eval_node(node.body, local_vars)
+                    return eval_node(node.body, local_vars, current_depth + 1)
                 else:
-                    return eval_node(node.orelse, local_vars)
+                    return eval_node(node.orelse, local_vars, current_depth + 1)
             
             elif isinstance(node, ast.Call):
                 # Function calls
-                func = eval_node(node.func, local_vars)
-                args = [eval_node(arg, local_vars) for arg in node.args]
+                func = eval_node(node.func, local_vars, current_depth + 1)
+                args = [eval_node(arg, local_vars, current_depth + 1) for arg in node.args]
                 if callable(func):
                     return func(*args)
                 else:
@@ -224,16 +165,16 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
             
             elif isinstance(node, ast.List):
                 # List literal
-                return [eval_node(elem, local_vars) for elem in node.elts]
+                return [eval_node(elem, local_vars, current_depth + 1) for elem in node.elts]
             
             elif isinstance(node, ast.Tuple):
                 # Tuple literal
-                return tuple(eval_node(elem, local_vars) for elem in node.elts)
+                return tuple(eval_node(elem, local_vars, current_depth + 1) for elem in node.elts)
             
             elif isinstance(node, ast.Dict):
                 # Dictionary literal
-                keys = [eval_node(k, local_vars) for k in node.keys]
-                values = [eval_node(v, local_vars) for v in node.values]
+                keys = [eval_node(k, local_vars, current_depth + 1) for k in node.keys]
+                values = [eval_node(v, local_vars, current_depth + 1) for v in node.values]
                 return dict(zip(keys, values))
             
             elif isinstance(node, ast.ListComp):
@@ -249,7 +190,7 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
                     raise ValueError("List comprehension target must be a simple variable name")
                 
                 # Evaluate the iterable
-                iterable = eval_node(generator.iter, local_vars)
+                iterable = eval_node(generator.iter, local_vars, current_depth + 1)
                 
                 if not isinstance(iterable, (list, tuple)):
                     raise TypeError(f"List comprehension iterable must be a list or tuple, got {type(iterable)}")
@@ -258,6 +199,10 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
                 var_name = generator.target.id
                 
                 for item in iterable:
+                    # Check iteration limit
+                    if len(result) >= MAX_COMPREHENSION_ITEMS:
+                        raise ValueError(f"List comprehension exceeded maximum items: {MAX_COMPREHENSION_ITEMS}")
+                    
                     # Create new scope with loop variable
                     new_vars = local_vars.copy()
                     new_vars[var_name] = item
@@ -266,14 +211,14 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
                     if generator.ifs:
                         condition_met = True
                         for if_node in generator.ifs:
-                            if not eval_node(if_node, new_vars):
+                            if not eval_node(if_node, new_vars, current_depth + 1):
                                 condition_met = False
                                 break
                         if not condition_met:
                             continue
                     
                     # Evaluate expression and add to result
-                    expr_value = eval_node(node.elt, new_vars)
+                    expr_value = eval_node(node.elt, new_vars, current_depth + 1)
                     result.append(expr_value)
                 
                 return result
@@ -292,7 +237,7 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
                     raise ValueError("Generator expression target must be a simple variable name")
                 
                 # Evaluate the iterable
-                iterable = eval_node(generator.iter, local_vars)
+                iterable = eval_node(generator.iter, local_vars, current_depth + 1)
                 
                 if not isinstance(iterable, (list, tuple)):
                     raise TypeError(f"Generator expression iterable must be a list or tuple, got {type(iterable)}")
@@ -303,6 +248,10 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
                 var_name = generator.target.id
                 
                 for item in iterable:
+                    # Check iteration limit
+                    if len(result) >= MAX_COMPREHENSION_ITEMS:
+                        raise ValueError(f"Generator expression exceeded maximum items: {MAX_COMPREHENSION_ITEMS}")
+                    
                     # Create new scope with loop variable
                     new_vars = local_vars.copy()
                     new_vars[var_name] = item
@@ -311,14 +260,14 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
                     if generator.ifs:
                         condition_met = True
                         for if_node in generator.ifs:
-                            if not eval_node(if_node, new_vars):
+                            if not eval_node(if_node, new_vars, current_depth + 1):
                                 condition_met = False
                                 break
                         if not condition_met:
                             continue
                     
                     # Evaluate expression and add to result
-                    expr_value = eval_node(node.elt, new_vars)
+                    expr_value = eval_node(node.elt, new_vars, current_depth + 1)
                     result.append(expr_value)
                 
                 # Return as a generator-like object (but as a list for simplicity)
@@ -327,7 +276,7 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
             
             elif isinstance(node, ast.Attribute):
                 # Attribute access: obj.attr or obj[key].attr
-                value = eval_node(node.value, local_vars)
+                value = eval_node(node.value, local_vars, current_depth + 1)
                 attr_name = node.attr
                 
                 # Handle attribute access on dictionaries (for nested dict access)
@@ -343,18 +292,18 @@ def safe_eval(expression: str, variables: Dict[str, Any]) -> Any:
             
             elif isinstance(node, ast.Subscript):
                 # Dictionary/array subscript (obj[key] or obj[key1][key2])
-                value = eval_node(node.value, local_vars)
+                value = eval_node(node.value, local_vars, current_depth + 1)
                 
                 # Handle slice node - can be Index (old Python) or direct value (new Python)
                 if isinstance(node.slice, ast.Index):
                     # Python < 3.9: slice is wrapped in Index
-                    slice_val = eval_node(node.slice.value, local_vars)
+                    slice_val = eval_node(node.slice.value, local_vars, current_depth + 1)
                 elif isinstance(node.slice, ast.Slice):
                     # Slice notation [a:b:c] - not commonly used in our expressions
                     raise ValueError("Slice notation [a:b] not supported in expressions")
                 else:
                     # Python 3.9+: slice is directly the value
-                    slice_val = eval_node(node.slice, local_vars)
+                    slice_val = eval_node(node.slice, local_vars, current_depth + 1)
                 
                 # Handle both dict and list/array access
                 if isinstance(value, dict):

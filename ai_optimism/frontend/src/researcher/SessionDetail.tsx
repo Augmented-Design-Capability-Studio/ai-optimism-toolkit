@@ -22,6 +22,7 @@ interface SessionDetailProps {
   onRequestAIResponse?: (sessionId: string) => void;
   onRefresh?: () => void;
   onAIConfigUpdate?: (sessionId: string, aiConfig: AISessionConfigStatus | null) => void;
+  onUpdateSelectedSession?: (session: Session) => void;
 }
 
 export const SessionDetail = memo(function SessionDetail({
@@ -35,6 +36,7 @@ export const SessionDetail = memo(function SessionDetail({
   onRequestAIResponse,
   onRefresh,
   onAIConfigUpdate,
+  onUpdateSelectedSession,
 }: SessionDetailProps) {
   const [hasAIConfig, setHasAIConfig] = useState(false);
   const [isGeneratingControls, setIsGeneratingControls] = useState(false);
@@ -87,8 +89,22 @@ export const SessionDetail = memo(function SessionDetail({
   const handleSaveSystemPrompt = async (sessionId: string, systemPrompt: string) => {
     // Update session with new system prompt
     await sessionManager.updateSession(sessionId, { systemPrompt });
+    
+    // Immediately refresh the selected session to show the updated prompt
+    if (session?.id === sessionId && onUpdateSelectedSession) {
+      try {
+        const updatedSession = await sessionManager.getSession(sessionId);
+        if (updatedSession) {
+          onUpdateSelectedSession(updatedSession);
+        }
+      } catch (error) {
+        console.warn('[SessionDetail] Could not immediately refresh session after saving prompt:', error);
+      }
+    }
+    
+    // Also refresh the sessions list (but don't wait for it)
     if (onRefresh) {
-      await onRefresh();
+      onRefresh();
     }
   };
 

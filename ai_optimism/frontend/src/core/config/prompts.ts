@@ -3,6 +3,111 @@
  * All prompts used in the application are defined here for easy tuning and maintenance
  */
 
+// ============================================
+// SHARED COMPONENTS (Reference these, don't repeat)
+// ============================================
+
+/**
+ * Shared conceptual framework for optimization problems
+ * Used across all prompts to ensure consistency
+ */
+const SHARED_CONCEPTUAL_FRAMEWORK = `Variables: The decision variables of your optimization problem
+  - Continuous: Real numbers with min/max bounds (must include min, max, default)
+  - Discrete: Integers with min/max bounds (must include min, max, default)
+  - Categorical: Named choices, each with associated data in "attributes" field
+
+Attributes: Data associated with categorical variable choices
+  - Stored directly on the variable: variable.attributes[category_name]
+  - Contains static data: costs, times, scores, etc.
+  - NOT computed - it's the raw data for each choice
+  - MUST be included in variable "attributes" field, NEVER in properties
+
+Properties: Computed/derived values from variables
+  - Calculated using Python expressions
+  - Examples: totals, averages, weighted sums, weight coefficients
+  - Used as shorthand in objectives/constraints
+  - NOT data storage - always computed from variables
+  - DO NOT create properties that are static dictionaries or lists
+
+Constraints: Requirements that must be satisfied
+  - Hard constraints: MUST be satisfied (expression returns True) - violations make solution invalid. Use for absolute limits (e.g., budget cannot be exceeded, safety requirements).
+  - Soft constraints: Preferred but can be violated - added as weighted penalty to objective. Use for preferences (e.g., prefer staying under budget, but willing to go slightly over for better quality).
+  - Specify constraint type: "hard" (default) or "soft" based on whether violation is acceptable
+  - For soft constraints, include "weight" field (default: 10.0) - higher weight = stronger preference to satisfy
+  - Expression must return boolean (True if satisfied, False if violated)
+
+Objectives: What to optimize
+  - Each objective has its own expression and goal (minimize/maximize)
+  - Multiple objectives are automatically combined: score = Σ(normalized_objective_value × weight)
+  - Each objective can have a weight (default: 1.0) to control its importance
+  - Higher combined score is better (system normalizes each objective to 0-1, then applies weights)`;
+
+/**
+ * Shared expression rules for Python expressions
+ * Used across all prompts to ensure consistent expression syntax
+ */
+const SHARED_EXPRESSION_RULES = `  - All calculations must be inline - no helper functions, no separate data structures
+  - DO NOT define dictionaries in expressions
+  - DO NOT assign variables in expressions (e.g., "dict = {...}") - this is not allowed
+  - Attributes are stored in variable "attributes" field - access them directly using dot notation: {variable_name}.attribute_name
+  - Example: If a categorical variable "item" is selected, access its price as "item.price" (not "item_attributes[item]['price']")
+  - For datetime/ISO string attributes: Access .hour and .minute directly (e.g., "time_attribute.hour" for ISO strings like "2023-12-18T14:30:00")
+  - DO NOT use datetime.fromisoformat() - datetime objects are not available; ISO strings are automatically parsed
+  - Prefer dictionary lookups over ternary chains
+  - When repeating the same pattern across 3+ variables, use list comprehensions: sum([expr for v in [var1, var2, ...]]) instead of chaining with +
+  - Generator expressions also work: sum(expr for v in [var1, var2, ...]) but list comprehensions are preferred
+  - Available functions: sum, all, any, min, max, abs, round, sqrt, exp, log, log10, log2, sin, cos, tan, asin, acos, atan, degrees, radians, ceil, floor, fabs, set, len, sorted, int, float, str, bool
+  - Available operators: +, -, *, /, //, %, **, ==, !=, <, <=, >, >=, in, not in
+  - NOT available: range(), globals(), getattr(), enumerate(), and other built-ins - use explicit variable lists instead
+  - Note: len() and sorted() have size limits for security (len: 10000, sorted: 1000)
+  - For multiple variables: Use sum([v.attribute for v in [var1, var2, var3, ...]]) NOT sum([getattr(globals()['var' + str(i)], 'attr') for i in range(n)])
+  - Example for summing attributes across multiple variables: sum([meal.prep_time for meal in [meal_assignment_1, meal_assignment_2, meal_assignment_3, meal_assignment_4, meal_assignment_5, meal_assignment_6]])
+  - Example for counting with conditions: sum([1 for v in [var1, var2, var3] if v.attribute in ['value1', 'value2']])
+  - Example for membership testing: (1 if var.attribute in ['value1', 'value2'] else 0) - the 'in' operator works with lists, tuples, and strings`;
+
+/**
+ * Shared naming conventions
+ */
+const SHARED_NAMING_CONVENTIONS = `Use snake_case or camelCase. No spaces or special characters.`;
+
+/**
+ * Consolidated critical requirements checklist
+ * Consolidates all "CRITICAL" instructions that were repeated across prompts
+ */
+const CRITICAL_REQUIREMENTS_CHECKLIST = `CRITICAL REQUIREMENTS - Verify ALL before submitting:
+
+□ ATTRIBUTES HANDLING:
+  - Attributes belong in variable.attributes, NEVER in properties
+  - Search ENTIRE conversation/description from beginning to end for ALL attribute values
+  - Extract EVERY attribute value mentioned (prices, costs, times, scores, durations, etc.)
+  - Include COMPLETE attributes object with ALL actual values (no summaries or placeholders)
+  - Look for patterns like "category X has property Y = value Z" or "X: Y" or "X is Y" throughout ALL messages
+  - Attribute values may appear early in the conversation - search EVERY message from the beginning
+
+□ REQUIRED FIELDS:
+  - Objectives: "weight" field REQUIRED (default: 1.0 if not specified)
+  - Constraints: "type" field REQUIRED ("hard" or "soft", default: "hard" if uncertain)
+  - Variables: min/max/default for continuous/discrete; categories+attributes for categorical (both required)
+  - Every variable must be listed individually - do not use "see above" or shared definitions
+
+□ EXPRESSIONS:
+  - Must be executable Python code (not descriptions, placeholders, or summaries)
+  - No dictionaries in expressions - use dot notation: {variable_name}.attribute_name
+  - DO NOT use range(), globals(), getattr(), or other unavailable functions - use explicit variable lists in list comprehensions
+  - For multiple variables: list them explicitly [var1, var2, var3] not dynamically with range() or globals()
+  - Objectives: return numeric values (system normalizes to 0-1 automatically)
+  - Constraints: return boolean values (True if satisfied, False if violated)
+
+□ COMPLETENESS:
+  - Extract ALL values mentioned (don't summarize or omit any data)
+  - Complete JSON with all fields populated
+  - Every categorical variable has both "categories" array AND complete "attributes" object with ALL categories
+  - All objectives have complete Python expressions (not descriptions)
+  - All constraints have complete Python expressions that return booleans
+  - DO NOT use placeholders like "scoring_weights" without defining the actual expression
+  - DO NOT say "see attributes above" - include the full attributes object in each variable's JSON
+  - The JSON block MUST contain COMPLETE data - not summaries or placeholders`;
+
 /**
  * System prompt for the main chat assistant
  * Used in: /app/api/chat/route.ts
@@ -65,7 +170,7 @@ export const getFormalizationPrompt = (
 You have been provided with existing structured data extracted from the conversation. Your task is to:
 1. Review and validate the existing JSON structure
 2. Complete any missing fields (especially categorical variable attributes with ALL values from the conversation)
-3. CRITICAL: Search the ENTIRE conversation from the VERY FIRST message to the last - attribute values may appear early in the chat
+3. Search the ENTIRE conversation from the VERY FIRST message to the last - attribute values may appear early in the chat
 4. Extract and include EVERY attribute value (prices, costs, times, scores, durations, etc.) mentioned ANYWHERE in the conversation, including:
    - Values in early messages that might have been overlooked
    - Values in JSON blocks from previous AI responses
@@ -96,7 +201,7 @@ The existing structured data is provided below. You MUST include a complete, val
   } else {
     modeSpecificInstructions = `MODE: CONVERSATION-ONLY EXTRACTION
 Analyze the ENTIRE conversation from beginning to end to extract variables, objectives, and constraints. 
-CRITICAL: Search through ALL messages to find and extract EVERY attribute value mentioned for categorical variables (prices, costs, times, scores, durations, etc.).
+Search through ALL messages to find and extract EVERY attribute value mentioned for categorical variables (prices, costs, times, scores, durations, etc.).
 Include ALL numeric and string values mentioned in the conversation - do not summarize or omit any data.
 Infer reasonable defaults and types based on context, but ensure you capture ALL specific values that were mentioned.`;
   }
@@ -109,110 +214,45 @@ ${jsonContextSection}
 ${modeSpecificInstructions}
 
 CONCEPTUAL FRAMEWORK:
-
-Variables: The decision variables of your optimization problem
-  - Continuous: Real numbers with min/max bounds (must include min, max, default)
-  - Discrete: Integers with min/max bounds (must include min, max, default)
-  - Categorical: Named choices, each with associated data in "attributes" field
-
-Attributes: Data associated with categorical variable choices
-  - Stored directly on the variable: variable.attributes[category_name]
-  - Contains static data: costs, times, scores, etc.
-  - NOT computed - it's the raw data for each choice
-  - MUST be included in variable "attributes" field, NEVER in properties
-
-Properties: Computed/derived values from variables
-  - Calculated using Python expressions
-  - Examples: totals, averages, weighted sums, weight coefficients
-  - Used as shorthand in objectives/constraints
-  - NOT data storage - always computed from variables
-  - DO NOT create properties that are static dictionaries or lists
-
-Constraints: Requirements that must be satisfied
-  - Hard constraints (🔒): MUST be satisfied (expression returns True) - violations make solution invalid. Use for absolute limits (e.g., budget cannot be exceeded, safety requirements).
-  - Soft constraints (💡): Preferred but can be violated - added as weighted penalty to objective. Use for preferences (e.g., prefer staying under budget, but willing to go slightly over for better quality).
-  - Specify constraint type: "hard" (default) or "soft" based on whether violation is acceptable
-  - For soft constraints, include "weight" field (default: 10.0) - higher weight = stronger preference to satisfy
-  - Expression must return boolean (True if satisfied, False if violated)
-
-Objectives: What to optimize
-  - Each objective has its own expression and goal (minimize/maximize)
-  - Multiple objectives are automatically combined: score = Σ(normalized_objective_value × weight)
-  - Each objective can have a weight (default: 1.0) to control its importance
-  - Higher combined score is better (system normalizes each objective to 0-1, then applies weights)
+${SHARED_CONCEPTUAL_FRAMEWORK}
 
 Please provide a structured problem definition with the following required sections and formats.
 
 1) Objectives (REQUIRED):
   - Provide at least one objective with: name (snake_case/camelCase), expression (Python), goal (minimize/maximize), description, weight (REQUIRED - must be included, default: 1.0 if not specified)
   - Each objective should have its own expression - the system will combine them automatically
-  - CRITICAL: ALWAYS include the "weight" field for EVERY objective - this is REQUIRED, not optional
   - For multiple objectives, assign weights to control relative importance (e.g., cost objective: weight 2.0, quality objective: weight 1.0)
   - If no specific weights are mentioned, use weight: 1.0 for all objectives
-  - CRITICAL: The expression field MUST contain actual executable Python code, not a description or placeholder
-  - DO NOT define dictionaries or data structures in objective expressions - reference variable attributes directly
   - Each objective expression should evaluate to a single numeric value (the system normalizes to 0-1 automatically)
 
 2) Variables (REQUIRED):
-  - CRITICAL: You MUST define ALL variables explicitly in the JSON - do not omit any variables
+  - You MUST define ALL variables explicitly in the JSON - do not omit any variables
   - For continuous variables: include min, max, default (all required)
   - For discrete variables: include min, max, default (all required)
   - For categorical variables: include categories array AND attributes object (both required)
   - Attributes structure: "attributes": {"category_name": {"data_key": value, ...}, ...}
-  - CRITICAL: Category data belongs in variable "attributes", NOT in the properties section
-  - CRITICAL: If multiple variables share the same categories and attributes, you MUST define them for EACH variable separately in the JSON
-  - CRITICAL: Every categorical variable MUST have both "categories" array AND "attributes" object with data for ALL categories
-  - CRITICAL: Every variable must be listed individually - do not use "see above" or shared definitions
-  - CRITICAL FOR ATTRIBUTES: You MUST search the ENTIRE conversation from the VERY FIRST message to the last for ALL attribute values mentioned (prices, costs, times, scores, durations, etc.)
-  - CRITICAL FOR ATTRIBUTES: Attribute values may appear early in the conversation - search EVERY message from the beginning, including:
-    * Early user messages describing the problem
-    * Early AI responses that may have included JSON with attribute data
-    * Any JSON blocks in previous messages
-    * Scattered mentions throughout the conversation
-  - CRITICAL FOR ATTRIBUTES: Extract and include EVERY numeric value, string value, or boolean value mentioned for each category ANYWHERE in the conversation
-  - CRITICAL FOR ATTRIBUTES: Do NOT summarize or describe attributes - include the COMPLETE attributes object with ALL actual values from the conversation
-  - CRITICAL FOR ATTRIBUTES: If the conversation mentions specific data (e.g., "item A has price $450, score 8.5"), you MUST include those exact values in the attributes object
-  - CRITICAL FOR ATTRIBUTES: Look for patterns like "category X has property Y = value Z" or "X: Y" or "X is Y" throughout ALL messages
+  - If multiple variables share the same categories and attributes, you MUST define them for EACH variable separately in the JSON
 
 3) Properties (OPTIONAL):
-  - Properties are DERIVED/COMPUTED values calculated from variables using Python expressions
-  - Properties are NOT data storage - they are calculations like totals, averages, weighted sums
   - Only create properties that are used in objectives or constraints
   - Include: name (snake_case/camelCase), expression (Python), description (optional)
-  - CRITICAL: The expression field MUST contain actual executable Python code that computes a value, not a description
-  - CRITICAL: Properties MUST have expressions that compute values, not static dictionaries or lists
   - Properties are for computed values, not for objective weights (weights are set directly on objectives)
-  - DO NOT create properties that are dictionaries mapping categories to data - use variable "attributes" instead
-  - DO NOT create properties that are lists of variable names or static arrays
   - Valid property examples: computed totals, averages, weighted sums, weight coefficients
   - Invalid property examples: dictionary of category data, list of variable names, static data structures
 
 4) Constraints (REQUIRED or state "no constraints"):
   - Each constraint: Python expression (returns boolean), description, title (3-5 words), type ("hard" or "soft" - REQUIRED), weight (for soft constraints only, REQUIRED if type is "soft", default: 10.0)
-  - CRITICAL: ALWAYS include the "type" field for EVERY constraint - this is REQUIRED, not optional. Default to "hard" if uncertain.
-  - CRITICAL: The expression field MUST contain actual executable Python code that returns True/False
   - Hard constraints (type: "hard"): Must be satisfied - violations invalidate solution. Use for absolute requirements (budget limits, safety rules, legal requirements).
   - Soft constraints (type: "soft"): Preferred but can be violated - system adds as penalty to objective. Use for preferences (prefer lower cost, prefer faster delivery).
-  - CRITICAL: Infer from context whether each constraint is hard or soft - ALWAYS include the "type" field:
+  - Infer from context whether each constraint is hard or soft - ALWAYS include the "type" field:
     * Hard: "must not exceed", "cannot be", "required to be", "must satisfy", "at least", "at most", "exactly"
     * Soft: "prefer", "ideally", "should be", "try to keep", "preferably"
-  - For soft constraints, ALWAYS include "weight" field (REQUIRED, default: 10.0 if not specified) - higher weight means stronger preference
   - When applying the same pattern across 3+ variables, use list comprehensions instead of chaining with + operators
 
-NAMING: Use snake_case or camelCase. No spaces or special characters.
+NAMING: ${SHARED_NAMING_CONVENTIONS}
 
 EXPRESSION RULES:
-  - All calculations must be inline - no helper functions, no separate data structures
-  - DO NOT define dictionaries in expressions
-  - DO NOT assign variables in expressions (e.g., "dict = {...}") - this is not allowed
-  - Attributes are stored in variable "attributes" field - access them directly using dot notation: {variable_name}.attribute_name
-  - Example: If a categorical variable "item" is selected, access its price as "item.price" (not "item_attributes[item]['price']")
-  - For datetime/ISO string attributes: Access .hour and .minute directly (e.g., "time_attribute.hour" for ISO strings like "2023-12-18T14:30:00")
-  - DO NOT use datetime.fromisoformat() - datetime objects are not available; ISO strings are automatically parsed
-  - Prefer dictionary lookups over ternary chains
-  - When repeating the same pattern across 3+ variables, use list comprehensions: sum([expr for v in [var1, var2, ...]]) instead of chaining with +
-  - Generator expressions also work: sum(expr for v in [var1, var2, ...]) but list comprehensions are preferred
-  - Available functions: sum, all, any, min, max, abs, round, sqrt, exp, log, sin, cos, tan
+${SHARED_EXPRESSION_RULES}
 
 CRITICAL: Only provide a complete formalization if ALL sections have concrete information. If any section lacks details, respond with:
 
@@ -228,29 +268,7 @@ RESPONSE FORMAT:
   - Include complete JSON at the end: \`\`\`json { "variables": [...], "objectives": [...], "constraints": [...], "properties": [...] } \`\`\`
   - Objectives must appear first. JSON code block is REQUIRED.
 
-CRITICAL REQUIREMENTS FOR JSON:
-  - Variables: Each variable MUST include ALL required fields (name, type, description, and for categorical: categories array AND attributes object with ALL category data)
-  - Objectives: Each objective MUST include a complete Python expression (not a description, but actual executable code)
-  - Constraints: Each constraint MUST include a complete Python expression (not a description, but actual executable code)
-  - Properties: If included, each property MUST include a complete Python expression that computes a value
-  - DO NOT use placeholders like "scoring_weights" without defining the actual expression
-  - DO NOT describe what should be in the JSON - actually provide the complete JSON with all fields populated
-  - DO NOT say "see attributes above" - include the full attributes object in each variable's JSON
-  - DO NOT say "expression uses scoring_weights" - provide the actual expression with property references like "w_cost * total_cost + w_health * total_health"
-  - CRITICAL FOR COMPLETENESS: The JSON block MUST contain COMPLETE data - every attribute value mentioned in the conversation must be included
-  - CRITICAL FOR COMPLETENESS: Do NOT create a summary or simplified version - include the FULL, COMPLETE JSON with all attribute values extracted from the entire conversation
-  - CRITICAL FOR COMPLETENESS: Search through ALL messages in the conversation to find every numeric value, string value, or data point mentioned for categorical variables
-  - CRITICAL FOR COMPLETENESS: The attributes object must contain the ACTUAL values from the conversation, not descriptions or placeholders
-
-VALIDATION CHECKLIST - Before submitting, verify:
-  - All variables are explicitly listed with complete definitions
-  - Categorical variables have both "categories" array AND complete "attributes" object with ALL values from the conversation
-  - Every attribute value mentioned in the conversation has been extracted and included in the attributes object
-  - No properties contain static dictionaries or lists - only computed expressions
-  - All objectives have complete Python expressions (not descriptions)
-  - All constraints have complete Python expressions that return booleans
-  - Each objective has a weight field (default: 1.0 if not specified)
-  - The JSON block contains COMPLETE data - not summaries or placeholders`;
+${CRITICAL_REQUIREMENTS_CHECKLIST}`;
 };
 
 /**
@@ -284,60 +302,46 @@ export const getGenerateControlsPrompt = (
   description: string,
   versionContext?: 'v1' | 'v2' | 'v3'
 ): string => {
-  // Base prompt (universal extraction logic)
   const basePrompt = `Extract optimization problem details from the following description and structure them:
 
 Description: ${description}
 
-CRITICAL: The description above contains the complete problem definition. You MUST extract ALL information including every attribute value mentioned. The description includes the ENTIRE conversation history, so search from the beginning for ALL attribute values. Do not summarize or omit any data.
+The description above contains the complete problem definition. You MUST extract ALL information including every attribute value mentioned. The description includes the ENTIRE conversation history, so search from the beginning for ALL attribute values. Do not summarize or omit any data.
 
 Identify:
 1. Variables: continuous (real numbers), discrete (integers), categorical (named options)
-   - CRITICAL: You MUST define ALL variables explicitly - do not omit any
+   - You MUST define ALL variables explicitly - do not omit any
    - Continuous: provide min, max, default (all required)
    - Discrete: provide min, max, default (all required)
    - Categorical: provide 'categories' array AND 'attributes' mapping each category to its data (both required)
-   - CRITICAL: Category data (cost, time, scores, etc.) belongs in variable "attributes", NOT in properties
-   - CRITICAL: Every categorical variable must have attributes for ALL categories
-   - CRITICAL FOR ATTRIBUTES: Extract and include EVERY attribute value mentioned in the description (prices, costs, times, scores, durations, etc.)
-   - CRITICAL FOR ATTRIBUTES: Include the COMPLETE attributes object with ALL actual values - do not summarize or describe attributes
-   - CRITICAL FOR ATTRIBUTES: Search the entire description for ALL numeric values, string values, or data points mentioned for each category
 2. Objectives: minimize/maximize with Python expressions
    - Each objective should have its own expression - the system combines them automatically
    - Each objective can have a weight (default: 1.0) to control relative importance
-   - DO NOT define dictionaries in expressions - access variable attributes directly using dot notation: {variable_name}.attribute_name
 3. Properties: only if used in objectives/constraints, with Python expressions
    - Properties are DERIVED/COMPUTED values calculated from variables - NOT category data
-   - Properties MUST have expressions that compute values, not static dictionaries or lists
-   - CRITICAL: To access categorical variable attributes in properties, use dot notation: {variable_name}.attribute_name
-   - Example property: "total_cost" with expression "{var1}.price + {var2}.price" (not "{var1}_attributes[{var1}]['price']")
-   - DO NOT create properties that map categories to data - use variable "attributes" instead
-   - DO NOT create properties that are static lists or arrays
+   - Example property: "total_cost" with expression "{var1}.price + {var2}.price"
 4. Constraints: Python expressions with title (3-5 words)
    - Expression must return boolean (True if satisfied, False if violated)
    - Do NOT create simple bounds (use variable min/max instead)
    - When applying the same pattern across 3+ variables, use list comprehensions instead of chaining with +
 5. Stopping criteria: max_iterations (default 100), convergence_threshold (default 0.001)
 
+CONCEPTUAL FRAMEWORK:
+${SHARED_CONCEPTUAL_FRAMEWORK}
+
 EXPRESSION RULES:
-- All expressions must be inline - no helper functions or separate data structures
-- DO NOT define dictionaries in expressions - attributes are in variable "attributes" field
-- DO NOT assign variables in expressions (e.g., "dict = {...}") - expressions must be pure calculations
-- Access attributes using dot notation: {variable_name}.attribute_name
-- For datetime/ISO string attributes: Access .hour and .minute directly (e.g., "arrival_time.hour" for ISO strings)
-- DO NOT use datetime.fromisoformat() - datetime objects are not available; ISO strings are automatically parsed
-- Use dictionary lookups: {"key1": value1, "key2": value2}[variable] for simple inline lookups only
-- When repeating the same pattern across 3+ variables, use list comprehensions: sum([expr for v in [var1, var2, ...]]) instead of chaining with +
-- Available functions: sum, all, any, min, max, abs, round, sqrt, exp, log, sin, cos, tan
+${SHARED_EXPRESSION_RULES}
 
-NAMING: snake_case or camelCase. No spaces or special characters.
+NAMING: ${SHARED_NAMING_CONVENTIONS}
 
-CRITICAL: The description contains the complete problem definition. Extract ALL information including:
+The description contains the complete problem definition. Extract ALL information including:
 - Every variable with complete definitions
 - For categorical variables: ALL categories AND complete attributes object with ALL values mentioned
 - All objectives with executable expressions
 - All constraints and properties
-- Do NOT summarize or omit any attribute values - include EVERY value mentioned in the description`;
+- Do NOT summarize or omit any attribute values - include EVERY value mentioned in the description
+
+${CRITICAL_REQUIREMENTS_CHECKLIST}`;
 
   // Version-specific instructions (can be extended in the future)
   let versionInstructions = '';
@@ -411,15 +415,10 @@ export const getComponentGenerationPrompt = (
   switch (component) {
     case 'variables':
       componentInstructions = `Generate VARIABLES for the optimization problem:
-- CRITICAL: You MUST define ALL variables explicitly - do not omit any
+- You MUST define ALL variables explicitly - do not omit any
 - Continuous: provide min, max, default (all required)
 - Discrete: provide min, max, default (all required)
-- Categorical: provide 'categories' array AND 'attributes' mapping each category to its data (both required)
-- CRITICAL: Category data (cost, time, scores, etc.) belongs in variable "attributes", NOT in properties
-- CRITICAL: Every categorical variable must have attributes for ALL categories
-- CRITICAL FOR ATTRIBUTES: Extract and include EVERY attribute value mentioned in the conversation (prices, costs, times, scores, durations, etc.)
-- CRITICAL FOR ATTRIBUTES: Include the COMPLETE attributes object with ALL actual values - do not summarize or describe attributes
-- CRITICAL FOR ATTRIBUTES: Search the entire conversation for ALL numeric values, string values, or data points mentioned for each category`;
+- Categorical: provide 'categories' array AND 'attributes' mapping each category to its data (both required)`;
       break;
 
     case 'properties':
@@ -429,10 +428,6 @@ export const getComponentGenerationPrompt = (
 - Properties are NOT data storage - they are calculations like totals, averages, weighted sums
 - Only create properties that are used in objectives or constraints
 - Include: name (snake_case/camelCase), expression (Python), description (optional)
-- CRITICAL: The expression field MUST contain actual executable Python code that computes a value, not a description
-- CRITICAL: Properties MUST have expressions that compute values, not static dictionaries or lists
-- DO NOT create properties that map categories to data - use variable "attributes" instead
-- DO NOT create properties that are static lists or arrays
 - Reference variables that exist in the conversation`;
       break;
 
@@ -440,12 +435,9 @@ export const getComponentGenerationPrompt = (
       dependencyNote = 'CRITICAL: Objectives require variables to exist. Ensure variables are defined in the conversation.';
       componentInstructions = `Generate OBJECTIVES for the optimization problem:
 - Each objective should have its own expression - the system combines them automatically
-- CRITICAL: ALWAYS include the "weight" field for EVERY objective - this is REQUIRED, not optional (default: 1.0 if not specified)
 - Include: name (snake_case/camelCase), expression (Python), goal (minimize/maximize), description, weight (REQUIRED - must be included, default: 1.0)
 - For multiple objectives, assign weights to control relative importance (e.g., cost objective: weight 2.0, quality objective: weight 1.0)
 - If no specific weights are mentioned, use weight: 1.0 for all objectives
-- CRITICAL: The expression field MUST contain actual executable Python code, not a description or placeholder
-- DO NOT define dictionaries in expressions - access variable attributes directly using dot notation: {variable_name}.attribute_name
 - Each objective expression should evaluate to a single numeric value (the system normalizes to 0-1 automatically)
 - Reference variables and properties that exist in the conversation`;
       break;
@@ -454,14 +446,11 @@ export const getComponentGenerationPrompt = (
       dependencyNote = 'CRITICAL: Constraints require variables to exist. Ensure variables are defined in the conversation.';
       componentInstructions = `Generate CONSTRAINTS for the optimization problem:
 - Each constraint: Python expression (returns boolean), description, title (3-5 words), type ("hard" or "soft" - REQUIRED), weight (for soft constraints only, REQUIRED if type is "soft", default: 10.0)
-- CRITICAL: ALWAYS include the "type" field for EVERY constraint - this is REQUIRED, not optional. Default to "hard" if uncertain.
-- CRITICAL: The expression field MUST contain actual executable Python code that returns True/False
 - Hard constraints (type: "hard"): Must be satisfied - violations invalidate solution. Use for absolute requirements.
 - Soft constraints (type: "soft"): Preferred but can be violated - system adds as penalty to objective. Use for preferences.
-- CRITICAL: Infer from context whether each constraint is hard or soft - ALWAYS include the "type" field:
+- Infer from context whether each constraint is hard or soft - ALWAYS include the "type" field:
   * Hard: "must not exceed", "cannot be", "required to be", "must satisfy", "at least", "at most", "exactly"
   * Soft: "prefer", "ideally", "should be", "try to keep", "preferably"
-- For soft constraints, ALWAYS include "weight" field (REQUIRED, default: 10.0 if not specified) - higher weight means stronger preference
 - Expression must return boolean (True if satisfied, False if violated)
 - Do NOT create simple bounds (use variable min/max instead)
 - When applying the same pattern across 3+ variables, use list comprehensions instead of chaining with +
@@ -477,57 +466,17 @@ ${existingContext}
 ${dependencyNote ? dependencyNote + '\n\n' : ''}${componentInstructions}
 
 CONCEPTUAL FRAMEWORK:
-
-Variables: The decision variables of your optimization problem
-  - Continuous: Real numbers with min/max bounds (must include min, max, default)
-  - Discrete: Integers with min/max bounds (must include min, max, default)
-  - Categorical: Named choices, each with associated data in "attributes" field
-
-Attributes: Data associated with categorical variable choices
-  - Stored directly on the variable: variable.attributes[category_name]
-  - Contains static data: costs, times, scores, etc.
-  - NOT computed - it's the raw data for each choice
-  - MUST be included in variable "attributes" field, NEVER in properties
-
-Properties: Computed/derived values from variables
-  - Calculated using Python expressions
-  - Examples: totals, averages, weighted sums, weight coefficients
-  - Used as shorthand in objectives/constraints
-  - NOT data storage - always computed from variables
-  - DO NOT create properties that are static dictionaries or lists
-
-Constraints: Requirements that must be satisfied
-  - Hard constraints (🔒): MUST be satisfied (expression returns True) - violations make solution invalid
-  - Soft constraints (💡): Preferred but can be violated - added as weighted penalty to objective
-  - Specify constraint type: "hard" (default) or "soft" based on whether violation is acceptable
-  - For soft constraints, include "weight" field (default: 10.0) - higher weight = stronger preference to satisfy
-  - Expression must return boolean (True if satisfied, False if violated)
-
-Objectives: What to optimize
-  - Each objective has its own expression and goal (minimize/maximize)
-  - Multiple objectives are automatically combined: score = Σ(normalized_objective_value × weight)
-  - Each objective can have a weight (default: 1.0) to control its importance
+${SHARED_CONCEPTUAL_FRAMEWORK}
 
 EXPRESSION RULES:
-  - All calculations must be inline - no helper functions, no separate data structures
-  - DO NOT define dictionaries in expressions - attributes are in variable "attributes" field
-  - DO NOT assign variables in expressions (e.g., "dict = {...}") - this is not allowed
-  - Attributes are stored in variable "attributes" field - access them directly using dot notation: {variable_name}.attribute_name
-  - For datetime/ISO string attributes: Access .hour and .minute directly (e.g., "time_attribute.hour" for ISO strings like "2023-12-18T14:30:00")
-  - DO NOT use datetime.fromisoformat() - datetime objects are not available; ISO strings are automatically parsed
-  - When repeating the same pattern across 3+ variables, use list comprehensions: sum([expr for v in [var1, var2, ...]]) instead of chaining with +
-  - Available functions: sum, all, any, min, max, abs, round, sqrt, exp, log, sin, cos, tan
+${SHARED_EXPRESSION_RULES}
 
-NAMING: Use snake_case or camelCase. No spaces or special characters.
+NAMING: ${SHARED_NAMING_CONVENTIONS}
 
 RESPONSE FORMAT:
   - Provide a concise, human-readable summary (2-4 sentences) explaining the generated ${componentLabel.toLowerCase()}
   - Include complete JSON at the end: \`\`\`json { "${component}": [...] } \`\`\`
   - The JSON block is REQUIRED and must contain valid ${componentLabel} data
 
-CRITICAL REQUIREMENTS:
-  - The JSON block MUST contain COMPLETE data - not summaries or placeholders
-  - All expressions must be executable Python code
-  - For categorical variables: include ALL categories AND complete attributes object with ALL values from the conversation
-  - Do NOT summarize or omit any attribute values - include EVERY value mentioned in the conversation`;
+${CRITICAL_REQUIREMENTS_CHECKLIST}`;
 };
