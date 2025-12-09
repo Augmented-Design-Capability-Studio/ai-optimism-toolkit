@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { CHAT_SYSTEM_PROMPT } from '@/core/config/prompts';
+import { 
+  CHAT_SYSTEM_PROMPT, 
+  RESEARCHER_DRAFT_FORMAT_SYSTEM_APPENDIX,
+  getDraftFormattingPrompt 
+} from '@/core/config/prompts';
+import type { Message } from '@/core/services/sessionManager';
 
 export const runtime = 'edge';
 
@@ -12,8 +17,8 @@ export async function POST(
   try {
     const { id: sessionId } = await params;
     
-    // Parse request body to check for draft parameter
-    let requestBody: { draft?: string } = {};
+    // Parse request body - may include draft, messages, or both
+    let requestBody: { draft?: string; messages?: Message[] } = {};
     try {
       requestBody = await request.json();
     } catch {
@@ -88,45 +93,37 @@ export async function POST(
     if (requestBody.draft && requestBody.draft.trim()) {
       console.log('[AI Response API] Formatting draft text for session:', sessionId);
       
-      // Get conversation context for better formatting
+      // Get conversation context from provided messages or fetch from backend
       let conversationContext = '';
-      try {
-        const messagesResponse = await fetch(`${baseUrl}/sessions/${sessionId}/messages`, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (messagesResponse.ok) {
-          const sessionMessages = await messagesResponse.json();
-          // Get last few messages for context
-          const recentMessages = sessionMessages.slice(-6);
-          conversationContext = recentMessages
-            .map((msg: any) => `${msg.sender === 'user' ? 'User' : msg.sender === 'researcher' ? 'Researcher' : 'AI'}: ${msg.content}`)
-            .join('\n');
+      if (requestBody.messages && requestBody.messages.length > 0) {
+        // Use provided messages (already filtered by frontend)
+        const recentMessages = requestBody.messages.slice(-6);
+        conversationContext = recentMessages
+          .map((msg) => `${msg.sender === 'user' ? 'User' : msg.sender === 'researcher' ? 'Researcher' : 'AI'}: ${msg.content}`)
+          .join('\n');
+      } else {
+        // Fallback: fetch from backend (for backward compatibility)
+        try {
+          const messagesResponse = await fetch(`${baseUrl}/sessions/${sessionId}/messages`, {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (messagesResponse.ok) {
+            const sessionMessages = await messagesResponse.json();
+            const recentMessages = sessionMessages.slice(-6);
+            conversationContext = recentMessages
+              .map((msg: any) => `${msg.sender === 'user' ? 'User' : msg.sender === 'researcher' ? 'Researcher' : 'AI'}: ${msg.content}`)
+              .join('\n');
+          }
+        } catch (error) {
+          console.warn('[AI Response API] Could not fetch conversation context:', error);
         }
-      } catch (error) {
-        console.warn('[AI Response API] Could not fetch conversation context:', error);
       }
 
-      const formatPrompt = `You are helping a researcher improve and format a draft message. The researcher has typed a draft response and wants you to improve it for clarity, professionalism, and effectiveness while preserving their intent.
-
-${conversationContext ? `Recent conversation context:\n${conversationContext}\n\n` : ''}Draft text to improve:
-"""
-${requestBody.draft}
-"""
-
-Please improve and format this draft message. Make it clear, professional, and appropriate for the conversation context. Preserve the researcher's intent and main points, but improve clarity, grammar, and structure. Return only the improved text without any additional commentary or explanation.`;
-
-      // Hybrid system prompt: researcher-friendly but still provides optimization guidance
-      const researcherFormatSystemPrompt = `${baseSystemPrompt}
-
-IMPORTANT CONTEXT FOR DRAFT FORMATTING:
-- You are helping a RESEARCHER colleague format their draft message, not a user seeking optimization help
-- The researcher may write simple messages (like greetings) that don't need optimization guidance - just format them professionally
-- When the draft contains optimization-related content, you can enhance it with better structure and clarity while maintaining optimization guidance principles
-- Do NOT reject or criticize simple messages - just format them appropriately for the conversation context
-- Your goal is to improve clarity and professionalism while preserving the researcher's intent, whether the message is simple or optimization-focused`;
+      const formatPrompt = getDraftFormattingPrompt(requestBody.draft, conversationContext);
+      const researcherFormatSystemPrompt = `${baseSystemPrompt}${RESEARCHER_DRAFT_FORMAT_SYSTEM_APPENDIX}`;
 
       const { text } = await generateText({
         model,
@@ -138,22 +135,30 @@ IMPORTANT CONTEXT FOR DRAFT FORMATTING:
       return NextResponse.json({ response: text });
     }
 
-    // Otherwise, generate from conversation (existing behavior)
-    // Get session messages from backend
-    const messagesResponse = await fetch(`${baseUrl}/sessions/${sessionId}/messages`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    // Otherwise, generate from conversation
+    // Use provided messages (already filtered by frontend) or fetch from backend
+    let sessionMessages: Message[] = [];
     
-    if (!messagesResponse.ok) {
-      return NextResponse.json(
-        { error: 'Failed to fetch session messages' },
-        { status: messagesResponse.status }
-      );
+    if (requestBody.messages && requestBody.messages.length > 0) {
+      // Use provided messages (already filtered by frontend)
+      sessionMessages = requestBody.messages;
+    } else {
+      // Fallback: fetch from backend (for backward compatibility)
+      const messagesResponse = await fetch(`${baseUrl}/sessions/${sessionId}/messages`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!messagesResponse.ok) {
+        return NextResponse.json(
+          { error: 'Failed to fetch session messages' },
+          { status: messagesResponse.status }
+        );
+      }
+      
+      sessionMessages = await messagesResponse.json();
     }
-    
-    const sessionMessages = await messagesResponse.json();
 
     // Find the last user message - only include messages up to and including it
     // This ensures we're requesting a response to the user's message, not to an existing AI response
@@ -177,7 +182,7 @@ IMPORTANT CONTEXT FOR DRAFT FORMATTING:
     const messagesToInclude = sessionMessages.slice(0, lastUserMessageIndex + 1);
 
     // Convert session messages to AI SDK format
-    const aiMessages = messagesToInclude.map((msg: any) => {
+    const aiMessages = messagesToInclude.map((msg) => {
       const role = msg.sender === 'user' ? 'user' : msg.sender === 'researcher' ? 'assistant' : 'assistant';
       return {
         role,

@@ -192,6 +192,7 @@ export const SessionDetail = memo(function SessionDetail({
       {session.status !== 'formalized' && (
         <MessageInput
           sessionId={session.id}
+          session={session}
           onSendMessage={onSendMessage}
           onRequestAIResponse={onRequestAIResponse}
           disabled={session.status === 'completed'}

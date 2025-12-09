@@ -5,6 +5,8 @@ import { getComponentGenerationPrompt } from '@/core/config/prompts';
 import { extractJSONBlocks } from '@/core/components/shared/chat/messages/utils/jsonExtractors';
 import { aggregateControlsFromMessages } from '@/clients/v1/services/controlsAggregator';
 import type { Controls } from '@/clients/v1/components/controls/controls/types';
+import type { Message } from '@/core/services/sessionManager';
+import { formatMessagesAsConversation } from '@/core/utils/messageFiltering';
 
 export const runtime = 'edge';
 
@@ -58,7 +60,7 @@ export async function POST(
 ) {
   try {
     const { id: sessionId } = await params;
-    const { component, model: modelName } = await request.json();
+    const { component, model: modelName, messages: providedMessages } = await request.json();
 
     // Validate component type
     if (!component || !['variables', 'properties', 'objectives', 'constraints'].includes(component)) {
@@ -134,41 +136,43 @@ export async function POST(
       );
     }
 
-    // Fetch session messages for conversation context
-    let sessionMessages;
-    try {
-      const messagesResponse = await fetch(`${baseUrl}/sessions/${sessionId}/messages`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+    // Use provided messages (already filtered by frontend) or fetch from backend
+    let sessionMessages: Message[] = [];
+    
+    if (providedMessages && Array.isArray(providedMessages) && providedMessages.length > 0) {
+      // Use provided messages (already filtered by frontend)
+      sessionMessages = providedMessages;
+    } else {
+      // Fallback: fetch from backend (for backward compatibility)
+      try {
+        const messagesResponse = await fetch(`${baseUrl}/sessions/${sessionId}/messages`, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-      if (!messagesResponse.ok) {
+        if (!messagesResponse.ok) {
+          return NextResponse.json(
+            { error: 'Failed to fetch session messages' },
+            { status: messagesResponse.status }
+          );
+        }
+
+        sessionMessages = await messagesResponse.json();
+      } catch (error: any) {
+        console.error('[Component Generation API] Error fetching messages:', error);
         return NextResponse.json(
           { error: 'Failed to fetch session messages' },
-          { status: messagesResponse.status }
+          { status: 500 }
         );
       }
-
-      sessionMessages = await messagesResponse.json();
-    } catch (error: any) {
-      console.error('[Component Generation API] Error fetching messages:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch session messages' },
-        { status: 500 }
-      );
     }
 
     // Format conversation for analysis
-    const conversationText = sessionMessages
-      .map((m: any) => {
-        const role = m.sender === 'user' ? 'User' : m.sender === 'researcher' ? 'Researcher' : 'AI';
-        return `${role}: ${m.content}`;
-      })
-      .join('\n\n');
+    const conversationText = formatMessagesAsConversation(sessionMessages);
 
     // Aggregate existing components from messages
-    const formattedMessages = sessionMessages.map((m: any) => ({
+    const formattedMessages = sessionMessages.map((m) => ({
       id: m.id || '',
       sessionId: sessionId,
       sender: m.sender,

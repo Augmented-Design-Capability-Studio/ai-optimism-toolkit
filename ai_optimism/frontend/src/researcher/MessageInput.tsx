@@ -7,9 +7,17 @@ import { useState } from 'react';
 import { Box } from '@mui/material';
 import { MarkdownInput } from '../core/components/shared/chat';
 import { ResearcherToolbar } from './ResearcherToolbar';
+import { 
+  filterMessagesForAIResponse, 
+  filterMessagesForComponent,
+  filterMessagesForDraftFormatting,
+  formatMessagesAsConversation 
+} from '../core/utils/messageFiltering';
+import { useSessionManager, type Session } from '../core/services/sessionManager';
 
 interface MessageInputProps {
   sessionId: string;
+  session?: Session | null; // Session with messages for filtering
   onSendMessage: (sessionId: string, message: string, metadata?: any) => void;
   onRequestAIResponse?: (sessionId: string) => void;
   disabled?: boolean;
@@ -23,7 +31,8 @@ interface MessageInputProps {
 }
 
 export function MessageInput({ 
-  sessionId, 
+  sessionId,
+  session,
   onSendMessage, 
   onRequestAIResponse,
   disabled,
@@ -39,6 +48,7 @@ export function MessageInput({
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isGeneratingComponent, setIsGeneratingComponent] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const sessionManager = useSessionManager();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,10 +115,29 @@ export function MessageInput({
     
     setIsGeneratingAI(true);
     try {
-      const requestBody: { draft?: string } = {};
+      // Get session messages for filtering
+      const currentSession = session || await sessionManager.getSession(sessionId);
+      const messages = currentSession?.messages || [];
+      
+      // Filter messages based on whether we're formatting a draft or generating full response
+      let filteredMessages: typeof messages = [];
+      if (input.trim()) {
+        // Draft formatting: only need recent context
+        filteredMessages = filterMessagesForDraftFormatting(messages);
+      } else {
+        // Full response: filter to reasonable size
+        filteredMessages = filterMessagesForAIResponse(messages);
+      }
+      
+      const requestBody: { draft?: string; messages?: typeof messages } = {};
       
       if (input.trim()) {
         requestBody.draft = input.trim();
+      }
+      
+      // Include filtered messages in request
+      if (filteredMessages.length > 0) {
+        requestBody.messages = filteredMessages;
       }
       
       const response = await fetch(`/api/sessions/${sessionId}/ai-response`, {
@@ -145,12 +174,22 @@ export function MessageInput({
 
     setIsGeneratingComponent(component);
     try {
+      // Get session messages for filtering
+      const currentSession = session || await sessionManager.getSession(sessionId);
+      const messages = currentSession?.messages || [];
+      
+      // Filter messages for component generation (smart filtering based on component type)
+      const filteredMessages = filterMessagesForComponent(messages, component);
+      
       const response = await fetch(`/api/sessions/${sessionId}/formalize/component`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ component }),
+        body: JSON.stringify({ 
+          component,
+          messages: filteredMessages.length > 0 ? filteredMessages : undefined,
+        }),
       });
 
       if (!response.ok) {
