@@ -183,7 +183,7 @@ export async function POST(
 
     // Convert session messages to AI SDK format
     const aiMessages = messagesToInclude.map((msg) => {
-      const role = msg.sender === 'user' ? 'user' : msg.sender === 'researcher' ? 'assistant' : 'assistant';
+      const role: 'user' | 'assistant' = msg.sender === 'user' ? 'user' : 'assistant';
       return {
         role,
         content: msg.content,
