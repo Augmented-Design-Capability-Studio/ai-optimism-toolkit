@@ -23,6 +23,8 @@ INCREMENTAL STRUCTURED DATA EXTRACTION:
   - CRITICAL: ALWAYS include the "type" field for EVERY constraint
   - Infer from context: "must", "cannot", "required" → "hard"; "prefer", "ideally", "should" → "soft"
 - Property: { "name": "prop_name", "expression": "python expression", "description": "..." (optional) }
+  - CRITICAL: The properties are computed/derived values from variables. Do not create properties that are static dictionaries or lists.
+  - CRITICAL: The properties are not data storage or attributes of variables.
 - Use snake_case or camelCase for names. Expressions must be inline only.
 
 CRITICAL RULES:
