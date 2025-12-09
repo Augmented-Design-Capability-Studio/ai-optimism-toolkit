@@ -47,8 +47,6 @@ export function useSessionLifecycle() {
             ? localStorage.getItem('wizard_current_session') 
             : null;
           
-          console.log('[useSessionLifecycle] Checking for session in localStorage:', sessionIdInStorage);
-          
           if (sessionIdInStorage) {
             // Try to fetch the session from backend
             // Use getSession directly instead of getCurrentSession to avoid it clearing localStorage on error
@@ -60,7 +58,6 @@ export function useSessionLifecycle() {
                 if (session.version && session.version !== versionName) {
                   // Session is from a different version, don't restore it
                   // Don't clear localStorage so it can be restored if user returns to original version
-                  console.log(`[useSessionLifecycle] Session version mismatch: session is ${session.version}, current is ${versionName}`);
                   session = null;
                 } else {
                   // Version matches or no version (backward compatibility), update URL and ensure localStorage is set
@@ -68,28 +65,23 @@ export function useSessionLifecycle() {
                   url.searchParams.set('session', session.id);
                   window.history.replaceState({}, '', url.toString());
                   sessionManager.setCurrentSession(session.id); // Ensure it's saved
-                  console.log(`[useSessionLifecycle] Restored session ${session.id} for version ${versionName}`);
                 }
               } else if (session && session.status === 'completed') {
                 // Session is completed, clear it
-                console.log(`[useSessionLifecycle] Session ${session.id} is completed, clearing`);
                 session = null;
                 sessionManager.setCurrentSession(null);
               } else {
                 // Session not found or invalid
-                console.warn(`[useSessionLifecycle] Session ${sessionIdInStorage} not found or invalid`);
                 session = null;
                 // Only clear localStorage if we're sure the session doesn't exist (not just a network error)
                 // We'll let getCurrentSession handle clearing on confirmed errors
               }
             } catch (error) {
               // Network error or other issue - don't clear localStorage, might be temporary
-              console.warn(`[useSessionLifecycle] Error fetching session ${sessionIdInStorage}:`, error);
               session = null;
             }
           } else {
             // No session ID in localStorage
-            console.log('[useSessionLifecycle] No session ID in localStorage');
             session = null;
           }
         }
