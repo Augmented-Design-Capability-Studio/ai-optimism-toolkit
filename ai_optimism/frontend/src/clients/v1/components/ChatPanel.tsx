@@ -214,6 +214,16 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
     const latestMessage = messages[messages.length - 1];
     const latestTimestamp = latestMessage?.timestamp || 0;
     
+    // CRITICAL: Skip aggregation if latest message is an optimization-run
+    // Optimization runs add bounds to controls via handleOptimizationResults,
+    // and we don't want to overwrite those bounds with reaggregation
+    if (latestMessage?.metadata?.type === 'optimization-run') {
+      // Update refs to prevent re-triggering on next render
+      lastMessageCountRef.current = messageCount;
+      lastMessageTimestampRef.current = latestTimestamp;
+      return;
+    }
+    
     // Check if there's a new message
     const hasNewMessage = 
       messageCount !== lastMessageCountRef.current ||

@@ -28,6 +28,7 @@ export default function ClientV1Page() {
   const lastExplicitControlsTimeRef = useRef<number>(0);
   const hasRestoredForSessionRef = useRef<string | null>(null);
   const hasBoundsRef = useRef<boolean>(false); // Track if controls have bounds to avoid stale closure issues
+  const controlsVersionRef = useRef<number>(0); // Track controls version to force OptimizationPanel reset
 
   // Load current session on mount
   // ChatPanel's useSessionLifecycle already subscribes to updates, so we'll sync via callback
@@ -251,6 +252,12 @@ export default function ClientV1Page() {
       
       setGeneratedControls(aggregatedControls);
       hasRestoredForSessionRef.current = currentSession.id;
+    } else {
+      // Explicitly clear controls if the session has no aggregated controls
+      // This ensures switching to a session without controls clears the previous session's controls
+      setGeneratedControls(null);
+      setVariableValues({});
+      hasRestoredForSessionRef.current = currentSession.id;
     }
   }, [currentSession?.id, currentSession?.status, currentSession?.messages?.length]);
 
@@ -258,69 +265,33 @@ export default function ClientV1Page() {
   const lastProcessedControlsRef = useRef<string>('');
   
   const handleControlsGenerated = (controls: unknown) => {
+    // When GENERATE CONTROLS is clicked, clear visualization and optimization data
+    // This gives the user a fresh start with new controls
+    setOptimizationData(null);
+    setVariableValues({});
+    setHeuristicWeights(null);
+    
+    // Increment controls version to force OptimizationPanel reset
+    controlsVersionRef.current += 1;
+    
     // Create a hash of the controls to detect duplicates
     const controlsHash = JSON.stringify((controls as any)?.objectives?.map((o: any) => ({ name: o.name, expression: o.expression })));
     
-    // Skip if this is a duplicate call with the same controls
-    if (lastProcessedControlsRef.current === controlsHash && hasBoundsRef.current) {
-      return;
-    }
-    lastProcessedControlsRef.current = controlsHash;
-    
-    // Reset the restore guard to prevent useEffect from overwriting newly generated controls
-    // This ensures that when GENERATE CONTROLS is clicked, the new controls replace the old ones
+    // Reset bounds tracking since we're generating new controls
+    // The user explicitly clicked GENERATE CONTROLS, so start fresh
+    hasBoundsRef.current = false;
     hasRestoredForSessionRef.current = null;
     lastExplicitControlsTimeRef.current = Date.now();
+    lastProcessedControlsRef.current = controlsHash;
     
-    // CRITICAL: If bounds exist (tracked by ref), we MUST preserve them
-    // Use a functional update to get the latest state, avoiding stale closure issues
-    if (hasBoundsRef.current && controls && typeof controls === 'object' && 'objectives' in controls) {
-      setGeneratedControls((prevControls: unknown) => {
-        if (prevControls && typeof prevControls === 'object' && 'objectives' in prevControls) {
-          const existingObjectives = (prevControls as any).objectives || [];
-          const newObjectives = (controls as any).objectives || [];
-          const existingBoundsMap = new Map<string, { min?: number; max?: number }>();
-          
-          // Collect existing bounds from the latest state
-          existingObjectives.forEach((obj: any) => {
-            if (obj.name) {
-              const hasValidMin = typeof obj.min === 'number' && !isNaN(obj.min);
-              const hasValidMax = typeof obj.max === 'number' && !isNaN(obj.max);
-              if (hasValidMin || hasValidMax) {
-                existingBoundsMap.set(obj.name, { 
-                  min: hasValidMin ? obj.min : undefined, 
-                  max: hasValidMax ? obj.max : undefined 
-                });
-              }
-            }
-          });
-          
-          // Merge bounds into new objectives
-          if (existingBoundsMap.size > 0) {
-            const updatedObjectives = newObjectives.map((obj: any) => {
-              const bounds = existingBoundsMap.get(obj.name);
-              if (bounds) {
-                const hasValidMin = typeof obj.min === 'number' && !isNaN(obj.min);
-                const hasValidMax = typeof obj.max === 'number' && !isNaN(obj.max);
-                
-                return {
-                  ...obj,
-                  min: hasValidMin ? obj.min : bounds.min,
-                  max: hasValidMax ? obj.max : bounds.max,
-                };
-              }
-              return obj;
-            });
-            return { ...(controls as any), objectives: updatedObjectives };
-          }
-        }
-        // Fallback: if we can't preserve, just use new controls (but this shouldn't happen)
-        return controls;
-      });
-    } else {
-      // No bounds exist, just set the controls normally - this replaces previous controls
-      setGeneratedControls(controls);
-    }
+    // Always create a new object reference to ensure ControlsPanel refreshes
+    // Deep clone the controls to force React to detect the change
+    const newControls = controls && typeof controls === 'object' 
+      ? JSON.parse(JSON.stringify(controls))
+      : controls;
+    
+    // Set the controls directly - no bounds preservation since we're starting fresh
+    setGeneratedControls(newControls);
     
     // Note: ChatPanel already saves controls to session with the message
   };
@@ -334,66 +305,112 @@ export default function ClientV1Page() {
     // Use best_design from fullData if available, otherwise use first result
     const bestSolution = fullData?.best_design?.variables || (results && results.length > 0 ? results[0].variables : null);
     
+    // Apply best solution to variable values
+    // Use functional update to get latest controls state and avoid stale closures
     if (bestSolution) {
-      
-      // Convert categorical category names to indices for the frontend
-      const convertedValues: Record<string, number> = {};
-      if (generatedControls && typeof generatedControls === 'object' && 'variables' in generatedControls) {
-        const vars = (generatedControls as any).variables || [];
-        for (const [varName, value] of Object.entries(bestSolution)) {
-          const varDef = vars.find((v: any) => v.name === varName);
-          if (varDef?.type === 'categorical' && varDef.categories) {
-            // Check if value is a category name (string) and convert to index
-            if (typeof value === 'string') {
-              const idx = varDef.categories.indexOf(value);
-              convertedValues[varName] = idx >= 0 ? idx : 0;
-            } else if (typeof value === 'number') {
-              // Already an index, use it directly (ensure it's within bounds)
-              convertedValues[varName] = Math.max(0, Math.min(Math.floor(value), varDef.categories.length - 1));
+      setGeneratedControls((prevControls: unknown) => {
+        if (prevControls && typeof prevControls === 'object' && 'variables' in prevControls) {
+          const vars = (prevControls as any).variables || [];
+          const convertedValues: Record<string, number> = {};
+          
+          for (const [varName, value] of Object.entries(bestSolution)) {
+            const varDef = vars.find((v: any) => v.name === varName);
+            if (varDef?.type === 'categorical' && varDef.categories) {
+              // Check if value is a category name (string) and convert to index
+              if (typeof value === 'string') {
+                const idx = varDef.categories.indexOf(value);
+                convertedValues[varName] = idx >= 0 ? idx : 0;
+              } else if (typeof value === 'number') {
+                // Already an index, use it directly (ensure it's within bounds)
+                convertedValues[varName] = Math.max(0, Math.min(Math.floor(value), varDef.categories.length - 1));
+              } else {
+                convertedValues[varName] = 0;
+              }
             } else {
-              convertedValues[varName] = 0;
+              convertedValues[varName] = value as number;
             }
-          } else {
-            convertedValues[varName] = value as number;
           }
+          
+          // Always create a new object to ensure React detects the change
+          setVariableValues({ ...convertedValues });
+        } else {
+          // Fallback: use values as-is
+          const convertedValues: Record<string, number> = {};
+          Object.assign(convertedValues, bestSolution);
+          setVariableValues({ ...convertedValues });
         }
-      } else {
-        // Fallback: use values as-is
-        Object.assign(convertedValues, bestSolution);
-      }
-      
-      // Always create a new object to ensure React detects the change
-      setVariableValues({ ...convertedValues });
+        
+        // Return controls unchanged - we're just reading them
+        return prevControls;
+      });
     }
 
     if (fullData) {
       setOptimizationData(fullData);
       
       // Merge objective bounds into controls if available
-      if (fullData?.objective_bounds && generatedControls && typeof generatedControls === 'object' && 'objectives' in generatedControls) {
-        const updatedControls = { ...generatedControls };
-        const objectives = [...(updatedControls as any).objectives || []];
-        const bounds = fullData.objective_bounds;
-        
-        // Update each objective with its bounds
-        for (let i = 0; i < objectives.length; i++) {
-          const obj = objectives[i];
-          if (obj.name && bounds[obj.name]) {
-            objectives[i] = {
-              ...obj,
-              // Preserve existing bounds if they exist, otherwise use new ones
-              min: bounds[obj.name].min !== undefined && bounds[obj.name].min !== null ? bounds[obj.name].min : obj.min,
-              max: bounds[obj.name].max !== undefined && bounds[obj.name].max !== null ? bounds[obj.name].max : obj.max,
-            };
+      // CRITICAL: Use functional update to get latest controls state and avoid stale closures
+      if (fullData?.objective_bounds && fullData.objective_bounds) {
+        setGeneratedControls((prevControls: unknown) => {
+          if (!prevControls || typeof prevControls !== 'object' || !('objectives' in prevControls)) {
+            return prevControls;
           }
-        }
-        
-        (updatedControls as any).objectives = objectives;
-        setGeneratedControls(updatedControls);
-        // Update timestamp to prevent restore from overwriting these bounds
-        lastExplicitControlsTimeRef.current = Date.now();
-        // Set ref to indicate bounds exist (avoids stale closure issues)
-        hasBoundsRef.current = true;
+          
+          const updatedControls = { ...prevControls };
+          const objectives = [...(updatedControls as any).objectives || []];
+          const bounds = fullData.objective_bounds;
+          
+          // Update each objective with its bounds
+          let hasNewBounds = false;
+          for (let i = 0; i < objectives.length; i++) {
+            const obj = objectives[i];
+            if (obj.name && bounds[obj.name]) {
+              const boundData = bounds[obj.name];
+              const hasValidMin = typeof boundData.min === 'number' && !isNaN(boundData.min);
+              const hasValidMax = typeof boundData.max === 'number' && !isNaN(boundData.max);
+              
+              // Only update if bounds are actually valid numbers
+              if (hasValidMin || hasValidMax) {
+                const prevMin = typeof obj.min === 'number' && !isNaN(obj.min) ? obj.min : undefined;
+                const prevMax = typeof obj.max === 'number' && !isNaN(obj.max) ? obj.max : undefined;
+                
+                const newMin = hasValidMin ? boundData.min : prevMin;
+                const newMax = hasValidMax ? boundData.max : prevMax;
+                
+                // Only update if bounds actually changed
+                if (prevMin !== newMin || prevMax !== newMax) {
+                  objectives[i] = {
+                    ...obj,
+                    min: newMin,
+                    max: newMax,
+                  };
+                  hasNewBounds = true;
+                }
+              }
+            }
+          }
+          
+          if (hasNewBounds) {
+            (updatedControls as any).objectives = objectives;
+            // Update timestamp to prevent restore from overwriting these bounds
+            lastExplicitControlsTimeRef.current = Date.now();
+            // Set ref to indicate bounds exist (avoids stale closure issues)
+            hasBoundsRef.current = true;
+            return updatedControls;
+          }
+          
+          // If no new bounds were added, mark that bounds exist if any objectives already have bounds
+          const existingBounds = objectives.some((obj: any) => {
+            const hasValidMin = typeof obj.min === 'number' && !isNaN(obj.min);
+            const hasValidMax = typeof obj.max === 'number' && !isNaN(obj.max);
+            return hasValidMin || hasValidMax;
+          });
+          if (existingBounds) {
+            hasBoundsRef.current = true;
+          }
+          
+          return prevControls;
+        });
       }
       
       // Initialize heuristic weights from the optimization data if available
@@ -413,7 +430,28 @@ export default function ClientV1Page() {
 
   const handleSessionChange = async (sessionId: string) => {
     try {
+      // Immediately clear controls, variables, and optimization data when switching sessions
+      // This prevents old session's controls from showing while the new session loads
+      setGeneratedControls(null);
+      setVariableValues({});
+      setOptimizationData(null);
+      setHeuristicWeights(null);
+      
+      // Update localStorage via sessionManager
       await sessionManager.setCurrentSession(sessionId);
+      
+      // Update URL parameter so ChatPanel loads the correct session on remount
+      const url = new URL(window.location.href);
+      url.searchParams.set('session', sessionId);
+      window.history.replaceState({}, '', url.toString());
+      
+      // Reset restore state so controls will be reloaded from the new session
+      hasRestoredForSessionRef.current = null;
+      hasBoundsRef.current = false;
+      lastExplicitControlsTimeRef.current = 0;
+      lastProcessedControlsRef.current = '';
+      
+      // Fetch and set the new session
       const newSession = await sessionManager.getSession(sessionId);
       if (newSession) {
         setCurrentSession(newSession);
@@ -530,6 +568,7 @@ export default function ClientV1Page() {
 
                   <Box sx={{ height: '100%', overflow: 'hidden' }}>
                     <OptimizationPanel
+                      key={`optimization-${controlsVersionRef.current}`}
                       controls={generatedControls as any}
                       onResultsUpdate={handleOptimizationResults}
                       sessionId={currentSession?.id}

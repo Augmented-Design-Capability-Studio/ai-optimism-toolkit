@@ -7,6 +7,7 @@ import { SessionAIStatusIndicator, SessionAISettings, BackendStatusIndicator, Ba
 import { Session, useSessionManager } from '../../services/sessionManager';
 import type { AISessionConfigStatus } from '../../services/sessionManager';
 import { getAIConfig } from '../../services/sessionAIConfig';
+import { useVersion } from '../../contexts/VersionContext';
 import { useState, useEffect } from 'react';
 
 interface AppBarProps {
@@ -21,19 +22,31 @@ interface AppBarProps {
 export function AppBar({ title, color = 'primary.main', currentSession, onLogout, onAIConfigUpdate, onSessionChange }: AppBarProps) {
   const router = useRouter();
   const sessionManager = useSessionManager();
+  const currentVersion = useVersion(); // Get current frontend version (v1, v2, v3, etc.)
   const [backendSettingsOpen, setBackendSettingsOpen] = useState(false);
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
   const [activeSessions, setActiveSessions] = useState<Session[]>([]);
 
-  // Load active sessions (excluding terminated/deleted)
+  // Load active sessions (excluding terminated/deleted and filtering by version)
   useEffect(() => {
     const loadActiveSessions = async () => {
       try {
         const allSessions = await sessionManager.getActiveSessions('AppBar');
         // Filter out completed (terminated/deleted) sessions
-        const active = allSessions.filter(
+        let active = allSessions.filter(
           (s) => s.status !== 'completed'
         );
+        
+        // Filter by current version if version is specified
+        // Sessions without a version field are treated as v1 for backward compatibility
+        if (currentVersion) {
+          active = active.filter((s) => {
+            // If session has no version, treat as v1 (for backward compatibility)
+            const sessionVersion = s.version || 'v1';
+            return sessionVersion === currentVersion;
+          });
+        }
+        
         setActiveSessions(active);
       } catch (error) {
         console.error('[AppBar] Failed to load active sessions:', error);
@@ -44,7 +57,7 @@ export function AppBar({ title, color = 'primary.main', currentSession, onLogout
     // Refresh every 5 seconds
     const interval = setInterval(loadActiveSessions, 5000);
     return () => clearInterval(interval);
-  }, [sessionManager]);
+  }, [sessionManager, currentVersion]);
 
   // Lightweight update: just refresh aiConfig, not the whole session
   const handleAIConfigChange = async () => {
@@ -175,9 +188,50 @@ export function AppBar({ title, color = 'primary.main', currentSession, onLogout
               </FormControl>
             )}
             {currentSession && activeSessions.length === 0 && (
-              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.8)' }}>
-                Session: {formatSessionId(currentSession.id)}
-              </Typography>
+              <FormControl 
+                size="small" 
+                sx={{ 
+                  minWidth: 200,
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
+                  },
+                  '& .Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'white',
+                  },
+                  '& .MuiInputBase-input': {
+                    color: 'white',
+                  },
+                  '& .MuiSvgIcon-root': {
+                    color: 'white',
+                  },
+                }}
+              >
+                <Select
+                  value={currentSession.id}
+                  displayEmpty
+                  disabled
+                  sx={{
+                    color: 'white',
+                    '& .MuiSelect-select': {
+                      py: 1,
+                    },
+                  }}
+                >
+                  <MenuItem value={currentSession.id}>
+                    <Box>
+                      <Typography variant="body2">
+                        {formatSessionId(currentSession.id)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                        {currentSession.status} • {currentSession.messages?.length || 0} msgs
+                      </Typography>
+                    </Box>
+                  </MenuItem>
+                </Select>
+              </FormControl>
             )}
             <Button
               variant="outlined"
