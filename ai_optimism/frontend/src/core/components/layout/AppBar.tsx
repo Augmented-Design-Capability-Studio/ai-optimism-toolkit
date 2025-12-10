@@ -30,9 +30,9 @@ export function AppBar({ title, color = 'primary.main', currentSession, onLogout
     const loadActiveSessions = async () => {
       try {
         const allSessions = await sessionManager.getActiveSessions('AppBar');
-        // Filter out terminated and deleted sessions
+        // Filter out completed (terminated/deleted) sessions
         const active = allSessions.filter(
-          (s) => s.status !== 'completed' && s.status !== 'terminated'
+          (s) => s.status !== 'completed'
         );
         setActiveSessions(active);
       } catch (error) {
