@@ -122,14 +122,18 @@ export function VariableSpaceChart({ chartData, dimensions, containerRef }: Vari
                         wrapperStyle={{ 
                             paddingTop: '10px', 
                             fontSize: '13px',
-                            lineHeight: '20px'
+                            lineHeight: '20px',
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            justifyContent: 'center',
+                            gap: '8px 16px',
+                            maxWidth: '100%'
                         }}
                         iconSize={12}
                         iconType="line"
                         layout="horizontal"
                         verticalAlign="bottom"
                         align="center"
-                        wrapperClass="chart-legend-wrap"
                         formatter={(value) => {
                             // Truncate long legend labels only if very long
                             if (value.length > 25) {

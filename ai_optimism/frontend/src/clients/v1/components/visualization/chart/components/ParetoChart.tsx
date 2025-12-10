@@ -77,14 +77,18 @@ export function ParetoChart({ chartData, xAxis, yAxis, dimensions, containerRef 
                         wrapperStyle={{ 
                             paddingTop: '10px',
                             fontSize: '13px',
-                            lineHeight: '20px'
+                            lineHeight: '20px',
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            justifyContent: 'center',
+                            gap: '8px 16px',
+                            maxWidth: '100%'
                         }}
                         iconSize={14}
                         iconType="circle"
                         layout="horizontal"
                         verticalAlign="bottom"
                         align="center"
-                        wrapperClass="chart-legend-wrap"
                     />
                     {/* All solutions - show all points */}
                     <Scatter 
