@@ -1,7 +1,5 @@
-'use client';
-
 import { Box, Paper, Typography, ButtonGroup, Button } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
@@ -9,9 +7,9 @@ import HubIcon from '@mui/icons-material/Hub';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
 import { HeuristicNetwork } from './visualization/heuristic/HeuristicNetwork';
+import { ChartViz } from './visualization/chart/ChartViz';
+import { TableViz } from './visualization/table/TableViz';
 import { ThreeDViz } from './visualization/threed/ThreeDViz';
-import ChartViz from './visualization/chart/ChartViz';
-import TableViz from './visualization/table/TableViz';
 
 type VizType = 'chart' | 'table' | '3d' | 'weights';
 
@@ -22,28 +20,6 @@ interface VisualizationPanelProps {
 
 export function VisualizationPanel({ data, onWeightsChange }: VisualizationPanelProps) {
     const [vizType, setVizType] = useState<VizType>('weights'); // Default to 'weights'
-    const [mounted, setMounted] = useState(false);
-    
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-    
-    if (!mounted) {
-        return (
-            <Paper
-                elevation={4}
-                sx={{
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 4
-                }}
-            >
-                <Typography variant="body2" color="text.secondary">Loading visualization...</Typography>
-            </Paper>
-        );
-    }
 
     return (
         <Paper
@@ -120,8 +96,8 @@ export function VisualizationPanel({ data, onWeightsChange }: VisualizationPanel
             >
                 {/* Content */}
                 <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                    {vizType === 'chart' && mounted && <ChartViz data={data as any} />}
-                    {vizType === 'table' && mounted && <TableViz data={data as any} />}
+                    {vizType === 'chart' && <ChartViz data={data as any} />}
+                    {vizType === 'table' && <TableViz data={data as any} />}
                     {vizType === '3d' && <ThreeDViz data={data} />}
                     {vizType === 'weights' && (
                         (data && (data as any)?.heuristic_map) ? (

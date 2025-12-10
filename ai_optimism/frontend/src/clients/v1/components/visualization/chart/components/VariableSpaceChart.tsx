@@ -129,7 +129,7 @@ export function VariableSpaceChart({ chartData, dimensions, containerRef }: Vari
                         layout="horizontal"
                         verticalAlign="bottom"
                         align="center"
-                        className="chart-legend-wrap"
+                        wrapperClass="chart-legend-wrap"
                         formatter={(value) => {
                             // Truncate long legend labels only if very long
                             if (value.length > 25) {

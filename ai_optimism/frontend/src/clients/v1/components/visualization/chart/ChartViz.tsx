@@ -10,24 +10,15 @@ import { ParetoChart } from './components/ParetoChart';
 import { VariableSpaceChart } from './components/VariableSpaceChart';
 import type { ChartVizProps, ChartType, AxisOption } from './types';
 
-export default function ChartViz({ data }: ChartVizProps) {
-    console.log('[ChartViz] Component loaded, data:', data);
+export function ChartViz({ data }: ChartVizProps) {
     const [chartType, setChartType] = useState<ChartType>('pareto');
     const chartData = useChartData(data);
     const { dimensions, containerRef } = useChartDimensions();
     const { xAxis, yAxis, setXAxis, setYAxis } = useAxisSelection(chartData);
 
-    // Add CSS for legend wrapping (client-side only)
+    // Add CSS for legend wrapping
     useEffect(() => {
-        // Only run on client side
-        if (typeof window === 'undefined') return;
-        
-        // Check if style already exists
-        const existingStyle = document.getElementById('chart-legend-style');
-        if (existingStyle) return;
-        
         const style = document.createElement('style');
-        style.id = 'chart-legend-style';
         style.textContent = `
             .chart-legend-wrap {
                 display: flex !important;
@@ -41,12 +32,8 @@ export default function ChartViz({ data }: ChartVizProps) {
             }
         `;
         document.head.appendChild(style);
-        
         return () => {
-            const styleToRemove = document.getElementById('chart-legend-style');
-            if (styleToRemove) {
-                document.head.removeChild(styleToRemove);
-            }
+            document.head.removeChild(style);
         };
     }, []);
 
