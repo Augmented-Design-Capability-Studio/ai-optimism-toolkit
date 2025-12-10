@@ -14,9 +14,7 @@ import type { AISessionConfigStatus } from '../../../src/core/services/sessionMa
 import { aggregateControlsFromMessages } from '../../../src/clients/v1/services/controlsAggregator';
 
 export default function ClientV1Page() {
-  const [generatedControls, setGeneratedControlsState] = useState<unknown>(null);
-  
-  const setGeneratedControls = setGeneratedControlsState;
+  const [generatedControls, setGeneratedControls] = useState<unknown>(null);
   const [variableValues, setVariableValues] = useState<Record<string, number>>({});
   const [optimizationData, setOptimizationData] = useState<unknown>(null);
   const [heuristicWeights, setHeuristicWeights] = useState<Record<string, Record<string, number>> | null>(null);
@@ -261,9 +259,6 @@ export default function ClientV1Page() {
     }
   }, [currentSession?.id, currentSession?.status, currentSession?.messages?.length]);
 
-  // Track last controls to prevent duplicate processing
-  const lastProcessedControlsRef = useRef<string>('');
-  
   const handleControlsGenerated = (controls: unknown) => {
     // When GENERATE CONTROLS is clicked, clear visualization and optimization data
     // This gives the user a fresh start with new controls
@@ -274,15 +269,11 @@ export default function ClientV1Page() {
     // Increment controls version to force OptimizationPanel reset
     controlsVersionRef.current += 1;
     
-    // Create a hash of the controls to detect duplicates
-    const controlsHash = JSON.stringify((controls as any)?.objectives?.map((o: any) => ({ name: o.name, expression: o.expression })));
-    
     // Reset bounds tracking since we're generating new controls
     // The user explicitly clicked GENERATE CONTROLS, so start fresh
     hasBoundsRef.current = false;
     hasRestoredForSessionRef.current = null;
     lastExplicitControlsTimeRef.current = Date.now();
-    lastProcessedControlsRef.current = controlsHash;
     
     // Always create a new object reference to ensure ControlsPanel refreshes
     // Deep clone the controls to force React to detect the change
@@ -449,7 +440,6 @@ export default function ClientV1Page() {
       hasRestoredForSessionRef.current = null;
       hasBoundsRef.current = false;
       lastExplicitControlsTimeRef.current = 0;
-      lastProcessedControlsRef.current = '';
       
       // Fetch and set the new session
       const newSession = await sessionManager.getSession(sessionId);

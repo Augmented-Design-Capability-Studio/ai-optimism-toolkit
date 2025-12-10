@@ -1,14 +1,13 @@
 'use client';
 
-import { Paper, Alert, Box, Typography, Button } from '@mui/material';
-import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
+import { Paper, Alert, Box, Button } from '@mui/material';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import {
   ChatHeader,
   MessagesList,
   ChatInput,
 } from '@/core/components/chat';
 import { FormalizeButton } from '../components/FormalizeButton';
-import { GenerateControlsButton } from '../components/GenerateControlsButton';
 import { useChatSession } from '../hooks/useChatSession';
 import { useSessionManager } from '@/core/services/sessionManager';
 import type { Message, Session } from '@/core/services/sessionManager';
@@ -25,12 +24,8 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isFormalizing, setIsFormalizing] = useState(false);
-  // Track locally completed messages (when backend update fails)
-  // Use localStorage keyed by session ID to persist across refreshes
-  const getLocalStorageKey = (sessionId: string) => `controls_completed_${sessionId}`;
-  const [locallyCompletedMessages, setLocallyCompletedMessages] = useState<Set<string>>(new Set());
   const sessionManager = useSessionManager();
-
+  
   const {
     input,
     setInput,
@@ -111,58 +106,6 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
     lastNotifiedAIHashRef.current = aiHash;
     onSessionUpdateRef.current?.(sess);
   }, [currentSession]);
-
-  // Restore locally completed messages from localStorage on mount or session change
-  useEffect(() => {
-    if (!currentSession?.id) {
-      // Clear completed messages when no session
-      setLocallyCompletedMessages(new Set());
-      return;
-    }
-    
-    const storageKey = getLocalStorageKey(currentSession.id);
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const completedIds = JSON.parse(stored) as string[];
-        if (Array.isArray(completedIds) && completedIds.length > 0) {
-          // Verify these message IDs still exist in the session and are controls-generation messages
-          const sessionMessageIds = new Set(
-            currentSession.messages
-              ?.filter((m: Message) => 
-                m.metadata?.type === 'controls-generation'
-              )
-              .map((m: Message) => m.id) || []
-          );
-          
-          // Only restore IDs that:
-          // 1. Still exist in the session
-          // 2. Are controls-generation messages
-          // 3. Either don't have controlsGenerated flag OR have it as false
-          const validIds = completedIds.filter(id => {
-            if (!sessionMessageIds.has(id)) return false;
-            const msg = currentSession.messages?.find((m: Message) => m.id === id);
-            // Restore if message doesn't have controlsGenerated flag set to true (backend update failed)
-            return msg && (!msg.metadata?.controlsGenerated);
-          });
-          
-          if (validIds.length > 0) {
-            setLocallyCompletedMessages(new Set(validIds));
-            console.log('[ChatPanel] Restored locally completed messages from localStorage:', validIds);
-            // Update localStorage to remove any stale IDs
-            if (validIds.length !== completedIds.length) {
-              localStorage.setItem(storageKey, JSON.stringify(validIds));
-            }
-          } else {
-            // Clear localStorage if no valid IDs
-            localStorage.removeItem(storageKey);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('[ChatPanel] Failed to restore locally completed messages:', error);
-    }
-  }, [currentSession?.id, currentSession?.messages]);
 
   // Aggregate controls from messages and pass to parent
   // Use refs to prevent infinite loops
@@ -358,6 +301,7 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
         
         setTimeout(autoGenerate, 100);
       }
+      return;
     }
   }, [currentSession?.messages, currentSession?.id, currentSession, isFormalizing, isGeneratingComponent, formalizeProblem, generateComponent]);
 
@@ -487,7 +431,7 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
     } finally {
       setIsGenerating(false);
     }
-  }, [isGenerating, mode, currentSession, getConversationText, model, sessionManager, onControlsGenerated]);
+  }, [isGenerating, currentSession, sessionManager, onControlsGenerated]);
 
   return (
     <Paper
@@ -538,49 +482,7 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
       )}
 
       <MessagesList
-        messages={useMemo(() => {
-          // Only transform if locallyCompletedMessages has items (avoid unnecessary work)
-          if (locallyCompletedMessages.size === 0) {
-            return displayMessages;
-          }
-          
-          // Early return if no messages to process
-          if (!displayMessages || displayMessages.length === 0) {
-            return displayMessages;
-          }
-          
-          // Create a Set for faster lookup (O(1) instead of O(n))
-          const completedIdsSet = locallyCompletedMessages;
-          
-          // Only process messages that might need transformation
-          // This avoids creating new arrays when nothing needs to change
-          let needsTransformation = false;
-          for (const msg of displayMessages) {
-            if (completedIdsSet.has(msg.id) && msg.metadata?.type === 'controls-generation') {
-              needsTransformation = true;
-              break;
-            }
-          }
-          
-          if (!needsTransformation) {
-            return displayMessages;
-          }
-          
-          return displayMessages.map(msg => {
-          // Apply local state overrides for messages that completed locally
-          if (completedIdsSet.has(msg.id) && msg.metadata?.type === 'controls-generation') {
-            return {
-              ...msg,
-              content: 'Controls generated successfully! You can now use the Optimization Panel to configure and run your optimization.',
-              metadata: {
-                ...(msg.metadata || {}),
-                controlsGenerated: true
-              }
-            };
-          }
-          return msg;
-          });
-        }, [displayMessages, locallyCompletedMessages])}
+        messages={displayMessages}
         mode={mode}
         apiKey={apiKey}
         isLoading={isLoading}
@@ -612,27 +514,6 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
         disabled={sessionDeleted}
       />
 
-      {/* Temporarily hide the API warning banner per request */}
-      {/* {!apiKey && (
-        <Box
-          sx={{
-            p: 1,
-            bgcolor: 'warning.main',
-            color: 'warning.contrastText',
-            textAlign: 'center',
-            animation: 'blink 1s infinite',
-            '@keyframes blink': {
-              '0%': { opacity: 1 },
-              '50%': { opacity: 0.5 },
-              '100%': { opacity: 1 },
-            },
-          }}
-        >
-          <Typography variant="body2" fontWeight="bold">
-            ⚠️ No AI API key configured. Click the AI connection status chip to set it up.
-          </Typography>
-        </Box>
-      )} */}
     </Paper>
   );
 }

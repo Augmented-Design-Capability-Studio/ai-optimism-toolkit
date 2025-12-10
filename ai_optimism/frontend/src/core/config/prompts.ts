@@ -101,6 +101,8 @@ const CRITICAL_REQUIREMENTS_CHECKLIST = `CRITICAL REQUIREMENTS - Verify ALL befo
 □ REQUIRED FIELDS:
   - Objectives: "weight" field REQUIRED (default: 1.0 if not specified)
   - Constraints: "type" field REQUIRED ("hard" or "soft", default: "hard" if uncertain)
+  - Constraints: "title" field REQUIRED (MEANINGFUL descriptive 3-5 words that describe what the constraint does, e.g., "Time Constraint", "Budget Limit" - NEVER use generic names like "Constraint 1", "Constraint 2", or numbered constraints)
+  - Constraints: Simple bound constraints (e.g., "var_name >= value", "var_name <= value") should be merged into variable "min"/"max" bounds, not created as separate constraints
   - Variables: 
     * Continuous/Discrete: MUST include ALL THREE: "min", "max", AND "default" (cannot omit any - all are required)
     * Categorical: MUST include "categories" array AND "attributes" object (both required)
@@ -147,9 +149,11 @@ INCREMENTAL STRUCTURED DATA EXTRACTION:
   - CRITICAL: ALWAYS include the "weight" field for EVERY objective
   - If multiple objectives exist, assign DIFFERENT weights to reflect their relative importance (e.g., cost: 2.0, quality: 1.0, speed: 0.5)
   - Do NOT use the same weight for all objectives unless they are truly equally important
-- Constraint: { "expression": "python expression", "description": "...", "title": "..." (3-5 words), "type": "hard"|"soft" (REQUIRED - must be included, default: "hard" if uncertain), "weight": number (for soft constraints only, REQUIRED if type is "soft", default: 10.0) }
+- Constraint: { "expression": "python expression", "description": "...", "title": "..." (REQUIRED - 3-5 words, descriptive title), "type": "hard"|"soft" (REQUIRED - must be included, default: "hard" if uncertain), "weight": number (for soft constraints only, REQUIRED if type is "soft", default: 10.0) }
   - CRITICAL: ALWAYS include the "type" field for EVERY constraint
+  - CRITICAL: ALWAYS include the "title" field for EVERY constraint - provide a MEANINGFUL descriptive 3-5 word title that describes what the constraint does (e.g., "Time Constraint", "Budget Limit", "Clay Constraint"). NEVER use generic names like "Constraint 1", "Constraint 2", or numbered constraints.
   - Infer from context: "must", "cannot", "required" → "hard"; "prefer", "ideally", "should" → "soft"
+  - CRITICAL: Simple bound constraints (e.g., "var_name >= value", "var_name <= value", "var_name > value", "var_name < value") should be merged into variable definitions as "min" or "max" bounds instead of creating separate constraints. Only create constraints for complex relationships between multiple variables.
 - Property: { "name": "prop_name", "expression": "python expression", "description": "..." (optional) }
   - CRITICAL: The properties are computed/derived values from variables. Do not create properties that are static dictionaries or lists.
   - CRITICAL: The properties are not data storage or attributes of variables.
@@ -268,7 +272,9 @@ Please provide a structured problem definition with the following required secti
   - Invalid property examples: dictionary of category data, list of variable names, static data structures
 
 4) Constraints (REQUIRED or state "no constraints"):
-  - Each constraint: Python expression (returns boolean), description, title (3-5 words), type ("hard" or "soft" - REQUIRED), weight (for soft constraints only, REQUIRED if type is "soft", default: 10.0)
+  - Each constraint: Python expression (returns boolean), description, title (REQUIRED - 3-5 words, MEANINGFUL descriptive title), type ("hard" or "soft" - REQUIRED), weight (for soft constraints only, REQUIRED if type is "soft", default: 10.0)
+  - CRITICAL: ALWAYS include the "title" field for EVERY constraint - provide a MEANINGFUL descriptive 3-5 word title that describes what the constraint does (e.g., "Time Constraint", "Budget Limit", "Clay Constraint"). NEVER use generic names like "Constraint 1", "Constraint 2", or numbered constraints.
+  - CRITICAL: Simple bound constraints (e.g., "var_name >= value", "var_name <= value", "var_name > value", "var_name < value") should be merged into variable definitions as "min" or "max" bounds instead of creating separate constraints. Only create constraints for complex relationships between multiple variables.
   - Hard constraints (type: "hard"): Must be satisfied - violations invalidate solution. Use for absolute requirements (budget limits, safety rules, legal requirements).
   - Soft constraints (type: "soft"): Preferred but can be violated - system adds as penalty to objective. Use for preferences (prefer lower cost, prefer faster delivery).
   - Infer from context whether each constraint is hard or soft - ALWAYS include the "type" field:
@@ -408,7 +414,9 @@ export const getComponentGenerationPrompt = (
     case 'constraints':
       dependencyNote = 'CRITICAL: Constraints require variables to exist. Ensure variables are defined in the conversation.';
       componentInstructions = `Generate CONSTRAINTS for the optimization problem:
-- Each constraint: Python expression (returns boolean), description, title (3-5 words), type ("hard" or "soft" - REQUIRED), weight (for soft constraints only, REQUIRED if type is "soft", default: 10.0)
+- Each constraint: Python expression (returns boolean), description, title (REQUIRED - 3-5 words, MEANINGFUL descriptive title), type ("hard" or "soft" - REQUIRED), weight (for soft constraints only, REQUIRED if type is "soft", default: 10.0)
+- CRITICAL: ALWAYS include the "title" field for EVERY constraint - provide a MEANINGFUL descriptive 3-5 word title that describes what the constraint does (e.g., "Time Constraint", "Budget Limit", "Clay Constraint"). NEVER use generic names like "Constraint 1", "Constraint 2", or numbered constraints.
+- CRITICAL: Simple bound constraints (e.g., "var_name >= value", "var_name <= value", "var_name > value", "var_name < value") should be merged into variable definitions as "min" or "max" bounds instead of creating separate constraints. Only create constraints for complex relationships between multiple variables.
 - Hard constraints (type: "hard"): Must be satisfied - violations invalidate solution. Use for absolute requirements.
 - Soft constraints (type: "soft"): Preferred but can be violated - system adds as penalty to objective. Use for preferences.
 - Infer from context whether each constraint is hard or soft - ALWAYS include the "type" field:
