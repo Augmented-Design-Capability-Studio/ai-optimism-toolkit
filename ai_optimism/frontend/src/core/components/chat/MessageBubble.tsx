@@ -17,7 +17,7 @@ interface MessageBubbleProps {
 }
 
 export const MessageBubble = memo(function MessageBubble({ message, mode, isGeneratingControls = false, onGenerateControls }: MessageBubbleProps) {
-  // Extract text content - for streaming messages, always recalculate
+  // Extract text content from complete messages only
   const { messageRole, textContent } = useMemo(() => {
     let role = message.role;
     let content = '';
@@ -219,7 +219,6 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
                   variant="light"
                   onGenerateControls={handleGenerateControls}
                   isGeneratingControls={isGeneratingControls}
-                  isStreaming={message.metadata?.streaming === true}
                 />
               )}
             </Box>
@@ -247,11 +246,7 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
   if (prevProps.isGeneratingControls !== nextProps.isGeneratingControls) return false;
   if (prevProps.onGenerateControls !== nextProps.onGenerateControls) return false;
   
-  // CRITICAL: Always re-render streaming messages to show updates in real-time
-  const isStreaming = prevProps.message.metadata?.streaming === true || nextProps.message.metadata?.streaming === true;
-  if (isStreaming) return false; // Always render streaming messages
-  
-  // For non-streaming messages, check content changes
+  // Check content changes
   if (prevProps.message.content !== nextProps.message.content) return false;
   
   // Check parts changes (for non-streaming messages with parts)

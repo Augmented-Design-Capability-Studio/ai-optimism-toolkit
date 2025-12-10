@@ -85,19 +85,34 @@ export const MessagesList = memo(function MessagesList({
     >
       {shouldShowWelcome && <WelcomeMessage mode={mode} apiKey={apiKey} />}
       
-      {messages.map((message: any) => (
-        <MessageBubble 
-          key={message.id} 
-          message={message} 
-          mode={mode}
-          isGeneratingControls={isGenerating}
-          onGenerateControls={onGenerateControls}
-        />
+      {messages.map((message: any, index: number) => (
+        <Box
+          key={message.id}
+          sx={{
+            animation: 'fadeIn 0.3s ease-in',
+            '@keyframes fadeIn': {
+              from: {
+                opacity: 0,
+                transform: 'translateY(10px)',
+              },
+              to: {
+                opacity: 1,
+                transform: 'translateY(0)',
+              },
+            },
+          }}
+        >
+          <MessageBubble 
+            message={message} 
+            mode={mode}
+            isGeneratingControls={isGenerating}
+            onGenerateControls={onGenerateControls}
+          />
+        </Box>
       ))}
       
-      {/* Show "Thinking..." only when submitted (before streaming starts), not during streaming */}
-      {/* When status is 'streaming', the streaming message bubble is shown instead */}
-      {(status === 'submitted' || (isLoading && status !== 'streaming') || isWaitingForResearcher) && (
+      {/* Show "Thinking..." while waiting for response (during submitted or streaming) */}
+      {(status === 'submitted' || status === 'streaming' || isWaitingForResearcher) && (
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Avatar sx={{ bgcolor: 'secondary.main', width: 32, height: 32 }}>
             <SmartToyIcon sx={{ fontSize: 20, color: 'white' }} />
@@ -124,9 +139,7 @@ export const MessagesList = memo(function MessagesList({
     
     if (prevMsg?.id !== nextMsg?.id) return false;
     
-    // CRITICAL: Always re-render if message is streaming
-    const isStreaming = prevMsg?.metadata?.streaming === true || nextMsg?.metadata?.streaming === true;
-    if (isStreaming) return false; // Always render when streaming
+    // Removed streaming-specific logic - we only show complete messages
     
     // Check content changes
     if (prevMsg?.content !== nextMsg?.content) return false;
