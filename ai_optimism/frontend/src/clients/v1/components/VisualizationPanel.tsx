@@ -6,10 +6,10 @@ import ViewInArIcon from '@mui/icons-material/ViewInAr';
 import HubIcon from '@mui/icons-material/Hub';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
-import { HeuristicNetwork } from './visualization/visualization/HeuristicNetwork';
-import { ChartViz } from './visualization/visualization/ChartViz';
-import { TableViz } from './visualization/visualization/TableViz';
-import { ThreeDViz } from './visualization/visualization/ThreeDViz';
+import { HeuristicNetwork } from './visualization/heuristic/HeuristicNetwork';
+import { ChartViz } from './visualization/chart/ChartViz';
+import { TableViz } from './visualization/table/TableViz';
+import { ThreeDViz } from './visualization/threed/ThreeDViz';
 
 type VizType = 'chart' | 'table' | '3d' | 'weights';
 
@@ -96,8 +96,8 @@ export function VisualizationPanel({ data, onWeightsChange }: VisualizationPanel
             >
                 {/* Content */}
                 <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                    {vizType === 'chart' && <ChartViz data={data} />}
-                    {vizType === 'table' && <TableViz data={data} />}
+                    {vizType === 'chart' && <ChartViz data={data as any} />}
+                    {vizType === 'table' && <TableViz data={data as any} />}
                     {vizType === '3d' && <ThreeDViz data={data} />}
                     {vizType === 'weights' && (
                         (data && (data as any)?.heuristic_map) ? (

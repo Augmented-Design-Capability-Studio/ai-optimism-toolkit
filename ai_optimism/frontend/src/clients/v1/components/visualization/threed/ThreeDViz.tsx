@@ -1,20 +1,23 @@
-import { Box, Typography } from '@mui/material';
-import GridOnIcon from '@mui/icons-material/GridOn';
+'use client';
 
-interface TableVizProps {
+import { Box, Typography } from '@mui/material';
+import ViewInArIcon from '@mui/icons-material/ViewInAr';
+
+interface ThreeDVizProps {
     data?: unknown;
 }
 
-export function TableViz({ data }: TableVizProps) {
+export function ThreeDViz({ data }: ThreeDVizProps) {
     return (
         <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-            <GridOnIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+            <ViewInArIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" color="text.secondary">
-                Table View
+                3D Visualization
             </Typography>
             <Typography variant="body2" color="text.secondary">
-                Tabular data display
+                Interactive 3D design space
             </Typography>
         </Box>
     );
 }
+

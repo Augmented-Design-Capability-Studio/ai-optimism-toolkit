@@ -230,6 +230,8 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
                     best_design: progress.results[0],
                     heuristic_map: progress.heuristic_map,
                     objective_bounds: progress.objective_bounds,  // Include bounds for normalization
+                    problem: optimizationPacket.problem,  // Include problem definition for variable space visualization
+                    optimizationPacket: optimizationPacket,  // Include full packet for reference
                   });
 
         // Create optimization run message bubble if we have a session
