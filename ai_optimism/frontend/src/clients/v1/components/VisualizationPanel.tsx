@@ -1,5 +1,7 @@
+'use client';
+
 import { Box, Paper, Typography, ButtonGroup, Button } from '@mui/material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import GridOnIcon from '@mui/icons-material/GridOn';
@@ -38,6 +40,28 @@ interface VisualizationPanelProps {
 
 export function VisualizationPanel({ data, onWeightsChange }: VisualizationPanelProps) {
     const [vizType, setVizType] = useState<VizType>('weights'); // Default to 'weights'
+    const [mounted, setMounted] = useState(false);
+    
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+    
+    if (!mounted) {
+        return (
+            <Paper
+                elevation={4}
+                sx={{
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 4
+                }}
+            >
+                <Typography variant="body2" color="text.secondary">Loading visualization...</Typography>
+            </Paper>
+        );
+    }
 
     return (
         <Paper
@@ -114,8 +138,8 @@ export function VisualizationPanel({ data, onWeightsChange }: VisualizationPanel
             >
                 {/* Content */}
                 <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                    {vizType === 'chart' && <ChartViz data={data as any} />}
-                    {vizType === 'table' && <TableViz data={data as any} />}
+                    {vizType === 'chart' && mounted && <ChartViz data={data as any} />}
+                    {vizType === 'table' && mounted && <TableViz data={data as any} />}
                     {vizType === '3d' && <ThreeDViz data={data} />}
                     {vizType === 'weights' && (
                         (data && (data as any)?.heuristic_map) ? (
