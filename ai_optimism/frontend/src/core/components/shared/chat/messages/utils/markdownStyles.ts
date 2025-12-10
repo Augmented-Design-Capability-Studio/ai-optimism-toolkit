@@ -63,8 +63,9 @@ export const markdownStyles: SxProps<Theme> = {
   '& table': {
     borderCollapse: 'collapse',
     width: '100%',
-    mb: 1,
+    minWidth: '100%', // Ensure table takes full width of container
     fontSize: 'inherit',
+    // Margin handled by wrapper in MarkdownContent
   },
   '& th, & td': {
     border: '1px solid',
