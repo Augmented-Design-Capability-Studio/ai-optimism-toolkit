@@ -35,23 +35,29 @@ export function ParetoChart({ chartData, xAxis, yAxis, dimensions, containerRef 
         );
     }
 
+    // Ensure we have valid dimensions
+    const chartWidth = dimensions.width > 0 ? dimensions.width : 800;
+    const chartHeight = dimensions.height > 0 ? dimensions.height : 500;
+
     return (
         <Box 
             ref={containerRef}
             sx={{ 
                 width: '100%', 
+                height: '100%',
                 flex: 1, 
                 minHeight: 500,
                 position: 'relative',
-                display: 'flex'
+                display: 'flex',
+                overflow: 'hidden'
             }}
         >
             <ResponsiveContainer 
-                width={dimensions.width} 
-                height={dimensions.height}
+                width={chartWidth} 
+                height={chartHeight}
             >
                 <ScatterChart
-                    margin={{ top: 20, right: 20, bottom: 40, left: 40 }}
+                    margin={{ top: 20, right: 80, bottom: 60, left: 50 }}
                 >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
@@ -67,7 +73,19 @@ export function ParetoChart({ chartData, xAxis, yAxis, dimensions, containerRef 
                         label={{ value: yAxis, angle: -90, position: 'insideLeft' }}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend />
+                    <Legend 
+                        wrapperStyle={{ 
+                            paddingTop: '10px',
+                            fontSize: '13px',
+                            lineHeight: '20px'
+                        }}
+                        iconSize={14}
+                        iconType="circle"
+                        layout="horizontal"
+                        verticalAlign="bottom"
+                        align="center"
+                        wrapperClass="chart-legend-wrap"
+                    />
                     {/* All solutions - show all points */}
                     <Scatter 
                         name="Solutions" 

@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useChartData } from './hooks/useChartData';
 import { useChartDimensions } from './hooks/useChartDimensions';
 import { useAxisSelection } from './hooks/useAxisSelection';
@@ -15,6 +15,27 @@ export function ChartViz({ data }: ChartVizProps) {
     const chartData = useChartData(data);
     const { dimensions, containerRef } = useChartDimensions();
     const { xAxis, yAxis, setXAxis, setYAxis } = useAxisSelection(chartData);
+
+    // Add CSS for legend wrapping
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+            .chart-legend-wrap {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+                gap: 8px 16px !important;
+                max-width: 100% !important;
+            }
+            .chart-legend-wrap .recharts-legend-item {
+                margin: 4px 8px !important;
+            }
+        `;
+        document.head.appendChild(style);
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
 
     if (!data) {
         return (
@@ -89,10 +110,10 @@ export function ChartViz({ data }: ChartVizProps) {
                 flex: 1, 
                 width: '100%', 
                 minHeight: 500,
-                height: 0,
                 position: 'relative',
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                overflow: 'hidden'
             }}>
                 {chartType === 'variable-space' && hasTwoVariables ? (
                     <VariableSpaceChart 

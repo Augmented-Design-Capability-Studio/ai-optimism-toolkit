@@ -71,24 +71,37 @@ export function VariableSpaceChart({ chartData, dimensions, containerRef }: Vari
         }
     }
     
+    // Ensure we have valid dimensions
+    const chartWidth = dimensions.width > 0 ? dimensions.width : 800;
+    const chartHeight = dimensions.height > 0 ? dimensions.height : 500;
+
     return (
         <Box 
             ref={containerRef}
             sx={{ 
                 width: '100%', 
+                height: '100%',
                 flex: 1, 
                 minHeight: 500,
                 position: 'relative',
-                display: 'flex'
+                display: 'flex',
+                overflow: 'hidden'
             }}
         >
             <ResponsiveContainer 
-                width={dimensions.width} 
-                height={dimensions.height}
+                width={chartWidth} 
+                height={chartHeight}
             >
-                <ScatterChart
-                    margin={{ top: 20, right: 20, bottom: 40, left: 40 }}
-                >
+                {/* Calculate bottom margin based on number of legend items */}
+                {(() => {
+                    const totalLegendItems = constraintLines.length + objectiveContours.length + 2; // +2 for Solutions and Best Solution
+                    const estimatedRows = Math.ceil(totalLegendItems / 4); // Assume ~4 items per row
+                    const bottomMargin = Math.max(50, estimatedRows * 25 + 20); // 25px per row + padding
+                    
+                    return (
+                        <ScatterChart
+                            margin={{ top: 20, right: 100, bottom: bottomMargin, left: 50 }}
+                        >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
                         type="number" 
@@ -105,7 +118,26 @@ export function VariableSpaceChart({ chartData, dimensions, containerRef }: Vari
                         label={{ value: var2, angle: -90, position: 'insideLeft' }}
                     />
                     <Tooltip content={<CustomTooltip />} />
-                    <Legend />
+                    <Legend 
+                        wrapperStyle={{ 
+                            paddingTop: '10px', 
+                            fontSize: '13px',
+                            lineHeight: '20px'
+                        }}
+                        iconSize={12}
+                        iconType="line"
+                        layout="horizontal"
+                        verticalAlign="bottom"
+                        align="center"
+                        wrapperClass="chart-legend-wrap"
+                        formatter={(value) => {
+                            // Truncate long legend labels only if very long
+                            if (value.length > 25) {
+                                return value.substring(0, 22) + '...';
+                            }
+                            return value;
+                        }}
+                    />
                     
                     {/* Objective contour lines */}
                     {objectiveContours.map((contour, idx) => (
@@ -154,7 +186,9 @@ export function VariableSpaceChart({ chartData, dimensions, containerRef }: Vari
                             fillOpacity={1.0}
                         />
                     )}
-                </ScatterChart>
+                        </ScatterChart>
+                    );
+                })()}
             </ResponsiveContainer>
         </Box>
     );

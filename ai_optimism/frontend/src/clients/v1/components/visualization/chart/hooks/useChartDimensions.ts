@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 
 export function useChartDimensions() {
-    const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
+    const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -13,11 +13,22 @@ export function useChartDimensions() {
                         width: rect.width,
                         height: Math.max(rect.height, 400),
                     });
+                } else {
+                    // Fallback: use default dimensions if container not yet measured
+                    setDimensions({
+                        width: 800,
+                        height: 500,
+                    });
                 }
             }
         };
 
+        // Initial update
         updateDimensions();
+        
+        // Small delay to ensure DOM is ready
+        const timeoutId = setTimeout(updateDimensions, 100);
+        
         window.addEventListener('resize', updateDimensions);
         
         // Use ResizeObserver for more accurate measurements
@@ -27,6 +38,7 @@ export function useChartDimensions() {
         }
 
         return () => {
+            clearTimeout(timeoutId);
             window.removeEventListener('resize', updateDimensions);
             resizeObserver.disconnect();
         };
