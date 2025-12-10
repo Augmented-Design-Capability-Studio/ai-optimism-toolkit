@@ -11,15 +11,23 @@ import { HeuristicNetwork } from './visualization/heuristic/HeuristicNetwork';
 import { ThreeDViz } from './visualization/threed/ThreeDViz';
 
 // Dynamic imports with SSR disabled for Recharts components
-const ChartViz = dynamic(
-  () => import('./visualization/chart/ChartViz').then(mod => ({ default: mod.ChartViz })),
-  { ssr: false }
-);
+const ChartViz = dynamic(() => import('./visualization/chart/ChartViz'), {
+  ssr: false,
+  loading: () => (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', p: 4 }}>
+      <Typography variant="body2" color="text.secondary">Loading chart...</Typography>
+    </Box>
+  )
+});
 
-const TableViz = dynamic(
-  () => import('./visualization/table/TableViz').then(mod => ({ default: mod.TableViz })),
-  { ssr: false }
-);
+const TableViz = dynamic(() => import('./visualization/table/TableViz'), {
+  ssr: false,
+  loading: () => (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', p: 4 }}>
+      <Typography variant="body2" color="text.secondary">Loading table...</Typography>
+    </Box>
+  )
+});
 
 type VizType = 'chart' | 'table' | '3d' | 'weights';
 

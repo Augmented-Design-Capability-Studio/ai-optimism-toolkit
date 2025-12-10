@@ -10,7 +10,8 @@ import { TableHeader } from './components/TableHeader';
 import { TableRowComponent } from './components/TableRow';
 import type { TableVizProps, SortField, SortOrder } from './types';
 
-export function TableViz({ data }: TableVizProps) {
+export default function TableViz({ data }: TableVizProps) {
+    console.log('[TableViz] Component loaded, data:', data);
     const [sortField, setSortField] = useState<SortField>('rank');
     const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
     const [searchQuery, setSearchQuery] = useState('');

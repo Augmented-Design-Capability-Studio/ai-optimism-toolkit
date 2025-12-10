@@ -10,7 +10,8 @@ import { ParetoChart } from './components/ParetoChart';
 import { VariableSpaceChart } from './components/VariableSpaceChart';
 import type { ChartVizProps, ChartType, AxisOption } from './types';
 
-export function ChartViz({ data }: ChartVizProps) {
+export default function ChartViz({ data }: ChartVizProps) {
+    console.log('[ChartViz] Component loaded, data:', data);
     const [chartType, setChartType] = useState<ChartType>('pareto');
     const chartData = useChartData(data);
     const { dimensions, containerRef } = useChartDimensions();
