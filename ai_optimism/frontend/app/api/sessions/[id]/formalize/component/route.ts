@@ -212,7 +212,7 @@ export async function POST(
     } : null;
 
     // Generate component using AI
-    const finalModel = aiConfig.model || modelName || 'gemini-2.5-flash';
+    const finalModel = aiConfig.model || modelName || 'gemini-2.5-flash-lite';
     const prompt = getComponentGenerationPrompt(
       component as ComponentType,
       conversationText,

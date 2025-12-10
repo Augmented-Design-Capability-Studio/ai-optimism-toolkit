@@ -204,7 +204,7 @@ export async function POST(
     const formalizationPrompt = getFormalizationPrompt(conversationText, jsonStructures);
 
     // Generate formalization
-    const modelName = aiConfig.model || 'gemini-2.5-flash';
+    const modelName = aiConfig.model || 'gemini-2.5-flash-lite';
     const { text } = await generateText({
       model: google(modelName),
       messages: [{ role: 'user', content: formalizationPrompt }],

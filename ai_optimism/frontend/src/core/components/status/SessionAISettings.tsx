@@ -66,7 +66,7 @@ export const SessionAISettings: React.FC<SessionAISettingsProps> = ({
     // Form state
     const [provider, setProvider] = useState<AIProvider>('google');
     const [apiKey, setApiKey] = useState('');
-    const [model, setModel] = useState('gemini-2.5-flash');
+    const [model, setModel] = useState('gemini-2.5-flash-lite');
     const [showApiKey, setShowApiKey] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);

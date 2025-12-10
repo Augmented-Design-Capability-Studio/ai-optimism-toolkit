@@ -221,7 +221,7 @@ export const useResearcherSessions = () => {
     // Get AI config from session (pushed by researcher)
     let apiKey: string | null = null;
     let provider = 'google';
-    let model = 'gemini-2.5-flash';
+    let model = 'gemini-2.5-flash-lite';
 
     try {
       const aiConfig = await getAIConfigKey(sessionId);
@@ -245,7 +245,7 @@ export const useResearcherSessions = () => {
       await executeFormalization({
         sessionId,
         apiKey,
-        model: model || 'gemini-2.5-flash',
+        model: model || 'gemini-2.5-flash-lite',
         messages: session.messages,
         sessionManager,
       });
@@ -322,7 +322,7 @@ export const useResearcherSessions = () => {
 
     let apiKey: string | null = null;
     let provider = 'google';
-    let model = 'gemini-2.5-flash';
+    let model = 'gemini-2.5-flash-lite';
 
     try {
       const aiConfig = await getAIConfigKey(sessionId);
@@ -346,7 +346,7 @@ export const useResearcherSessions = () => {
       await executeFormalization({
         sessionId,
         apiKey,
-        model: model || 'gemini-2.5-flash',
+        model: model || 'gemini-2.5-flash-lite',
         messages: session.messages,
         sessionManager,
       });

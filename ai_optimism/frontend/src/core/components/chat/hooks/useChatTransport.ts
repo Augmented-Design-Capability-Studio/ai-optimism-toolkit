@@ -11,7 +11,7 @@ interface UseChatTransportProps {
 export function useChatTransport({
   currentSession,
   provider = 'google',
-  model = 'gemini-2.5-flash',
+  model = 'gemini-2.5-flash-lite',
 }: UseChatTransportProps) {
   const transport = useMemo(() => {
     if (!currentSession?.id) {

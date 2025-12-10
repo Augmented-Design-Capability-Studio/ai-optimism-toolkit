@@ -7,7 +7,7 @@ export const runtime = 'edge';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { messages, sessionId, provider = 'google', model: modelName = 'gemini-2.5-flash' } = body;
+    const { messages, sessionId, provider = 'google', model: modelName = 'gemini-2.5-flash-lite' } = body;
     
     console.log('[Chat API] Request received:', { 
       hasSessionId: !!sessionId,
@@ -142,7 +142,7 @@ export async function POST(req: Request) {
       apiKey: aiConfig.apiKey,
     });
     
-    const model = google(finalModel || 'gemini-2.5-flash');
+    const model = google(finalModel || 'gemini-2.5-flash-lite');
     
     console.log('[Chat API] Starting stream...');
     

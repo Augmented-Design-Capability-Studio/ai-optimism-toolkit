@@ -38,7 +38,7 @@ export function useChatSession() {
   
   const input = clearCounter;
   const [sessionProvider, setSessionProvider] = useState<string>('google');
-  const [sessionModel, setSessionModel] = useState<string>('gemini-2.5-flash');
+  const [sessionModel, setSessionModel] = useState<string>('gemini-2.5-flash-lite');
 
   // apiKey, provider, and model are not available in BackendContext
   // Using local state values instead

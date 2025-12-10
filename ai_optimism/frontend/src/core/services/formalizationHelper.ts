@@ -127,7 +127,7 @@ export async function executeFormalization(config: FormalizationConfig): Promise
 
     // Initialize Google AI
     const google = createGoogleGenerativeAI({ apiKey });
-    const aiModel = google(model || 'gemini-2.5-flash');
+    const aiModel = google(model || 'gemini-2.5-flash-lite');
 
     // Stream formalization
     const result = await streamText({

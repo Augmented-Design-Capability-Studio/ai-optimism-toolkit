@@ -71,7 +71,7 @@ export async function POST(
       apiKey: aiConfig.apiKey,
     });
     
-    const model = google(aiConfig.model || 'gemini-2.5-flash');
+    const model = google(aiConfig.model || 'gemini-2.5-flash-lite');
 
     // Get session system prompt (or use default) - fetch once for both draft and regular generation
     let baseSystemPrompt = CHAT_SYSTEM_PROMPT;

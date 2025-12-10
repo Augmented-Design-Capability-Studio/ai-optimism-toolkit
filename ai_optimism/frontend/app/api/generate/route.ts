@@ -124,7 +124,7 @@ ${description}
 
 Extract ALL information including every attribute value mentioned. Provide complete JSON structure with variables (min/max/default for continuous/discrete, categories and attributes for categorical), objectives (with expressions and weights), constraints (with expressions and types), and properties (if used in objectives/constraints).`;
 
-    const finalModel = aiConfig.model || modelName || 'gemini-2.5-flash';
+    const finalModel = aiConfig.model || modelName || 'gemini-2.5-flash-lite';
     const result = await generateObject({
       model: google(finalModel),
       schema: controlsSchema,

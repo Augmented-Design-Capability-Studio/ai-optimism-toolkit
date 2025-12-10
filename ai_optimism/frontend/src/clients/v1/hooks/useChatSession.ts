@@ -35,7 +35,7 @@ export function useChatSession() {
   // This avoids re-renders on every keystroke while still allowing reset after submit
   const input = clearCounter;
   const [sessionProvider, setSessionProvider] = useState<string>('google');
-  const [sessionModel, setSessionModel] = useState<string>('gemini-2.5-flash');
+  const [sessionModel, setSessionModel] = useState<string>('gemini-2.5-flash-lite');
 
   const {
     currentSession,
