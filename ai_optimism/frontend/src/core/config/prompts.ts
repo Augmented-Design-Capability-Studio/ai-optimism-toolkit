@@ -64,7 +64,12 @@ const SHARED_EXPRESSION_RULES = `  - All calculations must be inline - no helper
   - DO NOT define dictionaries in expressions
   - DO NOT assign variables in expressions (e.g., "dict = {...}") - this is not allowed
   - Attributes are stored in variable "attributes" field - access them directly using dot notation: {variable_name}.attribute_name
-  - Example: If a categorical variable "item" is selected, access its price as "item.price" (not "item_attributes[item]['price']")
+  - NEVER create function calls to access attributes (e.g., "meal_prep_time(meal)" or "get_price(item)"). Always use direct dot notation: "meal.prep_time" or "item.price"
+  - NEVER use dictionary-style access with undefined functions (e.g., "meal_prep_time[i]" or "meal_prep_time['meal_1_dish']"). Use direct variable attribute access: "meal_1_dish.prep_time"
+  - NEVER reference undefined variables or functions. Only use variables defined in the "variables" array and properties defined in the "properties" array
+  - When referencing multiple variables, list them explicitly: [var1, var2, var3]. DO NOT create placeholder variables like "all_items" or "all_meals" - list the actual variable names
+  - DO NOT invent custom helper functions (e.g., "calculate_variety()", "get_total()"). Use only available built-in functions: sum, len, set, min, max, etc.
+  - Example: If a categorical variable "item" is selected, access its price as "item.price" (not "item_attributes[item]['price']" or "get_price(item)" or "item_price(item)")
   - For datetime/ISO string attributes: Access .hour and .minute directly (e.g., "time_attribute.hour" for ISO strings like "2023-12-18T14:30:00")
   - DO NOT use datetime.fromisoformat() - datetime objects are not available; ISO strings are automatically parsed
   - Prefer dictionary lookups over ternary chains
@@ -77,7 +82,8 @@ const SHARED_EXPRESSION_RULES = `  - All calculations must be inline - no helper
   - For multiple variables: Use sum([v.attribute for v in [var1, var2, var3, ...]]) NOT sum([getattr(globals()['var' + str(i)], 'attr') for i in range(n)])
   - Example for summing attributes across multiple variables: sum([meal.prep_time for meal in [meal_assignment_1, meal_assignment_2, meal_assignment_3, meal_assignment_4, meal_assignment_5, meal_assignment_6]])
   - Example for counting with conditions: sum([1 for v in [var1, var2, var3] if v.attribute in ['value1', 'value2']])
-  - Example for membership testing: (1 if var.attribute in ['value1', 'value2'] else 0) - the 'in' operator works with lists, tuples, and strings`;
+  - Example for membership testing: (1 if var.attribute in ['value1', 'value2'] else 0) - the 'in' operator works with lists, tuples, and strings
+  - Example for variety calculation: Use "len(set([var1.attr, var2.attr, var3.attr]))" NOT "calculate_variety([var1.attr, var2.attr, var3.attr])"`;
 
 /**
  * Shared naming conventions
@@ -111,6 +117,11 @@ const CRITICAL_REQUIREMENTS_CHECKLIST = `CRITICAL REQUIREMENTS - Verify ALL befo
 □ EXPRESSIONS:
   - Must be executable Python code (not descriptions, placeholders, or summaries)
   - No dictionaries in expressions - use dot notation: {variable_name}.attribute_name
+  - NEVER create function calls to access attributes (e.g., "meal_prep_time(meal)") - use direct dot notation: "meal.prep_time"
+  - NEVER use dictionary-style access with undefined functions (e.g., "meal_prep_time[i]") - use direct variable attribute access: "meal_1_dish.prep_time"
+  - NEVER reference undefined variables or functions - only use variables from "variables" array and properties from "properties" array
+  - DO NOT create placeholder variables like "all_items" - list actual variable names explicitly: [var1, var2, var3]
+  - DO NOT invent custom helper functions - use only available built-in functions: sum, len, set, min, max, etc.
   - DO NOT use range(), globals(), getattr(), or other unavailable functions - use explicit variable lists in list comprehensions
   - For multiple variables: list them explicitly [var1, var2, var3] not dynamically with range() or globals()
   - Objectives: return numeric values (system normalizes to 0-1 automatically)
