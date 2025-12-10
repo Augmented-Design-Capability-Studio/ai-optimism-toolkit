@@ -18,7 +18,9 @@ export interface Message {
   content: string;
   timestamp: number;
   metadata?: {
-    type?: 'formalization' | 'controls-generation' | 'optimization-run' | 'variables-update' | 'objectives-update' | 'constraints-update' | 'properties-update';
+    type?: 'formalization' | 'controls-generation' | 'optimization-run' | 'variables-update' | 'objectives-update' | 'constraints-update' | 'properties-update' | 'trigger-formalize' | 'trigger-generate-component';
+    component?: 'variables' | 'properties' | 'objectives' | 'constraints';
+    triggerAction?: string;
     incomplete?: boolean;
     controlsGenerated?: boolean;
     controlsError?: string;

@@ -37,10 +37,10 @@ export function useComponentGeneration({
       // This helps AI understand what's already defined and avoid duplicates
       const existingControls = aggregateControlsFromMessages(currentSession.messages || []);
       const existingComponents = existingControls ? {
-        variables: existingControls.variables || [],
-        objectives: existingControls.objectives || [],
-        constraints: existingControls.constraints || [],
-        properties: existingControls.properties || [],
+        variables: (existingControls.variables || []) as unknown as Array<Record<string, unknown>>,
+        objectives: (existingControls.objectives || []) as unknown as Array<Record<string, unknown>>,
+        constraints: (existingControls.constraints || []) as unknown as Array<Record<string, unknown>>,
+        properties: (existingControls.properties || []) as unknown as Array<Record<string, unknown>>,
       } : undefined;
 
       // Generate prompt using the same function used by API
