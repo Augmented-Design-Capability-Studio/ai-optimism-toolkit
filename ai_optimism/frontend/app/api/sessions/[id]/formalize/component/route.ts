@@ -144,27 +144,27 @@ export async function POST(
       sessionMessages = providedMessages;
     } else {
       // Fallback: fetch from backend (for backward compatibility)
-      try {
-        const messagesResponse = await fetch(`${baseUrl}/sessions/${sessionId}/messages`, {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
+    try {
+      const messagesResponse = await fetch(`${baseUrl}/sessions/${sessionId}/messages`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-        if (!messagesResponse.ok) {
-          return NextResponse.json(
-            { error: 'Failed to fetch session messages' },
-            { status: messagesResponse.status }
-          );
-        }
-
-        sessionMessages = await messagesResponse.json();
-      } catch (error: any) {
-        console.error('[Component Generation API] Error fetching messages:', error);
+      if (!messagesResponse.ok) {
         return NextResponse.json(
           { error: 'Failed to fetch session messages' },
-          { status: 500 }
+          { status: messagesResponse.status }
         );
+      }
+
+      sessionMessages = await messagesResponse.json();
+    } catch (error: any) {
+      console.error('[Component Generation API] Error fetching messages:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch session messages' },
+        { status: 500 }
+      );
       }
     }
 

@@ -411,6 +411,19 @@ export default function ClientV1Page() {
     setHeuristicWeights(weights);
   };
 
+  const handleSessionChange = async (sessionId: string) => {
+    try {
+      await sessionManager.setCurrentSession(sessionId);
+      const newSession = await sessionManager.getSession(sessionId);
+      if (newSession) {
+        setCurrentSession(newSession);
+      }
+    } catch (error) {
+      console.error('[ClientV1Page] Failed to switch session:', error);
+      alert('Failed to switch session. Please try again.');
+    }
+  };
+
   return (
     <ClientAuthWrapper>
       {(handleLogout) => (
@@ -422,6 +435,7 @@ export default function ClientV1Page() {
               currentSession={currentSession}
               onLogout={handleLogout}
               onAIConfigUpdate={handleAIConfigUpdate}
+              onSessionChange={handleSessionChange}
             />
 
             <Box sx={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden' }}>

@@ -190,20 +190,14 @@ export function HeuristicNetwork({ data, onWeightsChange }: HeuristicNetworkProp
         setIsPanning(false);
     };
 
-    // Wheel handler for zoom and pan
+    // Wheel handler for pan only
     const handleWheel = (e: React.WheelEvent<SVGSVGElement>) => {
         e.preventDefault();
-        if (e.ctrlKey || e.metaKey) {
-            // Zoom with Ctrl/Cmd + scroll
-            const delta = e.deltaY > 0 ? -0.1 : 0.1;
-            setZoom(prev => Math.max(0.5, Math.min(3.0, prev + delta)));
-        } else {
-            // Pan with regular scroll
-            setPan(prev => ({
-                x: prev.x - e.deltaX,
-                y: prev.y - e.deltaY
-            }));
-        }
+        // Pan with scroll
+        setPan(prev => ({
+            x: prev.x - e.deltaX,
+            y: prev.y - e.deltaY
+        }));
     };
 
     const open = Boolean(anchorEl);
@@ -481,7 +475,7 @@ export function HeuristicNetwork({ data, onWeightsChange }: HeuristicNetworkProp
                 </svg>
             </Box>
             <Typography variant="caption" sx={{ mt: 1, color: 'text.secondary', display: 'block' }}>
-                Green = Positive Impact, Red = Negative Impact. Click a line to edit weight. Use Ctrl/Cmd + scroll to zoom, scroll to pan.
+                Green = Positive Impact, Red = Negative Impact. Click a line to edit weight. Scroll to pan, use zoom buttons to zoom.
             </Typography>
 
             {/* Weight Edit Popover */}

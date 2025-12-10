@@ -107,6 +107,7 @@ export function useChatSession() {
   const { formalizeProblem, resetFormalization } = useFormalization({
     currentSession,
     sessionManager,
+    sendMessage,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -230,6 +231,7 @@ export function useChatSession() {
     mode,
     displayMessages,
     isLoading: isAILoading,
+    status, // Return status for conditional rendering
     isWaitingForResearcher,
     sessionTerminated,
     sessionDeleted,

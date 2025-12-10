@@ -7,17 +7,9 @@ import { useState } from 'react';
 import { Box } from '@mui/material';
 import { MarkdownInput } from '../core/components/shared/chat';
 import { ResearcherToolbar } from './ResearcherToolbar';
-import { 
-  filterMessagesForAIResponse, 
-  filterMessagesForComponent,
-  filterMessagesForDraftFormatting,
-  formatMessagesAsConversation 
-} from '../core/utils/messageFiltering';
-import { useSessionManager, type Session } from '../core/services/sessionManager';
 
 interface MessageInputProps {
   sessionId: string;
-  session?: Session | null; // Session with messages for filtering
   onSendMessage: (sessionId: string, message: string, metadata?: any) => void;
   onRequestAIResponse?: (sessionId: string) => void;
   disabled?: boolean;
@@ -28,11 +20,11 @@ interface MessageInputProps {
   onToggleReadyToFormalize?: () => void;
   onFormalize?: (sessionId: string) => void;
   onResetFormalization?: (sessionId: string) => void;
+  sessionMessages?: Array<{ sender: string; content: string; role?: string }>;
 }
 
 export function MessageInput({ 
-  sessionId,
-  session,
+  sessionId, 
   onSendMessage, 
   onRequestAIResponse,
   disabled,
@@ -43,12 +35,12 @@ export function MessageInput({
   onToggleReadyToFormalize,
   onFormalize,
   onResetFormalization,
+  sessionMessages = [],
 }: MessageInputProps) {
   const [input, setInput] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isGeneratingComponent, setIsGeneratingComponent] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const sessionManager = useSessionManager();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,113 +103,146 @@ export function MessageInput({
   };
 
   const handleRequestAI = async () => {
-    if (!hasAIConfig || isGeneratingAI) return;
-    
-    setIsGeneratingAI(true);
-    try {
-      // Get session messages for filtering
-      const currentSession = session || await sessionManager.getSession(sessionId);
-      const messages = currentSession?.messages || [];
-      
-      // Filter messages based on whether we're formatting a draft or generating full response
-      let filteredMessages: typeof messages = [];
-      if (input.trim()) {
-        // Draft formatting: only need recent context
-        filteredMessages = filterMessagesForDraftFormatting(messages);
-      } else {
-        // Full response: filter to reasonable size
-        filteredMessages = filterMessagesForAIResponse(messages);
-      }
-      
-      const requestBody: { draft?: string; messages?: typeof messages } = {};
-      
-      if (input.trim()) {
-        requestBody.draft = input.trim();
-      }
-      
-      // Include filtered messages in request
-      if (filteredMessages.length > 0) {
-        requestBody.messages = filteredMessages;
-      }
-      
-      const response = await fetch(`/api/sessions/${sessionId}/ai-response`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate AI response');
-      }
-
-      const data = await response.json();
-      const aiResponseText = data.response;
-
-      if (!aiResponseText) {
-        throw new Error('No response received from AI');
-      }
-
-      setInput(aiResponseText);
-    } catch (error: any) {
-      console.error('[MessageInput] Error requesting AI response:', error);
-      alert(`Failed to generate AI response: ${error.message || 'Unknown error'}`);
-    } finally {
-      setIsGeneratingAI(false);
-    }
+    // Dummy button - functionality to be implemented later
+    console.log('[MessageInput] AI Response button clicked', { 
+      sessionId, 
+      hasAIConfig,
+      messageCount: sessionMessages.length 
+    });
   };
 
-  const handleComponentGenerate = async (component: 'variables' | 'properties' | 'objectives' | 'constraints') => {
-    if (!hasAIConfig || isGeneratingComponent) return;
+  const handleComponentGenerate = (component: 'variables' | 'properties' | 'objectives' | 'constraints') => {
+    // Dummy button - just log for now
+    console.log('[MessageInput] Component generation button clicked', { 
+      sessionId, 
+      component,
+      hasAIConfig 
+    });
+    // TODO: Implement component generation
+  };
 
-    setIsGeneratingComponent(component);
+  const handleFormalize = async () => {
+    if (!hasAIConfig || isFormalizing || disabled) {
+      return;
+    }
+
+    setIsGeneratingAI(true);
     try {
-      // Get session messages for filtering
-      const currentSession = session || await sessionManager.getSession(sessionId);
-      const messages = currentSession?.messages || [];
+      // Create messages array with formalize prompt
+      const formalizePrompt = "Please formalize this optimization problem based on our conversation. Provide a complete structured problem definition with variables, objectives, constraints, and properties in JSON format.";
       
-      // Filter messages for component generation (smart filtering based on component type)
-      const filteredMessages = filterMessagesForComponent(messages, component);
-      
-      const response = await fetch(`/api/sessions/${sessionId}/formalize/component`, {
+      // Convert session messages to chat format and add formalize prompt
+      const chatMessages = [
+        ...sessionMessages.map((msg) => ({
+          role: msg.role || (msg.sender === 'user' ? 'user' : msg.sender === 'researcher' ? 'user' : 'assistant'),
+          content: msg.content,
+        })),
+        {
+          role: 'user' as const,
+          content: formalizePrompt,
+        },
+      ];
+
+      // Use the chat stream endpoint
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          component,
-          messages: filteredMessages.length > 0 ? filteredMessages : undefined,
+        body: JSON.stringify({
+          messages: chatMessages,
+          sessionId: sessionId,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to generate ${component}`);
+        const errorText = await response.text();
+        throw new Error(`Failed to stream formalization: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      // Stream the response into the input box
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      // Check for validation errors
-      if (data.validation?.errors && data.validation.errors.length > 0) {
-        alert(`Cannot generate ${component}: ${data.validation.errors.join(', ')}`);
-        return;
-      }
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-      // Format the response: summary + JSON
-      if (data.data && data.data[component]) {
-        const jsonString = JSON.stringify(data.data, null, 2);
-        const formattedText = `${data.summary || `Generated ${component} for the optimization problem`}\n\n\`\`\`json\n${jsonString}\n\`\`\``;
-        setInput(formattedText);
-      } else {
-        throw new Error(`No ${component} data received from server`);
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Parse complete lines from the buffer
+          const lines = buffer.split('\n');
+          // Keep the last incomplete line in the buffer
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.trim() && line.startsWith('0:')) {
+              try {
+                // Extract the text content from the stream format
+                // Format is: 0:"text content" or 0:{"text":"content"}
+                const contentMatch = line.match(/^0:(.+)$/);
+                if (contentMatch) {
+                  const content = contentMatch[1].trim();
+                  
+                  // Try parsing as JSON string first
+                  let text = '';
+                  try {
+                    const parsed = JSON.parse(content);
+                    if (typeof parsed === 'string') {
+                      text = parsed;
+                    } else if (parsed && typeof parsed === 'object' && parsed.text) {
+                      text = parsed.text;
+                    }
+                  } catch {
+                    // Not JSON, try as quoted string
+                    const stringMatch = content.match(/^"(.*)"$/);
+                    if (stringMatch) {
+                      // Unescape the string
+                      text = stringMatch[1]
+                        .replace(/\\n/g, '\n')
+                        .replace(/\\"/g, '"')
+                        .replace(/\\\\/g, '\\')
+                        .replace(/\\r/g, '\r')
+                        .replace(/\\t/g, '\t');
+                    } else {
+                      // Plain text (shouldn't happen but handle it)
+                      text = content;
+                    }
+                  }
+                  
+                  if (text) {
+                    setInput(text);
+                  }
+                }
+              } catch (e) {
+                console.warn('[MessageInput] Error parsing stream chunk:', e, line);
+              }
+            }
+          }
+        }
+        
+        // Process any remaining buffer content
+        if (buffer.trim() && buffer.startsWith('0:')) {
+          try {
+            const contentMatch = buffer.match(/^0:(.+)$/);
+            if (contentMatch) {
+              const parsed = JSON.parse(contentMatch[1].trim());
+              if (typeof parsed === 'string') {
+                setInput(parsed);
+              }
+            }
+          } catch (e) {
+            // Ignore parsing errors for incomplete buffer
+          }
+        }
       }
     } catch (error: any) {
-      console.error(`[MessageInput] Error generating ${component}:`, error);
-      alert(`Failed to generate ${component}: ${error.message || 'Unknown error'}`);
+      console.error('[MessageInput] Error streaming formalization:', error);
+      alert(`Failed to formalize problem: ${error.message || 'Unknown error'}`);
     } finally {
-      setIsGeneratingComponent(null);
+      setIsGeneratingAI(false);
     }
   };
 
@@ -235,7 +260,7 @@ export function MessageInput({
         onAIResponse={handleRequestAI}
         onComponentGenerate={handleComponentGenerate}
         onToggleReadyToFormalize={onToggleReadyToFormalize}
-        onFormalize={onFormalize ? () => onFormalize(sessionId) : undefined}
+        onFormalize={handleFormalize}
         onResetFormalization={onResetFormalization ? () => onResetFormalization(sessionId) : undefined}
         isGeneratingAI={isGeneratingAI}
         isGeneratingComponent={isGeneratingComponent}

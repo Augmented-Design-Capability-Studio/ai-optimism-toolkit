@@ -3,15 +3,36 @@ import { Session } from '@/core/services/sessionManager';
 interface UseFormalizationProps {
   currentSession: Session | null;
   sessionManager: any;
+  sendMessage?: (message: { role: 'user'; content: string } | { role: 'user'; parts: Array<{ type: 'text'; text: string }> }) => void;
 }
 
 export function useFormalization({
   currentSession,
   sessionManager,
+  sendMessage,
 }: UseFormalizationProps) {
   const formalizeProblem = async () => {
     if (!currentSession) return;
 
+    // If sendMessage is provided, use the chat stream approach
+    if (sendMessage) {
+      try {
+        const formalizePrompt = "Please formalize this optimization problem based on our conversation. Provide a complete structured problem definition with variables, objectives, constraints, and properties in JSON format.";
+        
+        // Send through the chat stream
+        sendMessage({
+          role: 'user',
+          parts: [{ type: 'text', text: formalizePrompt }],
+        });
+        
+        return true;
+      } catch (error) {
+        console.error('[useFormalization] Error sending formalize message:', error);
+        throw error;
+      }
+    }
+
+    // Fallback to API call for backward compatibility or researcher mode
     try {
       const response = await fetch(`/api/sessions/${currentSession.id}/formalize`, {
         method: 'POST',

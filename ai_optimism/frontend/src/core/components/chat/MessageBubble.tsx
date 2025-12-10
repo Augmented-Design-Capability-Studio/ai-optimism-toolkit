@@ -17,6 +17,7 @@ interface MessageBubbleProps {
 }
 
 export const MessageBubble = memo(function MessageBubble({ message, mode, isGeneratingControls = false, onGenerateControls }: MessageBubbleProps) {
+  // Extract text content - for streaming messages, always recalculate
   const { messageRole, textContent } = useMemo(() => {
     let role = message.role;
     let content = '';
@@ -44,7 +45,12 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
       messageRole: role,
       textContent: content,
     };
-  }, [message, mode]);
+  }, [
+    message, 
+    message.parts, // Explicitly include parts for streaming updates
+    message.content, // Explicitly include content
+    mode
+  ]);
   
   // Wrapper for onGenerateControls that handles both objects and strings
   const handleGenerateControls = useMemo(() => {
@@ -213,6 +219,7 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
                   variant="light"
                   onGenerateControls={handleGenerateControls}
                   isGeneratingControls={isGeneratingControls}
+                  isStreaming={message.metadata?.streaming === true}
                 />
               )}
             </Box>
@@ -232,12 +239,38 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
     </Box>
   );
 }, (prevProps, nextProps) => {
+  // Always re-render if IDs differ
   if (prevProps.message.id !== nextProps.message.id) return false;
-  if (prevProps.message.content !== nextProps.message.content) return false;
+  
+  // Always re-render if mode or other props change
   if (prevProps.mode !== nextProps.mode) return false;
   if (prevProps.isGeneratingControls !== nextProps.isGeneratingControls) return false;
   if (prevProps.onGenerateControls !== nextProps.onGenerateControls) return false;
   
+  // CRITICAL: Always re-render streaming messages to show updates in real-time
+  const isStreaming = prevProps.message.metadata?.streaming === true || nextProps.message.metadata?.streaming === true;
+  if (isStreaming) return false; // Always render streaming messages
+  
+  // For non-streaming messages, check content changes
+  if (prevProps.message.content !== nextProps.message.content) return false;
+  
+  // Check parts changes (for non-streaming messages with parts)
+  const prevParts = prevProps.message.parts;
+  const nextParts = nextProps.message.parts;
+  if (prevParts !== nextParts) {
+    if (!prevParts || !nextParts) return false;
+    const prevText = prevParts
+      .filter((p: any) => p.type === 'text')
+      .map((p: any) => p.text)
+      .join('');
+    const nextText = nextParts
+      .filter((p: any) => p.type === 'text')
+      .map((p: any) => p.text)
+      .join('');
+    if (prevText !== nextText) return false;
+  }
+  
+  // Check metadata changes
   const prevMeta = prevProps.message.metadata;
   const nextMeta = nextProps.message.metadata;
   if (prevMeta !== nextMeta) {
@@ -245,12 +278,7 @@ export const MessageBubble = memo(function MessageBubble({ message, mode, isGene
     if (JSON.stringify(prevMeta) !== JSON.stringify(nextMeta)) return false;
   }
   
-  if (prevProps.message.parts !== nextProps.message.parts) {
-    if (JSON.stringify(prevProps.message.parts) !== JSON.stringify(nextProps.message.parts)) {
-      return false;
-    }
-  }
-  
+  // Skip render only if everything is the same
   return true;
 });
 

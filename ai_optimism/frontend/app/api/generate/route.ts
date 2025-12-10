@@ -1,7 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateObject } from 'ai';
 import { z } from 'zod';
-import { getGenerateControlsPrompt } from '../../../src/core/config/prompts';
 import {
   mergeSimpleBoundConstraints,
   isValidProperty,
@@ -117,11 +116,19 @@ export async function POST(req: Request) {
     // Extract attributes from formalization JSON in description
     const attributesFromFormalization = extractAttributesFromFormalization(description);
 
+    // NOTE: This endpoint is deprecated - controls are now generated client-side via aggregator
+    // Keeping for backward compatibility but using a simplified prompt
+    const generatePrompt = `Extract optimization problem details from the following description and structure them as variables, objectives, constraints, and properties:
+
+${description}
+
+Extract ALL information including every attribute value mentioned. Provide complete JSON structure with variables (min/max/default for continuous/discrete, categories and attributes for categorical), objectives (with expressions and weights), constraints (with expressions and types), and properties (if used in objectives/constraints).`;
+
     const finalModel = aiConfig.model || modelName || 'gemini-2.5-flash';
     const result = await generateObject({
       model: google(finalModel),
       schema: controlsSchema,
-      prompt: getGenerateControlsPrompt(description),
+      prompt: generatePrompt,
     });
 
     // Filter out unused properties and invalid properties (dictionaries/lists that should be attributes)

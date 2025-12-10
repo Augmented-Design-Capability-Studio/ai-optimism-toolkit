@@ -8,6 +8,8 @@
  * 3. FORMALIZATION PROMPTS - Problem formalization and component generation
  * 4. RESEARCHER PROMPTS - Researcher-specific prompts (draft formatting, etc.)
  * 
+ * NOTE: Control generation prompts have been removed - controls are now generated client-side via aggregator
+ * 
  * When editing prompts:
  * - Keep shared components at the top for easy reference
  * - Use descriptive function names and clear parameter types
@@ -24,8 +26,8 @@
  * Used across all prompts to ensure consistency
  */
 const SHARED_CONCEPTUAL_FRAMEWORK = `Variables: The decision variables of your optimization problem
-  - Continuous: Real numbers with min/max bounds (must include min, max, default)
-  - Discrete: Integers with min/max bounds (must include min, max, default)
+  - Continuous: Real numbers with min/max bounds (CRITICAL: MUST include ALL THREE: min, max, AND default - cannot omit any)
+  - Discrete: Integers with min/max bounds (CRITICAL: MUST include ALL THREE: min, max, AND default - cannot omit any)
   - Categorical: Named choices, each with associated data in "attributes" field
 
 Attributes: Data associated with categorical variable choices
@@ -99,7 +101,9 @@ const CRITICAL_REQUIREMENTS_CHECKLIST = `CRITICAL REQUIREMENTS - Verify ALL befo
 □ REQUIRED FIELDS:
   - Objectives: "weight" field REQUIRED (default: 1.0 if not specified)
   - Constraints: "type" field REQUIRED ("hard" or "soft", default: "hard" if uncertain)
-  - Variables: min/max/default for continuous/discrete; categories+attributes for categorical (both required)
+  - Variables: 
+    * Continuous/Discrete: MUST include ALL THREE: "min", "max", AND "default" (cannot omit any - all are required)
+    * Categorical: MUST include "categories" array AND "attributes" object (both required)
   - Every variable must be listed individually - do not use "see above" or shared definitions
 
 □ EXPRESSIONS:
@@ -113,6 +117,7 @@ const CRITICAL_REQUIREMENTS_CHECKLIST = `CRITICAL REQUIREMENTS - Verify ALL befo
 □ COMPLETENESS:
   - Extract ALL values mentioned (don't summarize or omit any data)
   - Complete JSON with all fields populated
+  - Every continuous/discrete variable MUST have ALL THREE: "min", "max", AND "default" (cannot omit any)
   - Every categorical variable has both "categories" array AND complete "attributes" object with ALL categories
   - All objectives have complete Python expressions (not descriptions)
   - All constraints have complete Python expressions that return booleans
@@ -136,6 +141,8 @@ INCREMENTAL STRUCTURED DATA EXTRACTION:
 - As you identify variables, objectives, constraints, or properties, you can optionally include structured data in a JSON block at the end of your response
 - Format: \`\`\`json { "variables": [...], "objectives": [...], "constraints": [...], "properties": [...] } \`\`\`
 - Variable: { "name": "var_name", "type": "continuous|discrete|categorical", "min": 0, "max": 100, "default": 50, "description": "...", "categories": [...] (categorical), "attributes": {"category_name": {"attr_key": value, ...}, ...} (categorical - maps each category name to a dictionary of its attributes) }
+  - CRITICAL: For continuous/discrete variables, you MUST include ALL THREE: "min", "max", AND "default" (all required, cannot omit any)
+  - CRITICAL: For categorical variables, you MUST include "categories" array AND "attributes" object (both required)
 - Objective: { "name": "obj_name", "expression": "python expression", "goal": "minimize|maximize", "description": "...", "weight": number (REQUIRED - must be included, default: 1.0 if not specified) }
   - CRITICAL: ALWAYS include the "weight" field for EVERY objective
   - If multiple objectives exist, assign DIFFERENT weights to reflect their relative importance (e.g., cost: 2.0, quality: 1.0, speed: 0.5)
@@ -310,74 +317,6 @@ export const isIncompleteFormalization = (text: string): boolean => {
   );
 };
 
-/**
- * Prompt for generating optimization controls from problem description
- * Used in: /app/api/generate/route.ts
- * 
- * @param description - The formalized problem description
- * @param versionContext - Optional version context ('v1' | 'v2' | 'v3') for version-specific instructions
- * @returns Formatted generation prompt
- */
-export const getGenerateControlsPrompt = (
-  description: string,
-  versionContext?: 'v1' | 'v2' | 'v3'
-): string => {
-  const basePrompt = `Extract optimization problem details from the following description and structure them:
-
-Description: ${description}
-
-The description above contains the complete problem definition. You MUST extract ALL information including every attribute value mentioned. The description includes the ENTIRE conversation history, so search from the beginning for ALL attribute values. Do not summarize or omit any data.
-
-Identify:
-1. Variables: continuous (real numbers), discrete (integers), categorical (named options)
-   - You MUST define ALL variables explicitly - do not omit any
-   - Continuous: provide min, max, default (all required)
-   - Discrete: provide min, max, default (all required)
-   - Categorical: provide 'categories' array AND 'attributes' mapping each category to its data (both required)
-2. Objectives: minimize/maximize with Python expressions
-   - Each objective should have its own expression - the system combines them automatically
-   - Each objective can have a weight (default: 1.0) to control relative importance
-3. Properties: only if used in objectives/constraints, with Python expressions
-   - Properties are DERIVED/COMPUTED values calculated from variables - NOT category data
-   - Example property: "total_cost" with expression "{var1}.price + {var2}.price"
-4. Constraints: Python expressions with title (3-5 words)
-   - Expression must return boolean (True if satisfied, False if violated)
-   - Do NOT create simple bounds (use variable min/max instead)
-   - When applying the same pattern across 3+ variables, use list comprehensions instead of chaining with +
-5. Stopping criteria: max_iterations (default 100), convergence_threshold (default 0.001)
-
-CONCEPTUAL FRAMEWORK:
-${SHARED_CONCEPTUAL_FRAMEWORK}
-
-EXPRESSION RULES:
-${SHARED_EXPRESSION_RULES}
-
-NAMING: ${SHARED_NAMING_CONVENTIONS}
-
-The description contains the complete problem definition. Extract ALL information including:
-- Every variable with complete definitions
-- For categorical variables: ALL categories AND complete attributes object with ALL values mentioned
-- All objectives with executable expressions
-- All constraints and properties
-- Do NOT summarize or omit any attribute values - include EVERY value mentioned in the description
-
-${CRITICAL_REQUIREMENTS_CHECKLIST}`;
-
-  // Version-specific instructions (can be extended in the future)
-  let versionInstructions = '';
-  if (versionContext === 'v2') {
-    // Canvas-specific: Controls will be visualized on a canvas
-    // Future: Add canvas-specific instructions if needed
-    versionInstructions = '';
-  } else if (versionContext === 'v3') {
-    // Extraction panel: Controls will be displayed in extraction panels
-    // Future: Add extraction panel-specific instructions if needed
-    versionInstructions = '';
-  }
-  // v1 (default): Four-panel layout - no additional instructions needed
-
-  return basePrompt + (versionInstructions ? `\n\n${versionInstructions}` : '');
-};
 
 /**
  * Prompt for generating a specific formalization component

@@ -37,6 +37,7 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
     mode,
     displayMessages,
     isLoading,
+    status,
     isWaitingForResearcher,
     sessionTerminated,
     sessionDeleted,
@@ -284,7 +285,7 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
     }
   };
 
-  // Generate controls from conversation
+  // Generate controls from conversation - uses pure aggregator (no AI calls)
   // Accepts either a JSON object (from formalization bubble) or a string (from normal message bubble or text)
   const handleGenerateControls = useCallback(async (formalizationText?: string | any) => {
     // Prevent multiple simultaneous calls
@@ -294,139 +295,64 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
     setIsGenerating(true);
 
     try {
+      if (!currentSession?.id) {
+        alert('No active session');
+        setIsGenerating(false);
+        return;
+      }
+
       let controls;
 
-      if (mode === 'experimental' && currentSession) {
-        // Check if session has formalized data or aggregated incremental updates
+      // Check if formalizationText is actually a JSON object (from Generate Controls button)
+      // The formalization bubble now passes structuredData directly as an object
+      if (formalizationText && typeof formalizationText === 'object') {
+        // It's already a parsed JSON object (from formalization bubble)
+        console.log('[ChatPanel] Using provided JSON object directly as controls');
+        controls = formalizationText;
+      } else if (formalizationText && typeof formalizationText === 'string') {
+        // It's a string - try to parse as JSON first
+        try {
+          const parsed = JSON.parse(formalizationText.trim());
+          // Check if it's a valid controls object (has variables, objectives, etc.)
+          if (parsed.variables || parsed.objectives || parsed.constraints || parsed.properties) {
+            console.log('[ChatPanel] Using parsed JSON string directly as controls');
+            controls = parsed;
+          }
+        } catch (e) {
+          // Not JSON, will use aggregator below
+        }
+      }
+
+      // Use aggregator to get controls from messages (no API calls)
+      if (!controls) {
         const aggregatedControls = aggregateControlsFromMessages(currentSession.messages || []);
-        
-        if (aggregatedControls) {
+        if (aggregatedControls && aggregatedControls.variables && aggregatedControls.variables.length > 0) {
+          console.log('[ChatPanel] Using aggregated controls from messages');
           controls = aggregatedControls;
-        } else {
-          alert('Please wait for the conversation to be analyzed first.');
-          setIsGenerating(false);
-          return;
         }
-      } else {
-        // AI mode: generate from conversation or specific formalization
-        if (!currentSession?.id) {
-          alert('Please connect to an AI provider first');
-          setIsGenerating(false);
-          return;
-        }
+      }
 
-        // Check if formalizationText is actually a JSON object (from Generate Controls button)
-        // The formalization bubble now passes structuredData directly as an object
-        if (formalizationText && typeof formalizationText === 'object') {
-          // It's already a parsed JSON object (from formalization bubble)
-          console.log('[ChatPanel] Using provided JSON object directly as controls');
-          controls = formalizationText;
-        } else if (formalizationText && typeof formalizationText === 'string') {
-          // It's a string - try to parse as JSON first
-          try {
-            const parsed = JSON.parse(formalizationText.trim());
-            // Check if it's a valid controls object (has variables, objectives, etc.)
-            if (parsed.variables || parsed.objectives || parsed.constraints || parsed.properties) {
-              console.log('[ChatPanel] Using parsed JSON string directly as controls');
-              controls = parsed;
-            }
-          } catch (e) {
-            // Not JSON, will try API generation below
-          }
-        }
-
-        // If we don't have controls yet, try aggregator first (fast, no API call)
-        if (!controls) {
-          const aggregatedControls = aggregateControlsFromMessages(currentSession.messages || []);
-          if (aggregatedControls && aggregatedControls.variables && aggregatedControls.variables.length > 0) {
-            console.log('[ChatPanel] Using aggregated controls from messages');
-            controls = aggregatedControls;
-          }
-        }
-
-        // Generate new controls via API only if we still don't have any
-        if (!controls) {
-          // Generate from conversation text
-          const conversationText = typeof formalizationText === 'string' ? formalizationText : getConversationText();
-
-          try {
-            const response = await fetch('/api/generate', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                description: conversationText,
-                model: model || 'gemini-2.5-flash',
-                sessionId: currentSession.id,
-              }),
-            });
-
-            if (!response.ok) {
-              throw new Error(`API generation failed: ${response.statusText}`);
-            }
-
-            controls = await response.json();
-          } catch (apiError) {
-            // API call failed - fall back to aggregator
-            console.warn('[ChatPanel] API generation failed, falling back to aggregator:', apiError);
-            
-            // Try aggregator as fallback
-            const fallbackControls = aggregateControlsFromMessages(currentSession.messages || []);
-            if (fallbackControls && fallbackControls.variables && fallbackControls.variables.length > 0) {
-              console.log('[ChatPanel] Using aggregator fallback after API failure');
-              controls = fallbackControls;
-              
-              // Show temporary message about fallback
-              await sessionManager.addMessage(
-                currentSession.id,
-                'ai',
-                '⚠️ API generation failed, but I was able to generate controls from the existing formalization in the conversation.',
-                {
-                  type: 'controls-generation',
-                  controlsGenerated: true,
-                  structuredData: controls,
-                }
-              );
-              
-              // Pass controls to parent and exit early (skip normal success message)
-              if (onControlsGenerated) {
-                onControlsGenerated(controls);
-              }
-              setIsGenerating(false);
-              return;
-            } else {
-              // Both API and aggregator failed
-              let errorMessage = `Generation failed: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`;
-              let errorDetails: string | undefined;
-              if (apiError instanceof Error) {
-                errorDetails = apiError.message;
-              }
-              const error = new Error(errorMessage) as Error & { details?: string };
-              error.details = errorDetails;
-              throw error;
-            }
-          }
-        }
+      if (!controls || !controls.variables || controls.variables.length === 0) {
+        alert('No structured data found in conversation. Please formalize the problem first.');
+        setIsGenerating(false);
+        return;
       }
 
       // Save controls to session and pass to parent
-      if (currentSession && controls) {
-        await sessionManager.addMessage(
-          currentSession.id,
-          'ai',
-          'Controls generated successfully! You can now use the Optimization Panel to configure and run your optimization.',
-          {
-            type: 'controls-generation',
-            controlsGenerated: true,
-            structuredData: controls, // Save controls for persistence
-          }
-        );
-        
-        // Reset message tracking to force re-aggregation on next check
-        lastMessageCountRef.current = 0;
-        lastMessageTimestampRef.current = 0;
-      }
+      await sessionManager.addMessage(
+        currentSession.id,
+        'ai',
+        'Controls generated successfully! You can now use the Optimization Panel to configure and run your optimization.',
+        {
+          type: 'controls-generation',
+          controlsGenerated: true,
+          structuredData: controls, // Save controls for persistence
+        }
+      );
+      
+      // Reset message tracking to force re-aggregation on next check
+      lastMessageCountRef.current = 0;
+      lastMessageTimestampRef.current = 0;
 
       // Pass to parent component immediately
       if (onControlsGenerated && controls) {
@@ -557,6 +483,7 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
         mode={mode}
         apiKey={apiKey}
         isLoading={isLoading}
+        status={status}
         messagesEndRef={messagesEndRef}
         messagesContainerRef={messagesContainerRef}
         isWaitingForResearcher={isWaitingForResearcher}

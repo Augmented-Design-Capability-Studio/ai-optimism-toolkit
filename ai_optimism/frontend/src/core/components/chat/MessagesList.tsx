@@ -12,6 +12,7 @@ interface MessagesListProps {
   mode: SessionMode;
   apiKey: string | null;
   isLoading: boolean;
+  status?: string; // Chat status: 'submitted' | 'streaming' | 'idle' | etc.
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   isWaitingForResearcher?: boolean;
@@ -24,6 +25,7 @@ export const MessagesList = memo(function MessagesList({
   mode, 
   apiKey, 
   isLoading, 
+  status,
   messagesEndRef,
   messagesContainerRef,
   isWaitingForResearcher = false,
@@ -33,17 +35,21 @@ export const MessagesList = memo(function MessagesList({
   const [isNearBottom, setIsNearBottom] = useState(true);
 
   // Auto-scroll to bottom when new messages arrive (only if user is near bottom)
+  // Use immediate scroll during streaming for better visual feedback
   useEffect(() => {
     if (isNearBottom && messagesContainerRef.current) {
       const container = messagesContainerRef.current;
+      // During streaming, use immediate scroll for better visual feedback
+      // Otherwise use smooth scroll for new complete messages
+      const scrollBehavior = isLoading ? 'auto' : 'smooth';
       requestAnimationFrame(() => {
         container.scrollTo({
           top: container.scrollHeight,
-          behavior: 'smooth',
+          behavior: scrollBehavior,
         });
       });
     }
-  }, [messages, isNearBottom, messagesContainerRef]);
+  }, [messages, isNearBottom, messagesContainerRef, isLoading]);
 
   // Track if user is scrolled to bottom
   useEffect(() => {
@@ -89,7 +95,9 @@ export const MessagesList = memo(function MessagesList({
         />
       ))}
       
-      {(isLoading || isWaitingForResearcher) && (
+      {/* Show "Thinking..." only when submitted (before streaming starts), not during streaming */}
+      {/* When status is 'streaming', the streaming message bubble is shown instead */}
+      {(status === 'submitted' || (isLoading && status !== 'streaming') || isWaitingForResearcher) && (
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Avatar sx={{ bgcolor: 'secondary.main', width: 32, height: 32 }}>
             <SmartToyIcon sx={{ fontSize: 20, color: 'white' }} />
@@ -109,13 +117,41 @@ export const MessagesList = memo(function MessagesList({
 }, (prevProps, nextProps) => {
   if (prevProps.messages.length !== nextProps.messages.length) return false;
   
+  // Check for content changes in messages (including streaming updates)
   for (let i = 0; i < prevProps.messages.length; i++) {
-    if (prevProps.messages[i]?.id !== nextProps.messages[i]?.id) return false;
-    if (prevProps.messages[i]?.content !== nextProps.messages[i]?.content) return false;
+    const prevMsg = prevProps.messages[i];
+    const nextMsg = nextProps.messages[i];
+    
+    if (prevMsg?.id !== nextMsg?.id) return false;
+    
+    // CRITICAL: Always re-render if message is streaming
+    const isStreaming = prevMsg?.metadata?.streaming === true || nextMsg?.metadata?.streaming === true;
+    if (isStreaming) return false; // Always render when streaming
+    
+    // Check content changes
+    if (prevMsg?.content !== nextMsg?.content) return false;
+    
+    // Check parts changes (for non-streaming messages with parts)
+    const prevParts = prevMsg?.parts;
+    const nextParts = nextMsg?.parts;
+    if (prevParts !== nextParts) {
+      if (!prevParts || !nextParts) return false;
+      // Compare the actual text content from parts
+      const prevText = prevParts
+        .filter((p: any) => p.type === 'text')
+        .map((p: any) => p.text)
+        .join('');
+      const nextText = nextParts
+        .filter((p: any) => p.type === 'text')
+        .map((p: any) => p.text)
+        .join('');
+      if (prevText !== nextText) return false;
+    }
   }
   
   if (prevProps.mode !== nextProps.mode) return false;
   if (prevProps.isLoading !== nextProps.isLoading) return false;
+  if (prevProps.status !== nextProps.status) return false;
   if (prevProps.isWaitingForResearcher !== nextProps.isWaitingForResearcher) return false;
   if (prevProps.isGenerating !== nextProps.isGenerating) return false;
   

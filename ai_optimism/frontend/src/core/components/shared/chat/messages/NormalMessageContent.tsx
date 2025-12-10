@@ -15,6 +15,7 @@ interface NormalMessageContentProps {
   variant?: 'default' | 'light';
   onGenerateControls?: (jsonData: any) => void;
   isGeneratingControls?: boolean;
+  isStreaming?: boolean;
 }
 
 /**
@@ -27,6 +28,7 @@ export function NormalMessageContent({
   variant = 'default',
   onGenerateControls,
   isGeneratingControls = false,
+  isStreaming = false,
 }: NormalMessageContentProps) {
   // Split content into parts with JSON blocks
   const contentParts = splitTextWithJSON(content);
@@ -55,9 +57,30 @@ export function NormalMessageContent({
     }
   }
 
-  // If no JSON blocks, render simple markdown
+  // If no JSON blocks, render simple markdown with streaming indicator
   if (!hasJSON) {
-    return <MarkdownContent content={content} variant={variant} />;
+    return (
+      <Box>
+        <MarkdownContent content={content} variant={variant} />
+        {isStreaming && (
+          <Box
+            component="span"
+            sx={{
+              display: 'inline-block',
+              width: '2px',
+              height: '1em',
+              bgcolor: 'text.primary',
+              ml: 0.5,
+              animation: 'blink 1s infinite',
+              '@keyframes blink': {
+                '0%, 50%': { opacity: 1 },
+                '51%, 100%': { opacity: 0 },
+              },
+            }}
+          />
+        )}
+      </Box>
+    );
   }
 
   // If JSON blocks exist, render with collapsible JSON sections

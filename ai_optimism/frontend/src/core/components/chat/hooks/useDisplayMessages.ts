@@ -51,6 +51,9 @@ export function useDisplayMessages({
   }, [sessionMessages]);
 
   const streamingMessages = useMemo(() => {
+    // Only show streaming messages when actively streaming
+    // Once streaming completes (status !== 'streaming'), these should be empty
+    // and the saved backend message will be shown instead
     if (isResearcherControlled || !status || status !== 'streaming') {
       return [];
     }
@@ -92,12 +95,65 @@ export function useDisplayMessages({
 
   const displayMessages = useMemo(() => {
     const backendMessageIds = new Set(sessionDisplayMessages.map((m) => m.id));
-    const uniqueStreamingMessages = streamingMessages.filter((streamMsg) => {
-      const existsInBackend = sessionDisplayMessages.some(
-        (backendMsg) =>
-          backendMsg.role === 'assistant' &&
-          backendMsg.content.trim() === streamMsg.content.trim()
+    
+    // Only process streaming messages if status is actually 'streaming'
+    // This prevents showing streaming messages after streaming completes
+    const activeStreamingMessages = status === 'streaming' ? streamingMessages : [];
+    
+    // Filter out streaming messages that have been saved to backend
+    // Check both by ID (if streaming message has an ID that matches backend) and by content
+    const uniqueStreamingMessages = activeStreamingMessages.filter((streamMsg) => {
+      // First check if streaming message ID exists in backend (most reliable)
+      if (streamMsg.id && backendMessageIds.has(streamMsg.id)) {
+        return false; // Already in backend, skip
+      }
+      
+      // Then check by content match (for cases where IDs differ but content is the same)
+      // Normalize content for comparison (trim and handle empty strings)
+      const streamContent = (streamMsg.content || '').trim();
+      if (!streamContent) {
+        // Empty streaming message, keep it (might still be streaming)
+        return true;
+      }
+      
+      // Check if any backend message matches this streaming message
+      // Check most recent backend messages first (they're more likely to be the saved version)
+      const recentBackendMessages = [...sessionDisplayMessages]
+        .filter(m => m.role === 'assistant')
+        .reverse(); // Most recent first
+      
+      const existsInBackend = recentBackendMessages.some(
+        (backendMsg) => {
+          const backendContent = (backendMsg.content || '').trim();
+          
+          // Exact match - definitely the same message
+          if (backendContent === streamContent) {
+            return true;
+          }
+          
+          // Backend message is longer and starts with streaming content
+          // This means backend has the complete version of what's still streaming
+          // Only match if streaming content is substantial (avoid matching partial words)
+          if (streamContent.length > 20 && 
+              backendContent.length >= streamContent.length && 
+              backendContent.startsWith(streamContent)) {
+            return true;
+          }
+          
+          // Also check if backend content is very similar (handles minor whitespace differences)
+          // Remove all whitespace and compare (more lenient matching)
+          const streamNormalized = streamContent.replace(/\s+/g, ' ');
+          const backendNormalized = backendContent.replace(/\s+/g, ' ');
+          if (streamNormalized.length > 20 && 
+              backendNormalized.includes(streamNormalized) &&
+              Math.abs(backendNormalized.length - streamNormalized.length) < 50) {
+            return true;
+          }
+          
+          return false;
+        }
       );
+      
       return !existsInBackend;
     });
 

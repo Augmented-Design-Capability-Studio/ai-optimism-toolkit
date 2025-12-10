@@ -147,6 +147,32 @@ export async function POST(req: Request) {
     console.log('[Chat API] Starting stream...');
     
     try {
+      // Validate messages array
+      if (!Array.isArray(messages)) {
+        throw new Error('Messages must be an array');
+      }
+      
+      if (messages.length === 0) {
+        throw new Error('Messages array cannot be empty');
+      }
+      
+      // Validate each message has required fields
+      // Messages can have either 'content' (string) or 'parts' (array) format
+      for (const msg of messages) {
+        if (!msg || typeof msg !== 'object') {
+          throw new Error('Invalid message format: message must be an object');
+        }
+        if (!msg.role || typeof msg.role !== 'string') {
+          throw new Error('Invalid message format: message must have a role');
+        }
+        // Check for either 'content' or 'parts' format
+        const hasContent = msg.content !== undefined && msg.content !== null;
+        const hasParts = msg.parts !== undefined && Array.isArray(msg.parts) && msg.parts.length > 0;
+        if (!hasContent && !hasParts) {
+          throw new Error('Invalid message format: message must have either content or parts');
+        }
+      }
+      
       // Convert UI messages to core messages format
       const coreMessages = convertToCoreMessages(messages);
       console.log('[Chat API] Converted messages:', {

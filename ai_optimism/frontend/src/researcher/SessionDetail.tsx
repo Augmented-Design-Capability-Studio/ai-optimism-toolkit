@@ -62,8 +62,22 @@ export const SessionDetail = memo(function SessionDetail({
     if (!session?.id) return;
     const newValue = !session.readyToFormalize;
     await sessionManager.updateSession(session.id, { readyToFormalize: newValue });
+    
+    // Immediately refresh the selected session to show the updated checkbox
+    if (onUpdateSelectedSession) {
+      try {
+        const updatedSession = await sessionManager.getSession(session.id);
+        if (updatedSession) {
+          onUpdateSelectedSession(updatedSession);
+        }
+      } catch (error) {
+        console.warn('[SessionDetail] Could not immediately refresh session after toggling readyToFormalize:', error);
+      }
+    }
+    
+    // Also refresh the sessions list (but don't wait for it)
     if (onRefresh) {
-      await onRefresh();
+      onRefresh();
     }
   };
 
@@ -192,7 +206,6 @@ export const SessionDetail = memo(function SessionDetail({
       {session.status !== 'formalized' && (
         <MessageInput
           sessionId={session.id}
-          session={session}
           onSendMessage={onSendMessage}
           onRequestAIResponse={onRequestAIResponse}
           disabled={session.status === 'completed'}
@@ -203,6 +216,7 @@ export const SessionDetail = memo(function SessionDetail({
           onToggleReadyToFormalize={handleToggleReadyToFormalize}
           onFormalize={onFormalize}
           onResetFormalization={handleResetFormalization}
+          sessionMessages={session.messages || []}
         />
       )}
 
