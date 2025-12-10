@@ -1,5 +1,6 @@
 import { Box, Paper, Typography, ButtonGroup, Button } from '@mui/material';
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import GridOnIcon from '@mui/icons-material/GridOn';
 import ViewInArIcon from '@mui/icons-material/ViewInAr';
@@ -7,9 +8,18 @@ import HubIcon from '@mui/icons-material/Hub';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
 import { HeuristicNetwork } from './visualization/heuristic/HeuristicNetwork';
-import { ChartViz } from './visualization/chart/ChartViz';
-import { TableViz } from './visualization/table/TableViz';
 import { ThreeDViz } from './visualization/threed/ThreeDViz';
+
+// Dynamic imports with SSR disabled for Recharts components
+const ChartViz = dynamic(
+  () => import('./visualization/chart/ChartViz').then(mod => ({ default: mod.ChartViz })),
+  { ssr: false }
+);
+
+const TableViz = dynamic(
+  () => import('./visualization/table/TableViz').then(mod => ({ default: mod.TableViz })),
+  { ssr: false }
+);
 
 type VizType = 'chart' | 'table' | '3d' | 'weights';
 
