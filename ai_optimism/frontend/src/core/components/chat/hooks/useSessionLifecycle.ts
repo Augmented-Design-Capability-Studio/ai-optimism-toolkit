@@ -180,6 +180,7 @@ export function useSessionLifecycle() {
             prev.messages.length !== updatedSession.messages.length ||
             prev.status !== updatedSession.status ||
             prev.mode !== updatedSession.mode ||
+            prev.readyToFormalize !== updatedSession.readyToFormalize ||
             aiHash(prev.aiConfig) !== aiHash(updatedSession.aiConfig);
           
           shouldUpdate = hasChanges;
