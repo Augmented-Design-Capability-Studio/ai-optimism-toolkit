@@ -84,7 +84,7 @@ export function ParetoChart({ chartData, xAxis, yAxis, dimensions, containerRef 
                         layout="horizontal"
                         verticalAlign="bottom"
                         align="center"
-                        wrapperClass="chart-legend-wrap"
+                        className="chart-legend-wrap"
                     />
                     {/* All solutions - show all points */}
                     <Scatter 
