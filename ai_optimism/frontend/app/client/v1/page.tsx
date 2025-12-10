@@ -312,34 +312,34 @@ export default function ClientV1Page() {
         if (prevControls && typeof prevControls === 'object' && 'variables' in prevControls) {
           const vars = (prevControls as any).variables || [];
           const convertedValues: Record<string, number> = {};
-          
-          for (const [varName, value] of Object.entries(bestSolution)) {
-            const varDef = vars.find((v: any) => v.name === varName);
-            if (varDef?.type === 'categorical' && varDef.categories) {
-              // Check if value is a category name (string) and convert to index
-              if (typeof value === 'string') {
-                const idx = varDef.categories.indexOf(value);
-                convertedValues[varName] = idx >= 0 ? idx : 0;
-              } else if (typeof value === 'number') {
-                // Already an index, use it directly (ensure it's within bounds)
-                convertedValues[varName] = Math.max(0, Math.min(Math.floor(value), varDef.categories.length - 1));
-              } else {
-                convertedValues[varName] = 0;
-              }
+      
+        for (const [varName, value] of Object.entries(bestSolution)) {
+          const varDef = vars.find((v: any) => v.name === varName);
+          if (varDef?.type === 'categorical' && varDef.categories) {
+            // Check if value is a category name (string) and convert to index
+            if (typeof value === 'string') {
+              const idx = varDef.categories.indexOf(value);
+              convertedValues[varName] = idx >= 0 ? idx : 0;
+            } else if (typeof value === 'number') {
+              // Already an index, use it directly (ensure it's within bounds)
+              convertedValues[varName] = Math.max(0, Math.min(Math.floor(value), varDef.categories.length - 1));
             } else {
-              convertedValues[varName] = value as number;
+              convertedValues[varName] = 0;
             }
+          } else {
+            convertedValues[varName] = value as number;
           }
+        }
           
           // Always create a new object to ensure React detects the change
           setVariableValues({ ...convertedValues });
-        } else {
-          // Fallback: use values as-is
+      } else {
+        // Fallback: use values as-is
           const convertedValues: Record<string, number> = {};
-          Object.assign(convertedValues, bestSolution);
+        Object.assign(convertedValues, bestSolution);
           setVariableValues({ ...convertedValues });
-        }
-        
+      }
+      
         // Return controls unchanged - we're just reading them
         return prevControls;
       });
@@ -357,14 +357,14 @@ export default function ClientV1Page() {
           }
           
           const updatedControls = { ...prevControls };
-          const objectives = [...(updatedControls as any).objectives || []];
-          const bounds = fullData.objective_bounds;
-          
-          // Update each objective with its bounds
+        const objectives = [...(updatedControls as any).objectives || []];
+        const bounds = fullData.objective_bounds;
+        
+        // Update each objective with its bounds
           let hasNewBounds = false;
-          for (let i = 0; i < objectives.length; i++) {
-            const obj = objectives[i];
-            if (obj.name && bounds[obj.name]) {
+        for (let i = 0; i < objectives.length; i++) {
+          const obj = objectives[i];
+          if (obj.name && bounds[obj.name]) {
               const boundData = bounds[obj.name];
               const hasValidMin = typeof boundData.min === 'number' && !isNaN(boundData.min);
               const hasValidMax = typeof boundData.max === 'number' && !isNaN(boundData.max);
@@ -379,23 +379,23 @@ export default function ClientV1Page() {
                 
                 // Only update if bounds actually changed
                 if (prevMin !== newMin || prevMax !== newMax) {
-                  objectives[i] = {
-                    ...obj,
+            objectives[i] = {
+              ...obj,
                     min: newMin,
                     max: newMax,
-                  };
+            };
                   hasNewBounds = true;
                 }
               }
-            }
           }
-          
+        }
+        
           if (hasNewBounds) {
-            (updatedControls as any).objectives = objectives;
-            // Update timestamp to prevent restore from overwriting these bounds
-            lastExplicitControlsTimeRef.current = Date.now();
-            // Set ref to indicate bounds exist (avoids stale closure issues)
-            hasBoundsRef.current = true;
+        (updatedControls as any).objectives = objectives;
+        // Update timestamp to prevent restore from overwriting these bounds
+        lastExplicitControlsTimeRef.current = Date.now();
+        // Set ref to indicate bounds exist (avoids stale closure issues)
+        hasBoundsRef.current = true;
             return updatedControls;
           }
           

@@ -375,9 +375,11 @@ export const getComponentGenerationPrompt = (
     case 'variables':
       componentInstructions = `Generate VARIABLES for the optimization problem:
 - You MUST define ALL variables explicitly - do not omit any
-- Continuous: provide min, max, default (all required)
-- Discrete: provide min, max, default (all required)
-- Categorical: provide 'categories' array AND 'attributes' mapping each category to its data (both required)`;
+- Continuous: provide min, max, default (all required) - use reasonable values based on the problem context
+- Discrete: provide min, max, default (all required) - use reasonable values based on the problem context
+- Categorical: provide 'categories' array AND 'attributes' mapping each category to its data (both required)
+- If specific ranges/values aren't mentioned in the conversation, provide reasonable sample/starting point values that make sense for the problem domain
+- These values serve as starting points and can be refined by the user later`;
       break;
 
     case 'properties':
@@ -387,7 +389,8 @@ export const getComponentGenerationPrompt = (
 - Properties are NOT data storage - they are calculations like totals, averages, weighted sums
 - Only create properties that are used in objectives or constraints
 - Include: name (snake_case/camelCase), expression (Python), description (optional)
-- Reference variables that exist in the conversation`;
+- Reference variables that exist in the conversation
+- If calculation details aren't fully specified, use reasonable formulas based on the problem context`;
       break;
 
     case 'objectives':
@@ -396,9 +399,10 @@ export const getComponentGenerationPrompt = (
 - Each objective should have its own expression - the system combines them automatically
 - Include: name (snake_case/camelCase), expression (Python), goal (minimize/maximize), description, weight (REQUIRED - must be included, default: 1.0)
 - For multiple objectives, assign weights to control relative importance (e.g., cost objective: weight 2.0, quality objective: weight 1.0)
-- If no specific weights are mentioned, use weight: 1.0 for all objectives
+- If no specific weights are mentioned, use weight: 1.0 for all objectives (these are starting points)
 - Each objective expression should evaluate to a single numeric value (the system normalizes to 0-1 automatically)
-- Reference variables and properties that exist in the conversation`;
+- Reference variables and properties that exist in the conversation
+- If specific formulas aren't provided, create reasonable objective expressions based on the problem context`;
       break;
 
     case 'constraints':
@@ -413,7 +417,8 @@ export const getComponentGenerationPrompt = (
 - Expression must return boolean (True if satisfied, False if violated)
 - Do NOT create simple bounds (use variable min/max instead)
 - When applying the same pattern across 3+ variables, use list comprehensions instead of chaining with +
-- Reference variables and properties that exist in the conversation`;
+- Reference variables and properties that exist in the conversation
+- If specific limit values aren't mentioned, use reasonable threshold values based on the problem context (these are starting points)`;
       break;
   }
 

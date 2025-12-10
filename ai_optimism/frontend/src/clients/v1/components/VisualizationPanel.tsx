@@ -46,16 +46,14 @@ export function VisualizationPanel({ data, onWeightsChange }: VisualizationPanel
                     alignItems: 'center',
                 }}
             >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <ShowChartIcon sx={{ color: 'warning.main' }} />
-                    <Box>
-                        <Typography variant="h6" fontWeight="bold">
-                            Visualization
-                        </Typography>
-                        <Typography variant="caption">
-                            Interactive design space
-                        </Typography>
-                    </Box>
+                <Box>
+                    <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <ShowChartIcon sx={{ color: 'warning.main' }} />
+                        Visualization
+                    </Typography>
+                    <Typography variant="caption">
+                        Interactive design space
+                    </Typography>
                 </Box>
                 <ButtonGroup size="small" variant="outlined" sx={{ bgcolor: 'white' }}>
                     <Button

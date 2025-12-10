@@ -41,6 +41,7 @@ export function MessageInput({
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isGeneratingComponent, setIsGeneratingComponent] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [localIsFormalizing, setLocalIsFormalizing] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,138 +112,67 @@ export function MessageInput({
     });
   };
 
-  const handleComponentGenerate = (component: 'variables' | 'properties' | 'objectives' | 'constraints') => {
-    // Dummy button - just log for now
-    console.log('[MessageInput] Component generation button clicked', { 
-      sessionId, 
-      component,
-      hasAIConfig 
-    });
-    // TODO: Implement component generation
-  };
-
-  const handleFormalize = async () => {
-    if (!hasAIConfig || isFormalizing || disabled) {
+  const handleComponentGenerate = async (component: 'variables' | 'properties' | 'objectives' | 'constraints') => {
+    if (!hasAIConfig || isGeneratingComponent === component || disabled) {
       return;
     }
 
-    setIsGeneratingAI(true);
+    setIsGeneratingComponent(component);
     try {
-      // Create messages array with formalize prompt
-      const formalizePrompt = "Please formalize this optimization problem based on our conversation. Provide a complete structured problem definition with variables, objectives, constraints, and properties in JSON format.";
+      // Send trigger message - client will handle the actual generation through chat stream
+      // This simulates the client requesting component generation
+      const componentLabels = {
+        variables: 'Variables',
+        properties: 'Properties',
+        objectives: 'Objectives',
+        constraints: 'Constraints',
+      };
       
-      // Convert session messages to chat format and add formalize prompt
-      const chatMessages = [
-        ...sessionMessages.map((msg) => ({
-          role: msg.role || (msg.sender === 'user' ? 'user' : msg.sender === 'researcher' ? 'user' : 'assistant'),
-          content: msg.content,
-        })),
+      await onSendMessage(
+        sessionId,
+        `Component generation requested by system: ${componentLabels[component]}. Missing values will be filled with reasonable sample/starting point values.`,
         {
-          role: 'user' as const,
-          content: formalizePrompt,
-        },
-      ];
-
-      // Use the chat stream endpoint
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: chatMessages,
-          sessionId: sessionId,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to stream formalization: ${response.statusText}`);
-      }
-
-      // Stream the response into the input box
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          
-          // Parse complete lines from the buffer
-          const lines = buffer.split('\n');
-          // Keep the last incomplete line in the buffer
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            if (line.trim() && line.startsWith('0:')) {
-              try {
-                // Extract the text content from the stream format
-                // Format is: 0:"text content" or 0:{"text":"content"}
-                const contentMatch = line.match(/^0:(.+)$/);
-                if (contentMatch) {
-                  const content = contentMatch[1].trim();
-                  
-                  // Try parsing as JSON string first
-                  let text = '';
-                  try {
-                    const parsed = JSON.parse(content);
-                    if (typeof parsed === 'string') {
-                      text = parsed;
-                    } else if (parsed && typeof parsed === 'object' && parsed.text) {
-                      text = parsed.text;
-                    }
-                  } catch {
-                    // Not JSON, try as quoted string
-                    const stringMatch = content.match(/^"(.*)"$/);
-                    if (stringMatch) {
-                      // Unescape the string
-                      text = stringMatch[1]
-                        .replace(/\\n/g, '\n')
-                        .replace(/\\"/g, '"')
-                        .replace(/\\\\/g, '\\')
-                        .replace(/\\r/g, '\r')
-                        .replace(/\\t/g, '\t');
-                    } else {
-                      // Plain text (shouldn't happen but handle it)
-                      text = content;
-                    }
-                  }
-                  
-                  if (text) {
-                    setInput(text);
-                  }
-                }
-              } catch (e) {
-                console.warn('[MessageInput] Error parsing stream chunk:', e, line);
-              }
-            }
-          }
+          type: 'trigger-generate-component',
+          component: component,
         }
-        
-        // Process any remaining buffer content
-        if (buffer.trim() && buffer.startsWith('0:')) {
-          try {
-            const contentMatch = buffer.match(/^0:(.+)$/);
-            if (contentMatch) {
-              const parsed = JSON.parse(contentMatch[1].trim());
-              if (typeof parsed === 'string') {
-                setInput(parsed);
-              }
-            }
-          } catch (e) {
-            // Ignore parsing errors for incomplete buffer
-          }
-        }
-      }
+      );
+      
+      // The client's chat system will detect this message and trigger component generation
+      // No API calls needed - the client handles it through its existing chat stream mechanism
     } catch (error: any) {
-      console.error('[MessageInput] Error streaming formalization:', error);
-      alert(`Failed to formalize problem: ${error.message || 'Unknown error'}`);
+      console.error('[MessageInput] Error triggering component generation:', error);
+      alert(`Failed to trigger ${component} generation: ${error.message || 'Unknown error'}`);
     } finally {
-      setIsGeneratingAI(false);
+      setIsGeneratingComponent(null);
+    }
+  };
+
+  const handleFormalize = async () => {
+    if (!hasAIConfig || isFormalizing || localIsFormalizing || disabled) {
+      return;
+    }
+
+    setLocalIsFormalizing(true);
+    try {
+      // Instead of making API calls, add a message with special metadata
+      // that signals the client to trigger formalization
+      // This simulates the client clicking the formalize button
+      await onSendMessage(
+        sessionId,
+        'Formalization requested by system.',
+        {
+          type: 'trigger-formalize',
+          triggerAction: 'formalize',
+        }
+      );
+      
+      // The client's chat system will detect this message and trigger formalization
+      // No API calls needed - the client handles it through its existing mechanism
+    } catch (error: any) {
+      console.error('[MessageInput] Error triggering formalization:', error);
+      alert(`Failed to trigger formalization: ${error.message || 'Unknown error'}`);
+    } finally {
+      setLocalIsFormalizing(false);
     }
   };
 
@@ -254,7 +184,7 @@ export function MessageInput({
         disabled={disabled}
         sessionStatus={sessionStatus}
         readyToFormalize={readyToFormalize}
-        isFormalizing={isFormalizing}
+        isFormalizing={isFormalizing || localIsFormalizing}
         showPreview={showPreview}
         onPreviewChange={setShowPreview}
         onAIResponse={handleRequestAI}

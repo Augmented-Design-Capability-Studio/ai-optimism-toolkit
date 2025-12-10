@@ -23,6 +23,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import InfoIcon from '@mui/icons-material/Info';
+import BoltIcon from '@mui/icons-material/Bolt';
 import { useState, type ChangeEvent, type FocusEvent } from 'react';
 import { useBackend } from '@/core/contexts/BackendContext';
 import { useSessionManager } from '@/core/services/sessionManager';
@@ -397,12 +398,13 @@ export function OptimizationPanel({ controls, onStart, onPause, onStop, onReset,
         }}
       >
         <Box>
-        <Typography variant="h6" fontWeight="bold">
-          ⚡ Optimization
-        </Typography>
-        <Typography variant="caption">
-          Status & monitoring
-        </Typography>
+          <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <BoltIcon sx={{ color: 'success.main' }} />
+            Optimization
+          </Typography>
+          <Typography variant="caption">
+            Status & monitoring
+          </Typography>
         </Box>
         {bestScore !== null && (
           <Box

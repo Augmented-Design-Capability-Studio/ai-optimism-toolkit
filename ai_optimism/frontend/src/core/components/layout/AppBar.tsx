@@ -227,7 +227,7 @@ export function AppBar({ title, color = 'primary.main', currentSession, onLogout
                       </Typography>
                       <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                         {currentSession.status} • {currentSession.messages?.length || 0} msgs
-                      </Typography>
+              </Typography>
                     </Box>
                   </MenuItem>
                 </Select>

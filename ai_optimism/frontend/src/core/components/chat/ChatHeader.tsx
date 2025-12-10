@@ -42,16 +42,14 @@ export const ChatHeader = memo(function ChatHeader({ mode, session }: ChatHeader
         alignItems: 'center',
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <ChatIcon sx={{ color: 'primary.main' }} />
-        <Box>
-          <Typography variant="h6" fontWeight="bold">
-            Chat Assistant
-          </Typography>
-          <Typography variant="caption">
-            We will guide you through the optimization process
-          </Typography>
-        </Box>
+      <Box>
+        <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ChatIcon sx={{ color: 'primary.main' }} />
+          Chat Assistant
+        </Typography>
+        <Typography variant="caption">
+          We will guide you through the optimization process
+        </Typography>
       </Box>
 
       {session && (

@@ -244,5 +244,6 @@ export function useChatSession() {
     formalizeProblem,
     resetFormalization,
     createNewSession,
+    sendMessage, // Export sendMessage for component generation
   };
 }

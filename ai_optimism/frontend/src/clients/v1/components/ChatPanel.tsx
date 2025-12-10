@@ -13,6 +13,7 @@ import { useChatSession } from '../hooks/useChatSession';
 import { useSessionManager } from '@/core/services/sessionManager';
 import type { Message, Session } from '@/core/services/sessionManager';
 import { aggregateControlsFromMessages } from '../services/controlsAggregator';
+import { useComponentGeneration } from '@/core/components/chat/hooks/useComponentGeneration';
 
 interface ChatPanelProps {
   onControlsGenerated?: (controls: unknown) => void;
@@ -50,7 +51,15 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
     formalizeProblem,
     resetFormalization,
     createNewSession,
+    sendMessage,
   } = useChatSession();
+
+  // Component generation hook
+  const { generateComponent } = useComponentGeneration({
+    currentSession,
+    sessionManager,
+    sendMessage,
+  });
 
   // Notify parent when session updates (to sync AppBar's currentSession)
   // Use ref to avoid dependency on callback to prevent infinite loops
@@ -270,7 +279,89 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
     return () => clearTimeout(timeoutId);
   }, [currentSession?.messages, currentSession?.id]);
 
-  // Handle formalization
+  // Track processed trigger-formalize messages to avoid duplicate triggers
+  const processedTriggerMessagesRef = useRef<Set<string>>(new Set());
+  const lastSessionIdRef = useRef<string | null>(null);
+
+  // Reset processed triggers when session changes
+  useEffect(() => {
+    if (currentSession?.id !== lastSessionIdRef.current) {
+      processedTriggerMessagesRef.current.clear();
+      lastSessionIdRef.current = currentSession?.id || null;
+    }
+  }, [currentSession?.id]);
+
+  // Track component generation state
+  const [isGeneratingComponent, setIsGeneratingComponent] = useState<string | null>(null);
+
+  // Detect trigger-formalize and trigger-generate-component messages
+  useEffect(() => {
+    if (!currentSession?.messages || !currentSession) return;
+
+    // Check for new trigger-formalize messages
+    const formalizeTriggers = currentSession.messages.filter(
+      (msg: Message) => 
+        msg.metadata?.type === 'trigger-formalize' && 
+        !processedTriggerMessagesRef.current.has(msg.id)
+    );
+
+    if (formalizeTriggers.length > 0 && !isFormalizing) {
+      // Process the most recent trigger message
+      const latestTrigger = formalizeTriggers[formalizeTriggers.length - 1];
+      processedTriggerMessagesRef.current.add(latestTrigger.id);
+
+      // Auto-trigger formalization (simulating user click)
+      const autoFormalize = async () => {
+        if (!currentSession || isFormalizing) return;
+        
+        setIsFormalizing(true);
+        try {
+          await formalizeProblem();
+        } catch (error) {
+          console.error('[ChatPanel] Auto-formalization error:', error);
+        } finally {
+          setIsFormalizing(false);
+        }
+      };
+
+      // Small delay to ensure the message is fully processed
+      setTimeout(autoFormalize, 100);
+      return;
+    }
+
+    // Check for component generation triggers
+    const componentTriggers = currentSession.messages.filter(
+      (msg: Message) => 
+        msg.metadata?.type === 'trigger-generate-component' && 
+        !processedTriggerMessagesRef.current.has(msg.id)
+    );
+
+    if (componentTriggers.length > 0 && !isGeneratingComponent) {
+      const latestTrigger = componentTriggers[componentTriggers.length - 1];
+      const component = latestTrigger.metadata?.component as 'variables' | 'properties' | 'objectives' | 'constraints';
+      
+      if (component) {
+        processedTriggerMessagesRef.current.add(latestTrigger.id);
+        
+        const autoGenerate = async () => {
+          if (!currentSession || isGeneratingComponent) return;
+          
+          setIsGeneratingComponent(component);
+          try {
+            await generateComponent(component);
+          } catch (error) {
+            console.error('[ChatPanel] Auto-component-generation error:', error);
+          } finally {
+            setIsGeneratingComponent(null);
+          }
+        };
+        
+        setTimeout(autoGenerate, 100);
+      }
+    }
+  }, [currentSession?.messages, currentSession?.id, currentSession, isFormalizing, isGeneratingComponent, formalizeProblem, generateComponent]);
+
+  // Handle formalization (manual trigger from button)
   const handleFormalize = useCallback(async () => {
     if (!currentSession || isFormalizing) return;
 
