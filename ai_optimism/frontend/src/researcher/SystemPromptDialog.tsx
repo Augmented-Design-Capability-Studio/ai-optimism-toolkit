@@ -14,7 +14,7 @@ import {
   Typography,
   Alert,
 } from '@mui/material';
-import { CHAT_SYSTEM_PROMPT } from '../core/config/prompts';
+import { CHAT_SYSTEM_PROMPT } from '@/clients/prompts';
 
 interface SystemPromptDialogProps {
   open: boolean;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { getFormalizationPrompt } from '@/core/config/prompts';
+import { getFormalizationPromptByVersion } from '@/clients/prompts';
 import { extractJSONBlocks } from '@/core/components/shared/chat/messages/utils/jsonExtractors';
 import { aggregateControlsFromMessages } from '@/clients/v1/services/controlsAggregator';
 
@@ -88,6 +88,20 @@ export async function POST(
         { error: 'AI provider not configured for this session' },
         { status: 400 }
       );
+    }
+
+    // Fetch session version for version-specific prompts
+    let sessionVersion: string | null = null;
+    try {
+      const sessionResponse = await fetch(`${baseUrl}/sessions/${sessionId}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (sessionResponse.ok) {
+        const session = await sessionResponse.json();
+        sessionVersion = session.version || null;
+      }
+    } catch (error) {
+      console.warn('[Formalize API] Could not fetch session version, using default prompt:', error);
     }
 
     // Format conversation for analysis
@@ -201,7 +215,11 @@ export async function POST(
     });
 
     // Use centralized formalization prompt with JSON structures if available
-    const formalizationPrompt = getFormalizationPrompt(conversationText, jsonStructures);
+    const formalizationPrompt = getFormalizationPromptByVersion(
+      sessionVersion,
+      conversationText,
+      jsonStructures
+    );
 
     // Generate formalization
     const modelName = aiConfig.model || 'gemini-2.5-flash-lite';

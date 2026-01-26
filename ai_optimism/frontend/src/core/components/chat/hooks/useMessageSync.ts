@@ -4,6 +4,8 @@ import { convertToUseChatMessages } from '../utils/messageConverters';
 import { getRealUserMessageCount } from '../utils/sessionHelpers';
 import { detectFormalizationReadiness } from '@/core/services/formalizationHelper';
 import { parseStructuredData, getUpdateType } from '@/core/utils/structuredDataParser';
+import { parseAnalysisBlock } from '@/core/utils/analysisParser';
+import { parseDataBlock } from '@/core/utils/dataParser';
 
 interface UseMessageSyncProps {
   currentSession: Session | null;
@@ -156,14 +158,27 @@ export function useMessageSync({
         // Parse structured data from AI response
         const structuredData = parseStructuredData(text);
         const updateType = structuredData ? getUpdateType(structuredData) : null;
+        const analysis = parseAnalysisBlock(text);
+        const dataPayload = parseDataBlock(text);
 
         // Prepare metadata
-        const metadata: Message['metadata'] = updateType
-          ? {
-              type: updateType as 'variables-update' | 'objectives-update' | 'constraints-update' | 'properties-update',
-              structuredData,
-            }
-          : undefined;
+        const metadata: Message['metadata'] | undefined =
+          updateType || analysis || dataPayload
+            ? {
+                ...(updateType
+                  ? {
+                      type: updateType as
+                        | 'variables-update'
+                        | 'objectives-update'
+                        | 'constraints-update'
+                        | 'properties-update',
+                      structuredData,
+                    }
+                  : {}),
+                ...(analysis ? { analysis } : {}),
+                ...(dataPayload ? { dataPayload } : {}),
+              }
+            : undefined;
 
         await sessionManager.addMessage(currentSession.id, 'ai', text, metadata);
 

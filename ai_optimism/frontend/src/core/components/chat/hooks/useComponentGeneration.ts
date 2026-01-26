@@ -1,5 +1,5 @@
 import { Session } from '@/core/services/sessionManager';
-import { getComponentGenerationPrompt } from '@/core/config/prompts';
+import { getComponentGenerationPromptByVersion } from '@/clients/prompts';
 import { aggregateControlsFromMessages } from '@/clients/v1/services/controlsAggregator';
 
 interface UseComponentGenerationProps {
@@ -45,7 +45,8 @@ export function useComponentGeneration({
 
       // Generate prompt using the same function used by API
       // The prompt already includes instructions to fill missing values with reasonable defaults
-      const prompt = getComponentGenerationPrompt(
+      const prompt = getComponentGenerationPromptByVersion(
+        currentSession.version || null,
         component,
         conversationText,
         existingComponents

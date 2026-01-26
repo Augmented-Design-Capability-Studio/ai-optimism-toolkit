@@ -54,7 +54,7 @@ ResearcherDashboard (page.tsx)
 
 **Formalize/Reset Button** (Purple/Secondary when ready, Warning/Orange when resetting):
 - **Formalize**: Triggers AI-based problem formalization
-  - Uses centralized prompts from `/config/prompts.ts`
+  - Uses versioned prompts from `src/clients/prompts`
   - Validates completeness of formalization
   - If incomplete: Shows amber warning bubble with "⚠️ Incomplete Formalization"
   - If complete: Shows green success bubble with "✨ Problem Formalized"
@@ -150,9 +150,9 @@ function MyDashboard() {
 - **sessionManager**: LocalStorage-based session management service
 - **ChatPanel**: User-facing chat interface with AI readiness detection
 - **AI Provider**: Google Gemini via AI SDK (client-side formalization)
-- **Centralized Prompts**: `/config/prompts.ts` for consistent AI behavior
+- **Versioned Prompts**: `src/clients/prompts` for consistent AI behavior
   - `CHAT_SYSTEM_PROMPT`: Main chat assistant instructions
-  - `getFormalizationPrompt()`: Problem formalization with validation
+- `getFormalizationPromptByVersion()`: Problem formalization with validation
   - `isIncompleteFormalization()`: Helper to detect incomplete responses
 
 ## Future Enhancements

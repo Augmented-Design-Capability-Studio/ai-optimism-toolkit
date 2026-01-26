@@ -4,8 +4,9 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { 
   CHAT_SYSTEM_PROMPT, 
   RESEARCHER_DRAFT_FORMAT_SYSTEM_APPENDIX,
-  getDraftFormattingPrompt 
-} from '@/core/config/prompts';
+  getDraftFormattingPrompt,
+  getChatSystemPromptByVersion
+} from '@/clients/prompts';
 import type { Message } from '@/core/services/sessionManager';
 
 export const runtime = 'edge';
@@ -73,7 +74,7 @@ export async function POST(
     
     const model = google(aiConfig.model || 'gemini-2.5-flash-lite');
 
-    // Get session system prompt (or use default) - fetch once for both draft and regular generation
+    // Get session system prompt (or use version default) - fetch once for both draft and regular generation
     let baseSystemPrompt = CHAT_SYSTEM_PROMPT;
     try {
       const sessionResponse = await fetch(`${baseUrl}/sessions/${sessionId}`, {
@@ -83,6 +84,8 @@ export async function POST(
         const session = await sessionResponse.json();
         if (session.systemPrompt) {
           baseSystemPrompt = session.systemPrompt;
+        } else if (session.version) {
+          baseSystemPrompt = getChatSystemPromptByVersion(session.version);
         }
       }
     } catch (error) {

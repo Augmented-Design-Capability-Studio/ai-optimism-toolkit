@@ -248,6 +248,7 @@ export const useResearcherSessions = () => {
         model: model || 'gemini-2.5-flash-lite',
         messages: session.messages,
         sessionManager,
+        sessionVersion: session.version || null,
       });
       
       await loadSessions();
@@ -349,6 +350,7 @@ export const useResearcherSessions = () => {
         model: model || 'gemini-2.5-flash-lite',
         messages: session.messages,
         sessionManager,
+        sessionVersion: session.version || null,
       });
       
       await loadSessions();

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { getComponentGenerationPrompt } from '@/core/config/prompts';
+import { getComponentGenerationPromptByVersion } from '@/clients/prompts';
 import { extractJSONBlocks } from '@/core/components/shared/chat/messages/utils/jsonExtractors';
 import { aggregateControlsFromMessages } from '@/clients/v1/services/controlsAggregator';
 import type { Controls } from '@/clients/v1/components/controls/controls/types';
@@ -168,6 +168,20 @@ export async function POST(
       }
     }
 
+    // Fetch session version for version-specific prompts
+    let sessionVersion: string | null = null;
+    try {
+      const sessionResponse = await fetch(`${baseUrl}/sessions/${sessionId}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (sessionResponse.ok) {
+        const session = await sessionResponse.json();
+        sessionVersion = session.version || null;
+      }
+    } catch (error) {
+      console.warn('[Component Generation API] Could not fetch session version, using default prompt:', error);
+    }
+
     // Format conversation for analysis
     const conversationText = formatMessagesAsConversation(sessionMessages);
 
@@ -213,7 +227,8 @@ export async function POST(
 
     // Generate component using AI
     const finalModel = aiConfig.model || modelName || 'gemini-2.5-flash-lite';
-    const prompt = getComponentGenerationPrompt(
+    const prompt = getComponentGenerationPromptByVersion(
+      sessionVersion,
       component as ComponentType,
       conversationText,
       existingContext

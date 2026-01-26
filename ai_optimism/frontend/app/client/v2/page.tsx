@@ -2,18 +2,30 @@
 
 import { Box } from '@mui/material';
 import { ChatPanel } from '../../../src/clients/v2/components/ChatPanel';
-import { CanvasPanel } from '../../../src/clients/v2/components/CanvasPanel';
+import { ReasoningPanel } from '../../../src/clients/v2/components/ReasoningPanel';
+import { ProblemSetupPanel } from '../../../src/clients/v2/components/ProblemSetupPanel';
+import { DataPanel } from '../../../src/clients/v2/components/DataPanel';
 import { AppBar } from '../../../src/core/components/layout/AppBar';
 import { ClientAuthWrapper } from '../../../src/core/components/auth/ClientAuthWrapper';
 import { VersionProvider } from '../../../src/core/contexts/VersionContext';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useSessionManager, Session } from '../../../src/core/services/sessionManager';
+import { useSessionManager, Session, Message } from '../../../src/core/services/sessionManager';
 import type { AISessionConfigStatus } from '../../../src/core/services/sessionManager';
+import { aggregateControlsFromMessages } from '../../../src/core/services/controlsAggregator';
+import { getLatestAnalysisFromMessages } from '../../../src/clients/v2/services/analysisAggregator';
+import { getLatestDataFromMessages } from '../../../src/clients/v2/services/dataAggregator';
+import type { AnalysisBlock } from '../../../src/core/utils/analysisParser';
+import type { DataPayload } from '../../../src/core/utils/dataParser';
+import type { Controls } from '../../../src/core/components/controls/types';
+import type { PartialControls } from '../../../src/core/utils/structuredDataParser';
 
 export default function ClientV2Page() {
   const sessionManager = useSessionManager();
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const prevSessionRef = useRef<Session | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisBlock | null>(null);
+  const [controls, setControls] = useState<Controls | null>(null);
+  const [dataPayload, setDataPayload] = useState<DataPayload | null>(null);
   
   // Load current session on mount
   // ChatPanel's useSessionLifecycle already subscribes to updates, so we'll sync via callback
@@ -76,6 +88,82 @@ export default function ClientV2Page() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!currentSession?.messages) {
+      setAnalysis(null);
+      setControls(null);
+      setDataPayload(null);
+      return;
+    }
+    setAnalysis(getLatestAnalysisFromMessages(currentSession.messages));
+    setControls(aggregateControlsFromMessages(currentSession.messages));
+    setDataPayload(getLatestDataFromMessages(currentSession.messages));
+  }, [currentSession?.id, currentSession?.messages?.length]);
+
+  const appendLocalMessage = useCallback((content: string, metadata?: Message['metadata']) => {
+    if (!currentSession) return;
+    const now = Date.now();
+    const localMessage = {
+      id: `local-${now}`,
+      sessionId: currentSession.id,
+      sender: 'user' as const,
+      content,
+      timestamp: now,
+      metadata,
+    };
+    const nextMessages = [...(currentSession.messages || []), localMessage];
+    setAnalysis(getLatestAnalysisFromMessages(nextMessages));
+    setControls(aggregateControlsFromMessages(nextMessages));
+    setDataPayload(getLatestDataFromMessages(nextMessages));
+  }, [currentSession]);
+
+  const handleAnalysisSave = useCallback(async (nextAnalysis: AnalysisBlock) => {
+    if (!currentSession) return;
+    setAnalysis(nextAnalysis);
+    const content = `Updated reasoning panel:\n\`\`\`analysis\n${JSON.stringify(nextAnalysis, null, 2)}\n\`\`\``;
+    const metadata = { type: 'panel-update' as const, analysis: nextAnalysis };
+    appendLocalMessage(content, metadata);
+    await sessionManager.addMessage(currentSession.id, 'user', content, metadata);
+  }, [appendLocalMessage, currentSession, sessionManager]);
+
+  const handleComponentApply = useCallback(async (
+    component: 'variables' | 'objectives' | 'constraints' | 'properties',
+    data: Array<Record<string, unknown>>
+  ) => {
+    if (!currentSession) return;
+    const payload = { [component]: data };
+    const content = `Updated ${component}:\n\`\`\`json\n${JSON.stringify(payload, null, 2)}\n\`\`\``;
+    const metadata = {
+      type: `${component}-update` as const,
+      structuredData: payload,
+    };
+    appendLocalMessage(content, metadata);
+    await sessionManager.addMessage(currentSession.id, 'user', content, metadata);
+  }, [appendLocalMessage, currentSession, sessionManager]);
+
+  const handleDataSave = useCallback(async (nextData: DataPayload) => {
+    if (!currentSession) return;
+    setDataPayload(nextData);
+    const content = `Updated data panel:\n\`\`\`data\n${JSON.stringify(nextData, null, 2)}\n\`\`\``;
+    const metadata = { type: 'panel-update' as const, dataPayload: nextData };
+    appendLocalMessage(content, metadata);
+    await sessionManager.addMessage(currentSession.id, 'user', content, metadata);
+  }, [appendLocalMessage, currentSession, sessionManager]);
+
+  const handleControlsUpdate = useCallback((partial: PartialControls | null) => {
+    if (!partial) return;
+    setControls((prev) => {
+      const base: Controls = prev || { variables: [] };
+      return {
+        ...base,
+        ...(partial.variables ? { variables: partial.variables as any } : {}),
+        ...(partial.objectives ? { objectives: partial.objectives as any } : {}),
+        ...(partial.constraints ? { constraints: partial.constraints as any } : {}),
+        ...(partial.properties ? { properties: partial.properties as any } : {}),
+      };
+    });
+  }, []);
+
   return (
     <ClientAuthWrapper>
       {(handleLogout) => (
@@ -89,12 +177,25 @@ export default function ClientV2Page() {
               onAIConfigUpdate={handleAIConfigUpdate}
             />
 
-            <Box sx={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, p: 2, minHeight: 0 }}>
-              <Box sx={{ height: '100%', overflow: 'hidden' }}>
-                <ChatPanel onSessionUpdate={handleSessionUpdate} />
+            <Box sx={{ flex: 1, display: 'grid', gridTemplateRows: 'minmax(0, 1fr) 260px', gap: 2, p: 2, minHeight: 0 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1.1fr', gap: 2, minHeight: 0 }}>
+                <Box sx={{ height: '100%', overflow: 'hidden' }}>
+                  <ChatPanel
+                    onSessionUpdate={handleSessionUpdate}
+                    onControlsUpdate={handleControlsUpdate}
+                    onAnalysisUpdate={setAnalysis}
+                    onDataUpdate={setDataPayload}
+                  />
+                </Box>
+                <Box sx={{ height: '100%', overflow: 'hidden' }}>
+                  <ReasoningPanel analysis={analysis} onSave={handleAnalysisSave} />
+                </Box>
+                <Box sx={{ height: '100%', overflow: 'hidden' }}>
+                  <ProblemSetupPanel controls={controls} onApplyComponent={handleComponentApply} />
+                </Box>
               </Box>
               <Box sx={{ height: '100%', overflow: 'hidden' }}>
-                <CanvasPanel />
+                <DataPanel dataPayload={dataPayload} onSave={handleDataSave} />
               </Box>
             </Box>
           </Box>

@@ -5,7 +5,7 @@
 import { streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { Message } from './sessionManager';
-import { getFormalizationPrompt, isIncompleteFormalization } from '../config/prompts';
+import { getFormalizationPromptByVersion, isIncompleteFormalization } from '@/clients/prompts';
 import { extractJSONBlocks } from '../components/shared/chat/messages/utils/jsonExtractors';
 import { aggregateControlsFromMessages } from './controlsAggregator';
 
@@ -15,6 +15,7 @@ export interface FormalizationConfig {
   model: string;
   messages: Message[];
   sessionManager: any; // Will be typed properly
+  sessionVersion?: string | null;
 }
 
 /**
@@ -22,7 +23,7 @@ export interface FormalizationConfig {
  * Returns true if successful, false otherwise
  */
 export async function executeFormalization(config: FormalizationConfig): Promise<boolean> {
-  const { sessionId, apiKey, model, messages } = config;
+  const { sessionId, apiKey, model, messages, sessionVersion } = config;
 
   try {
     // Build conversation context with proper role labels
@@ -123,7 +124,11 @@ export async function executeFormalization(config: FormalizationConfig): Promise
       }
     }
 
-    const formalizationPrompt = getFormalizationPrompt(conversationContext, jsonStructures);
+    const formalizationPrompt = getFormalizationPromptByVersion(
+      sessionVersion || null,
+      conversationContext,
+      jsonStructures
+    );
 
     // Initialize Google AI
     const google = createGoogleGenerativeAI({ apiKey });

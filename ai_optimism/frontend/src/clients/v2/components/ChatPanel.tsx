@@ -9,13 +9,28 @@ import {
 } from '@/core/components/chat';
 import { useChatSession } from '../hooks/useChatSession';
 import type { Session } from '@/core/services/sessionManager';
+import { parseStructuredData } from '@/core/utils/structuredDataParser';
+import { parseAnalysisBlock } from '@/core/utils/analysisParser';
+import { parseDataBlock } from '@/core/utils/dataParser';
+import type { PartialControls } from '@/core/utils/structuredDataParser';
+import type { AnalysisBlock } from '@/core/utils/analysisParser';
+import type { DataPayload } from '@/core/utils/dataParser';
 
 interface ChatPanelProps {
   onControlsGenerated?: (controls: unknown) => void;
   onSessionUpdate?: (session: Session | null) => void;
+  onControlsUpdate?: (controls: PartialControls | null) => void;
+  onAnalysisUpdate?: (analysis: AnalysisBlock | null) => void;
+  onDataUpdate?: (data: DataPayload | null) => void;
 }
 
-export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelProps) {
+export function ChatPanel({
+  onControlsGenerated,
+  onSessionUpdate,
+  onControlsUpdate,
+  onAnalysisUpdate,
+  onDataUpdate,
+}: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +59,23 @@ export function ChatPanel({ onControlsGenerated, onSessionUpdate }: ChatPanelPro
   useEffect(() => {
     onSessionUpdateRef.current = onSessionUpdate;
   }, [onSessionUpdate]);
+
+  const lastParsedMessageRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!displayMessages || displayMessages.length === 0) return;
+    const lastAssistant = [...displayMessages].reverse().find((m) => m.role === 'assistant');
+    if (!lastAssistant?.content) return;
+    if (lastParsedMessageRef.current === lastAssistant.content) return;
+    lastParsedMessageRef.current = lastAssistant.content;
+
+    const structuredData = parseStructuredData(lastAssistant.content);
+    const analysis = parseAnalysisBlock(lastAssistant.content);
+    const dataPayload = parseDataBlock(lastAssistant.content);
+
+    if (onControlsUpdate) onControlsUpdate(structuredData || null);
+    if (onAnalysisUpdate) onAnalysisUpdate(analysis || null);
+    if (onDataUpdate) onDataUpdate(dataPayload || null);
+  }, [displayMessages, onControlsUpdate, onAnalysisUpdate, onDataUpdate]);
   
   useEffect(() => {
     const sess = currentSession;

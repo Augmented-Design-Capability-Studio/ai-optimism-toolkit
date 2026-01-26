@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText, convertToCoreMessages } from 'ai';
-import { CHAT_SYSTEM_PROMPT } from '../../../src/core/config/prompts';
+import { CHAT_SYSTEM_PROMPT, getChatSystemPromptByVersion } from '@/clients/prompts';
 
 export const runtime = 'edge';
 
@@ -181,7 +181,7 @@ export async function POST(req: Request) {
         lastMessage: coreMessages[coreMessages.length - 1],
       });
       
-      // Get session system prompt (or use default)
+      // Get session system prompt (or use version default)
       let systemPrompt = CHAT_SYSTEM_PROMPT;
       try {
         const sessionResponse = await fetch(`${baseUrl}/sessions/${sessionId}`, {
@@ -191,6 +191,8 @@ export async function POST(req: Request) {
           const session = await sessionResponse.json();
           if (session.systemPrompt) {
             systemPrompt = session.systemPrompt;
+          } else if (session.version) {
+            systemPrompt = getChatSystemPromptByVersion(session.version);
           }
         }
       } catch (error) {
