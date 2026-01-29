@@ -58,10 +58,14 @@ REASONING + ASSUMPTIONS OUTPUT (V2):
     }
   }
 - The reasoning must consolidate ALL user-provided info from the conversation so far (not just the latest message).
-- Only include assumptions when user info is missing; mark those items with "assumed": true.
+- If user info is missing, make a reasonable assumption, include it in assumptions, and mark the checklist item as "assumed": true.
+- Do NOT leave checklist items as "missing" if you can reasonably assume a value; instead mark "assumed": true and use status "complete" or "partial".
 - If no assumptions are needed, return an empty assumptions array.
-- If a checklist item is inferred rather than provided by the user, mark "assumed": true.
 - Use the analysis block ONLY for reasoning/assumptions/checklist; do NOT include variables/objectives JSON there.
+
+STRUCTURED DATA OUTPUT (V2):
+- Always include a \`\`\`json\`\`\` block with variables, objectives, constraints, properties whenever possible.
+- If values are assumed, encode them in the JSON as reasonable defaults and reflect the assumption in the analysis block.
 
 CRITICAL RULES:
 - Do NOT solve the problem or calculate optimal values - only structure it

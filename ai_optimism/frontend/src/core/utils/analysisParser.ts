@@ -31,6 +31,59 @@ export function parseAnalysisBlock(text: string): AnalysisBlock | null {
   }
 }
 
+export function parseAnalysisBlockLoose(text: string): AnalysisBlock | null {
+  const fenced = parseAnalysisBlock(text);
+  if (fenced) return fenced;
+
+  const analysisIndex = text.toLowerCase().indexOf('analysis');
+  if (analysisIndex === -1) return null;
+
+  const jsonStart = text.indexOf('{', analysisIndex);
+  if (jsonStart === -1) return null;
+
+  const jsonText = extractJsonObject(text.slice(jsonStart));
+  if (!jsonText) return null;
+
+  try {
+    const parsed = JSON.parse(jsonText);
+    return normalizeAnalysisBlock(parsed);
+  } catch (error) {
+    console.warn('[analysisParser] Failed to parse loose analysis block:', error);
+    return null;
+  }
+}
+
+function extractJsonObject(text: string): string | null {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (char === '\\') {
+      escape = true;
+      continue;
+    }
+    if (char === '"' && !escape) {
+      inString = !inString;
+    }
+    if (inString) continue;
+
+    if (char === '{') depth += 1;
+    if (char === '}') depth -= 1;
+
+    if (depth === 0 && char === '}') {
+      return text.slice(0, i + 1);
+    }
+  }
+
+  return null;
+}
+
 function normalizeChecklistItems(value: any): AnalysisChecklistItem[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const normalized = value

@@ -8,6 +8,7 @@ import { useSessionLifecycle } from '@/core/components/chat/hooks/useSessionLife
 import { useChatTransport } from '@/core/components/chat/hooks/useChatTransport';
 import { useMessageSync } from '@/core/components/chat/hooks/useMessageSync';
 import { useDisplayMessages } from '@/core/components/chat/hooks/useDisplayMessages';
+import { convertToUseChatMessages } from '@/core/components/chat/utils/messageConverters';
 
 export function useChatSession() {
   const { state: backendState } = useBackend();
@@ -73,7 +74,7 @@ export function useChatSession() {
     sessionManager,
   });
 
-  const { displayMessages } = useDisplayMessages({
+  const { displayMessages, setOptimisticMessages } = useDisplayMessages({
     currentSession,
     isResearcherControlled: isResearcherControlledMode,
     messages,
@@ -94,16 +95,87 @@ export function useChatSession() {
     inputRef.current = '';
     setInput('');
 
-    if (!isResearcherControlledMode) {
-      sendMessage({
-        role: 'user',
-        parts: [{ type: 'text', text: userMessageText }],
+    const optimisticId = `optimistic-${Date.now()}-${Math.random()}`;
+    const optimisticTimestamp = Date.now();
+    setOptimisticMessages((prev) => {
+      const newMap = new Map(prev);
+      newMap.set(optimisticId, {
+        content: userMessageText,
+        timestamp: optimisticTimestamp,
       });
-    } else {
-      await sessionManager.updateSession(currentSession.id, {
-        status: 'waiting',
-        readyToFormalize: false,
+      return newMap;
+    });
+
+    try {
+      const message = await sessionManager.addMessage(
+        currentSession.id,
+        'user',
+        userMessageText
+      );
+
+      if (!message) {
+        setSessionDeleted(true);
+        setCurrentSession(null);
+        setOptimisticMessages((prev) => {
+          const newMap = new Map(prev);
+          newMap.delete(optimisticId);
+          return newMap;
+        });
+        return;
+      }
+
+      try {
+        const updatedSession = await sessionManager.getSession(currentSession.id);
+        if (updatedSession) {
+          setCurrentSession(updatedSession);
+        }
+      } catch (error) {
+        console.warn('[useChatSession] Could not refresh session after sending message:', error);
+      }
+
+      if (!isResearcherControlledMode) {
+        const sessionMessages = Array.isArray(currentSession.messages)
+          ? currentSession.messages
+          : [];
+        const backendChatMessages = convertToUseChatMessages(sessionMessages);
+
+        const useChatMessageIds = new Set(messages.map((m: any) => m.id));
+        const needsSync =
+          backendChatMessages.length > messages.length ||
+          backendChatMessages.some((m: any) => !useChatMessageIds.has(m.id));
+
+        if (needsSync && setMessages) {
+          setMessages(backendChatMessages);
+        }
+
+        sendMessage({
+          role: 'user',
+          parts: [{ type: 'text', text: userMessageText }],
+        });
+      } else {
+        await sessionManager.updateSession(currentSession.id, {
+          status: 'waiting',
+          readyToFormalize: false,
+        });
+      }
+    } catch (error) {
+      setOptimisticMessages((prev) => {
+        const newMap = new Map(prev);
+        newMap.delete(optimisticId);
+        return newMap;
       });
+
+      console.error('[useChatSession] Error submitting message:', error);
+
+      const errorMessage = String((error as any)?.message || '');
+      if (
+        errorMessage.includes('404') ||
+        errorMessage.includes('not found') ||
+        errorMessage.includes('deleted')
+      ) {
+        setSessionDeleted(true);
+        setCurrentSession(null);
+      }
     }
   };
 

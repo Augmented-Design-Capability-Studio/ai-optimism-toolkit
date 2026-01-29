@@ -10,7 +10,7 @@ import {
 import { useChatSession } from '../hooks/useChatSession';
 import type { Session } from '@/core/services/sessionManager';
 import { parseStructuredData } from '@/core/utils/structuredDataParser';
-import { parseAnalysisBlock } from '@/core/utils/analysisParser';
+import { parseAnalysisBlockLoose } from '@/core/utils/analysisParser';
 import { parseDataBlock } from '@/core/utils/dataParser';
 import type { PartialControls } from '@/core/utils/structuredDataParser';
 import type { AnalysisBlock } from '@/core/utils/analysisParser';
@@ -69,7 +69,7 @@ export function ChatPanel({
     lastParsedMessageRef.current = lastAssistant.content;
 
     const structuredData = parseStructuredData(lastAssistant.content);
-    const analysis = parseAnalysisBlock(lastAssistant.content);
+    const analysis = parseAnalysisBlockLoose(lastAssistant.content);
     const dataPayload = parseDataBlock(lastAssistant.content);
 
     if (onControlsUpdate) onControlsUpdate(structuredData || null);
